@@ -34,7 +34,6 @@ export default function Jobs() {
   
   const [category, setCategory] = useState(initialCategory);
   const [jobType, setJobType] = useState("all");
-  const [caribbeanFriendly, setCaribbeanFriendly] = useState(false);
   const [entryLevel, setEntryLevel] = useState(false);
   const [featured, setFeatured] = useState(initialFeatured);
   const [page, setPage] = useState(1);
@@ -46,7 +45,6 @@ export default function Jobs() {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(category !== "all" ? { category } : {}),
     ...(jobType !== "all" ? { jobType } : {}),
-    ...(caribbeanFriendly ? { caribbeanFriendly: true } : {}),
     ...(entryLevel ? { entryLevel: true } : {}),
     ...(featured ? { featured: true } : {}),
     page,
@@ -57,7 +55,7 @@ export default function Jobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, caribbeanFriendly, entryLevel, featured]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -94,16 +92,6 @@ export default function Jobs() {
 
       <div className="space-y-4">
         <Label>Filters</Label>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="caribbeanFriendly" 
-            checked={caribbeanFriendly} 
-            onCheckedChange={(c) => setCaribbeanFriendly(c as boolean)} 
-          />
-          <Label htmlFor="caribbeanFriendly" className="font-normal cursor-pointer">
-            Caribbean Friendly Only
-          </Label>
-        </div>
         <div className="flex items-center space-x-2">
           <Checkbox 
             id="entryLevel" 

@@ -1,7 +1,7 @@
 import { getStripeSync } from "./stripeClient";
 import { db, jobOrdersTable, certificationOrdersTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
-import { sendOrderConfirmation } from "./resend";
+import { sendOrderConfirmation, sendCertificationApplicationConfirmation } from "./resend";
 import { logger } from "./logger";
 
 export class WebhookHandlers {
@@ -41,10 +41,27 @@ export class WebhookHandlers {
 
       if (sessionId) {
         if (productType === "certification") {
-          await db
+          const [updatedCert] = await db
             .update(certificationOrdersTable)
             .set({ status: "paid" })
-            .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
+            .where(
+              and(
+                eq(certificationOrdersTable.stripeSessionId, sessionId),
+                ne(certificationOrdersTable.status, "paid"),
+              ),
+            )
+            .returning();
+
+          if (updatedCert) {
+            try {
+              await sendCertificationApplicationConfirmation({
+                email: updatedCert.email,
+                companyName: updatedCert.companyName,
+              });
+            } catch (emailErr) {
+              logger.error({ emailErr }, "Failed to send certification application confirmation email — order is still marked paid");
+            }
+          }
         } else {
           const [updatedOrder] = await db
             .update(jobOrdersTable)

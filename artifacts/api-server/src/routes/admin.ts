@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { sendOrderConfirmation } from "../lib/resend";
+import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -134,6 +134,15 @@ router.post("/admin/certifications/:id/approve", async (req, res): Promise<void>
     .set({ status: "approved" })
     .where(eq(certificationOrdersTable.id, id))
     .returning();
+
+  try {
+    await sendCertificationApprovalConfirmation({
+      email: cert.email,
+      companyName: cert.companyName,
+    });
+  } catch (emailErr) {
+    logger.error({ emailErr }, "Failed to send certification approval confirmation email — approval still recorded");
+  }
 
   const expiresAt = new Date();
   expiresAt.setFullYear(expiresAt.getFullYear() + 1);

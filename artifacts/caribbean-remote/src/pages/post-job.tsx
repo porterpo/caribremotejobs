@@ -160,6 +160,9 @@ export default function PostJob() {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState<false | "new" | "updated">(false);
   const [featuredJobId, setFeaturedJobId] = useState("");
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendState, setResendState] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [resendError, setResendError] = useState("");
   const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
   const [draftSaved, setDraftSaved] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -525,18 +528,100 @@ export default function PostJob() {
       setErrors((err) => ({ ...err, [field]: "" }));
     };
 
+  const handleResend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResendError("");
+    setResendState("loading");
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/jobs/resend-edit-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resendEmail }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setResendError((err as { error?: string }).error ?? "Something went wrong. Please try again.");
+        setResendState("error");
+      } else {
+        setResendState("sent");
+      }
+    } catch {
+      setResendError("Could not connect to the server. Please try again.");
+      setResendState("error");
+    }
+  };
+
   if (!sessionId) {
     return (
       <PageLayout>
-        <div className="container mx-auto px-4 py-24 text-center text-muted-foreground">
-          <AlertCircle className="h-10 w-10 mx-auto mb-4 text-destructive" />
-          <p className="font-medium">Invalid order link.</p>
-          <p className="text-sm mt-2">
-            Please use the link from your confirmation page.
+        <div className="container mx-auto px-4 py-16 max-w-md">
+          <div className="text-center mb-8">
+            <Link2 className="h-10 w-10 mx-auto mb-4 text-primary" />
+            <h1 className="text-2xl font-bold mb-2">Recover Your Edit Link</h1>
+            <p className="text-muted-foreground text-sm">
+              Enter the email you used to purchase your job listing and we'll
+              resend your edit link.
+            </p>
+          </div>
+
+          {resendState === "sent" ? (
+            <div className="text-center py-8">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <p className="font-medium text-lg mb-2">Check your inbox</p>
+              <p className="text-sm text-muted-foreground">
+                If we found a pending job listing for that email address, we've
+                sent the edit link. It may take a minute to arrive.
+              </p>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <form onSubmit={handleResend} className="space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="resend-email">Email address</Label>
+                    <Input
+                      id="resend-email"
+                      data-testid="resend-email-input"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={resendEmail}
+                      onChange={(e) => {
+                        setResendEmail(e.target.value);
+                        setResendError("");
+                      }}
+                      required
+                    />
+                  </div>
+                  {resendError && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {resendError}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    data-testid="resend-edit-link-btn"
+                    disabled={resendState === "loading" || !resendEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resendEmail)}
+                  >
+                    {resendState === "loading" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="mr-2 h-4 w-4" />
+                    )}
+                    Send My Edit Link
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Don't have an account yet?{" "}
+            <Link href="/pricing" className="underline text-foreground">
+              View pricing
+            </Link>
           </p>
-          <Button asChild variant="outline" className="mt-6">
-            <Link href="/pricing">View Pricing</Link>
-          </Button>
         </div>
       </PageLayout>
     );
@@ -566,6 +651,14 @@ export default function PostJob() {
           <Button asChild>
             <Link href="/jobs">Browse Jobs</Link>
           </Button>
+          {!isFeaturedUpgrade && (
+            <p className="text-sm text-muted-foreground mt-6">
+              Can't find your edit link email?{" "}
+              <Link href="/post-job" className="underline text-foreground">
+                Resend it here
+              </Link>
+            </p>
+          )}
         </div>
       </PageLayout>
     );

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, jobOrdersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, isNotNull, ne, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation } from "../lib/resend";
 
@@ -319,6 +319,49 @@ router.put("/jobs/update", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Error updating job");
     res.status(500).json({ error: "Failed to update job" });
+  }
+});
+
+router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const email = String(body.email ?? "").trim().toLowerCase();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "A valid email address is required" });
+    return;
+  }
+
+  try {
+    const orders = await db
+      .select({
+        order: jobOrdersTable,
+        job: jobsTable,
+      })
+      .from(jobOrdersTable)
+      .innerJoin(jobsTable, eq(jobOrdersTable.jobId, jobsTable.id))
+      .where(
+        and(
+          sql`lower(${jobOrdersTable.email}) = ${email}`,
+          eq(jobOrdersTable.status, "paid"),
+          isNotNull(jobOrdersTable.jobId),
+          ne(jobOrdersTable.productType, "featured"),
+          eq(jobsTable.approved, false),
+        )
+      );
+
+    for (const { order, job } of orders) {
+      await sendJobSubmissionConfirmation({
+        email: order.email,
+        sessionId: order.stripeSessionId,
+        jobTitle: job.title,
+        companyName: job.companyName,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Error resending edit link");
+    res.status(500).json({ error: "Failed to send edit link" });
   }
 });
 

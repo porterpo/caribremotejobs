@@ -27,13 +27,28 @@ export function JobCard({ job }: JobCardProps) {
       
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row gap-4 items-start">
-          <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white">
-            {job.companyLogo ? (
-              <img src={job.companyLogo} alt={`${job.companyName} logo`} className="h-full w-full object-contain p-1" />
-            ) : (
-              <Building2 className="h-6 w-6 text-muted-foreground" />
-            )}
-          </div>
+          {job.companyId ? (
+            <Link
+              href={`/companies/${job.companyId}`}
+              className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white hover:ring-2 hover:ring-primary/30 transition-shadow"
+              aria-label={`View ${job.companyName} profile`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {job.companyLogo ? (
+                <img src={job.companyLogo} alt={`${job.companyName} logo`} className="h-full w-full object-contain p-1" />
+              ) : (
+                <Building2 className="h-6 w-6 text-muted-foreground" />
+              )}
+            </Link>
+          ) : (
+            <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white">
+              {job.companyLogo ? (
+                <img src={job.companyLogo} alt={`${job.companyName} logo`} className="h-full w-full object-contain p-1" />
+              ) : (
+                <Building2 className="h-6 w-6 text-muted-foreground" />
+              )}
+            </div>
+          )}
           
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">

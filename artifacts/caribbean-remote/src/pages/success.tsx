@@ -99,8 +99,8 @@ export default function Success() {
                 </div>
               </div>
               <Button asChild size="lg" className="w-full" data-testid="post-job-btn">
-                <Link href={`/post-job?orderId=${order.id}`}>
-                  Post Your Job Now
+                <Link href={`/post-job?sessionId=${sessionId}`}>
+                  {order.productType === "featured" ? "Apply Featured Upgrade" : "Post Your Job Now"}
                 </Link>
               </Button>
               <p className="text-xs text-center text-muted-foreground">

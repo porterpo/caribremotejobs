@@ -8,7 +8,7 @@ const router: IRouter = Router();
 router.post("/jobs/submit", async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
 
-  const orderId = typeof body.orderId === "number" ? body.orderId : parseInt(String(body.orderId));
+  const sessionId = String(body.sessionId ?? "").trim();
   const title = String(body.title ?? "").trim();
   const companyName = String(body.companyName ?? "").trim();
   const category = String(body.category ?? "").trim();
@@ -17,10 +17,12 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
   const applyUrl = String(body.applyUrl ?? "").trim();
   const salaryMin = body.salaryMin ? Number(body.salaryMin) : null;
   const salaryMax = body.salaryMax ? Number(body.salaryMax) : null;
-  const locationRestrictions = body.locationRestrictions ? String(body.locationRestrictions).trim() : null;
+  const locationRestrictions = body.locationRestrictions
+    ? String(body.locationRestrictions).trim()
+    : null;
 
-  if (!orderId || isNaN(orderId)) {
-    res.status(400).json({ error: "Valid orderId is required" });
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
     return;
   }
   if (!title || title.length < 3) {
@@ -36,7 +38,9 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
     return;
   }
   if (!description || description.length < 50) {
-    res.status(400).json({ error: "Description must be at least 50 characters" });
+    res
+      .status(400)
+      .json({ error: "Description must be at least 50 characters" });
     return;
   }
   if (!applyUrl || !/^https?:\/\/.+/.test(applyUrl)) {
@@ -44,13 +48,11 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
     return;
   }
 
-  const jobData = { title, companyName, category, jobType, description, applyUrl, salaryMin, salaryMax, locationRestrictions };
-
   try {
     const [order] = await db
       .select()
       .from(jobOrdersTable)
-      .where(eq(jobOrdersTable.id, orderId));
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
     if (!order) {
       res.status(404).json({ error: "Order not found" });
@@ -58,12 +60,24 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
     }
 
     if (order.status !== "paid") {
-      res.status(402).json({ error: "Payment not confirmed yet. Please wait a moment and try again." });
+      res.status(402).json({
+        error: "Payment not confirmed yet. Please wait a moment and try again.",
+      });
       return;
     }
 
     if (order.jobsRemaining <= 0) {
-      res.status(403).json({ error: "No job slots remaining on this order." });
+      res
+        .status(403)
+        .json({ error: "No job slots remaining on this order." });
+      return;
+    }
+
+    if (order.productType === "featured" && order.jobId !== null) {
+      res.status(400).json({
+        error:
+          "This Featured Upgrade order was already used. Use the featured upgrade endpoint to apply it to an existing job.",
+      });
       return;
     }
 
@@ -72,15 +86,15 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
     const [job] = await db
       .insert(jobsTable)
       .values({
-        title: jobData.title,
-        companyName: jobData.companyName,
-        category: jobData.category,
-        jobType: jobData.jobType,
-        description: jobData.description,
-        applyUrl: jobData.applyUrl,
-        salaryMin: jobData.salaryMin ?? null,
-        salaryMax: jobData.salaryMax ?? null,
-        locationRestrictions: jobData.locationRestrictions ?? null,
+        title,
+        companyName,
+        category,
+        jobType,
+        description,
+        applyUrl,
+        salaryMin: salaryMin ?? null,
+        salaryMax: salaryMax ?? null,
+        locationRestrictions: locationRestrictions ?? null,
         source: "employer",
         caribbeanFriendly: true,
         featured: isFeatured,
@@ -93,12 +107,82 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
     await db
       .update(jobOrdersTable)
       .set({ jobsRemaining: order.jobsRemaining - 1, jobId: job.id })
-      .where(eq(jobOrdersTable.id, orderId));
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
     res.status(201).json({ job, jobsRemaining: order.jobsRemaining - 1 });
   } catch (err) {
     logger.error({ err }, "Error submitting job");
     res.status(500).json({ error: "Failed to submit job" });
+  }
+});
+
+router.post("/jobs/feature", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+
+  const sessionId = String(body.sessionId ?? "").trim();
+  const jobId = typeof body.jobId === "number" ? body.jobId : parseInt(String(body.jobId));
+
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  if (!jobId || isNaN(jobId)) {
+    res.status(400).json({ error: "jobId is required" });
+    return;
+  }
+
+  try {
+    const [order] = await db
+      .select()
+      .from(jobOrdersTable)
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.productType !== "featured") {
+      res.status(400).json({ error: "This order is not a Featured Upgrade" });
+      return;
+    }
+
+    if (order.status !== "paid") {
+      res.status(402).json({
+        error: "Payment not confirmed yet. Please wait a moment and try again.",
+      });
+      return;
+    }
+
+    if (order.jobsRemaining <= 0) {
+      res.status(403).json({ error: "This featured upgrade has already been used." });
+      return;
+    }
+
+    const [job] = await db
+      .select()
+      .from(jobsTable)
+      .where(eq(jobsTable.id, jobId));
+
+    if (!job) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+
+    await db
+      .update(jobsTable)
+      .set({ featured: true })
+      .where(eq(jobsTable.id, jobId));
+
+    await db
+      .update(jobOrdersTable)
+      .set({ jobsRemaining: 0, jobId })
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    res.json({ success: true, jobId, message: "Job has been featured for 30 days." });
+  } catch (err) {
+    logger.error({ err }, "Error applying featured upgrade");
+    res.status(500).json({ error: "Failed to apply featured upgrade" });
   }
 });
 

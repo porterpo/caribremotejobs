@@ -186,4 +186,117 @@ router.post("/jobs/feature", async (req, res): Promise<void> => {
   }
 });
 
+router.put("/jobs/update", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+
+  const sessionId = String(body.sessionId ?? "").trim();
+  const title = String(body.title ?? "").trim();
+  const companyName = String(body.companyName ?? "").trim();
+  const category = String(body.category ?? "").trim();
+  const jobType = String(body.jobType ?? "full-time").trim();
+  const description = String(body.description ?? "").trim();
+  const applyUrl = String(body.applyUrl ?? "").trim();
+  const salaryMin = body.salaryMin ? Number(body.salaryMin) : null;
+  const salaryMax = body.salaryMax ? Number(body.salaryMax) : null;
+  const locationRestrictions = body.locationRestrictions
+    ? String(body.locationRestrictions).trim()
+    : null;
+
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  if (!title || title.length < 3) {
+    res.status(400).json({ error: "Job title must be at least 3 characters" });
+    return;
+  }
+  if (!companyName) {
+    res.status(400).json({ error: "Company name is required" });
+    return;
+  }
+  if (!category) {
+    res.status(400).json({ error: "Category is required" });
+    return;
+  }
+  if (!description || description.length < 50) {
+    res.status(400).json({ error: "Description must be at least 50 characters" });
+    return;
+  }
+  if (!applyUrl || !/^https?:\/\/.+/.test(applyUrl)) {
+    res.status(400).json({ error: "A valid apply URL is required" });
+    return;
+  }
+
+  try {
+    const [order] = await db
+      .select()
+      .from(jobOrdersTable)
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.status !== "paid") {
+      res.status(402).json({
+        error: "Payment not confirmed yet. Please wait a moment and try again.",
+      });
+      return;
+    }
+
+    if (order.productType === "featured") {
+      res.status(400).json({
+        error: "Featured upgrade orders cannot be used to edit job content.",
+      });
+      return;
+    }
+
+    if (!order.jobId) {
+      res.status(400).json({
+        error: "No job has been submitted for this order yet. Please use the submit endpoint.",
+      });
+      return;
+    }
+
+    const [existingJob] = await db
+      .select()
+      .from(jobsTable)
+      .where(eq(jobsTable.id, order.jobId));
+
+    if (!existingJob) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+
+    if (existingJob.approved) {
+      res.status(409).json({
+        error: "This job has already been approved and can no longer be edited.",
+      });
+      return;
+    }
+
+    const [updatedJob] = await db
+      .update(jobsTable)
+      .set({
+        title,
+        companyName,
+        category,
+        jobType,
+        description,
+        applyUrl,
+        salaryMin: salaryMin ?? null,
+        salaryMax: salaryMax ?? null,
+        locationRestrictions: locationRestrictions ?? null,
+      })
+      .where(eq(jobsTable.id, order.jobId))
+      .returning();
+
+    res.json({ job: updatedJob });
+  } catch (err) {
+    logger.error({ err }, "Error updating job");
+    res.status(500).json({ error: "Failed to update job" });
+  }
+});
+
 export default router;

@@ -20,6 +20,7 @@ import {
   Eye,
   FileText,
   Save,
+  Pencil,
 } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -135,15 +136,31 @@ function JobPreview({ form, now }: { form: FormState; now: Date }) {
   );
 }
 
+function jobToFormState(job: Job): FormState {
+  return {
+    title: job.title ?? "",
+    companyName: job.companyName ?? "",
+    category: job.category ?? "",
+    jobType: job.jobType ?? "full-time",
+    description: job.description ?? "",
+    applyUrl: job.applyUrl ?? "",
+    salaryMin: job.salaryMin != null ? String(job.salaryMin) : "",
+    salaryMax: job.salaryMax != null ? String(job.salaryMax) : "",
+    locationRestrictions: job.locationRestrictions ?? "",
+  };
+}
+
 export default function PostJob() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const sessionId = params.get("sessionId") ?? "";
   const { toast } = useToast();
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<false | "new" | "updated">(false);
   const [featuredJobId, setFeaturedJobId] = useState("");
   const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
   const [draftSaved, setDraftSaved] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editModeLoaded, setEditModeLoaded] = useState(false);
   const nowRef = useRef(new Date());
 
   const [form, setForm] = useState<FormState>(() => {
@@ -191,6 +208,29 @@ export default function PostJob() {
     retry: false,
   });
 
+  const { data: pendingJob, isLoading: pendingJobLoading } = useQuery<Job | null>({
+    queryKey: ["pending-job", order?.jobId],
+    queryFn: async () => {
+      const res = await fetch(
+        `${import.meta.env.BASE_URL}api/jobs/${order!.jobId}`,
+      );
+      if (!res.ok) return null;
+      return res.json() as Promise<Job>;
+    },
+    enabled: !!order?.jobId && order?.jobsRemaining === 0,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!pendingJob || editModeLoaded) return;
+    if (!pendingJob.approved) {
+      setEditMode(true);
+      setForm(jobToFormState(pendingJob));
+      setEditModeLoaded(true);
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, [pendingJob, editModeLoaded]);
+
   const submitJob = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -218,11 +258,48 @@ export default function PostJob() {
     },
     onSuccess: () => {
       localStorage.removeItem(DRAFT_KEY);
-      setSubmitted(true);
+      setSubmitted("new");
     },
     onError: (err: Error) => {
       toast({
         title: "Submission failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateJob = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        sessionId,
+        title: form.title,
+        companyName: form.companyName,
+        category: form.category,
+        jobType: form.jobType,
+        description: form.description,
+        applyUrl: form.applyUrl,
+        salaryMin: form.salaryMin ? Number(form.salaryMin) : undefined,
+        salaryMax: form.salaryMax ? Number(form.salaryMax) : undefined,
+        locationRestrictions: form.locationRestrictions || undefined,
+      };
+      const res = await fetch(`${import.meta.env.BASE_URL}api/jobs/update`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Update failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setSubmitted("updated");
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Update failed",
         description: err.message,
         variant: "destructive",
       });
@@ -245,7 +322,7 @@ export default function PostJob() {
       return res.json();
     },
     onSuccess: () => {
-      setSubmitted(true);
+      setSubmitted("new");
     },
     onError: (err: Error) => {
       toast({
@@ -273,7 +350,12 @@ export default function PostJob() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) submitJob.mutate();
+    if (!validate()) return;
+    if (editMode) {
+      updateJob.mutate();
+    } else {
+      submitJob.mutate();
+    }
   };
 
   const set =
@@ -302,16 +384,23 @@ export default function PostJob() {
 
   if (submitted) {
     const isFeaturedUpgrade = order?.productType === "featured";
+    const isUpdate = submitted === "updated";
     return (
       <PageLayout>
         <div className="container mx-auto px-4 py-24 max-w-lg text-center">
           <CheckCircle2 className="h-14 w-14 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">
-            {isFeaturedUpgrade ? "Featured Upgrade Applied!" : "Job Submitted!"}
+            {isFeaturedUpgrade
+              ? "Featured Upgrade Applied!"
+              : isUpdate
+              ? "Listing Updated!"
+              : "Job Submitted!"}
           </h2>
           <p className="text-muted-foreground mb-6">
             {isFeaturedUpgrade
               ? "Your job listing will now appear at the top of the board for 30 days."
+              : isUpdate
+              ? "Your changes have been saved. Our team will review the updated listing and approve it within 24 hours."
               : "Your listing has been submitted for review. Our team will approve it within 24 hours and it will go live on the board."}
           </p>
           <Button asChild>
@@ -322,11 +411,38 @@ export default function PostJob() {
     );
   }
 
-  if (orderLoading) {
+  const needsEditModeLoad =
+    !!order?.jobId &&
+    order?.jobsRemaining === 0 &&
+    !!pendingJob &&
+    !pendingJob.approved;
+
+  if (
+    orderLoading ||
+    (order?.jobId && order?.jobsRemaining === 0 && pendingJobLoading) ||
+    (needsEditModeLoad && !editModeLoaded)
+  ) {
     return (
       <PageLayout>
         <div className="container mx-auto px-4 py-24 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (pendingJob?.approved) {
+    return (
+      <PageLayout>
+        <div className="container mx-auto px-4 py-24 max-w-lg text-center text-muted-foreground">
+          <CheckCircle2 className="h-10 w-10 mx-auto mb-4 text-green-500" />
+          <p className="font-medium text-foreground">Your listing is already live.</p>
+          <p className="text-sm mt-2">
+            This job has been approved and is now visible on the board. Edits are no longer available.
+          </p>
+          <Button asChild variant="outline" className="mt-6">
+            <Link href="/jobs">Browse Jobs</Link>
+          </Button>
         </div>
       </PageLayout>
     );
@@ -410,12 +526,21 @@ export default function PostJob() {
     <PageLayout>
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="mb-8">
+          <div className="flex items-center gap-2 mb-2">
+            {editMode && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                <Pencil className="h-3 w-3" />
+                Editing pending listing
+              </span>
+            )}
+          </div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">
-            Post Your Job
+            {editMode ? "Edit Your Job Listing" : "Post Your Job"}
           </h1>
           <p className="text-muted-foreground">
-            Fill in the details below. Our team will review and publish your
-            listing within 24 hours.
+            {editMode
+              ? "Your listing is still pending review. Make your changes below and re-submit — it won't go live until our team approves it."
+              : "Fill in the details below. Our team will review and publish your listing within 24 hours."}
           </p>
         </div>
 
@@ -609,26 +734,30 @@ export default function PostJob() {
                   </div>
 
                   <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={saveDraft}
-                      data-testid="save-draft-btn"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {draftSaved ? "Saved!" : "Save Draft"}
-                    </Button>
+                    {!editMode && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={saveDraft}
+                        data-testid="save-draft-btn"
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        {draftSaved ? "Saved!" : "Save Draft"}
+                      </Button>
+                    )}
                     <Button
                       type="submit"
-                      className="flex-1"
-                      disabled={submitJob.isPending}
+                      className={editMode ? "w-full" : "flex-1"}
+                      disabled={submitJob.isPending || updateJob.isPending}
                       data-testid="submit-job-btn"
                     >
-                      {submitJob.isPending ? (
+                      {(submitJob.isPending || updateJob.isPending) ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : editMode ? (
+                        <Pencil className="mr-2 h-4 w-4" />
                       ) : null}
-                      Submit for Review
+                      {editMode ? "Update Listing" : "Submit for Review"}
                     </Button>
                   </div>
                 </form>

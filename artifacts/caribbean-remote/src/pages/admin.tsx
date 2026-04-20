@@ -565,6 +565,19 @@ export default function Admin() {
                       className="h-8 w-[140px] text-sm"
                     />
                   </div>
+                  {(certDateFrom || certDateTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setCertDateFrom("");
+                        setCertDateTo("");
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

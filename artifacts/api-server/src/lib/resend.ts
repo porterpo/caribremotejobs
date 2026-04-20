@@ -155,6 +155,7 @@ export async function sendJobSubmissionConfirmation(params: {
           <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">Or copy this link: <a href="${editUrl}">${editUrl}</a></p>
           <p style="font-size: 14px; color: #374151;">Once approved, your job will appear live on CaribbeanRemote and job seekers will be able to apply directly.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">Lost this email? Visit <a href="${appUrl}/post-job" style="color: #0d9488;">${appUrl}/post-job</a> to have your edit link resent.</p>
           <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
         </div>
       `,

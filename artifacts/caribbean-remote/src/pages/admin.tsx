@@ -81,6 +81,9 @@ export default function Admin() {
   const [orderProductType, setOrderProductType] = useState("all");
   const [orderDateFrom, setOrderDateFrom] = useState("");
   const [orderDateTo, setOrderDateTo] = useState("");
+  const [certStatus, setCertStatus] = useState("all");
+  const [certDateFrom, setCertDateFrom] = useState("");
+  const [certDateTo, setCertDateTo] = useState("");
 
   const { data: stats } = useGetStats();
 
@@ -502,13 +505,50 @@ export default function Admin() {
                 <CardDescription>Review and approve certification applications from employers.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select value={certStatus} onValueChange={setCertStatus}>
+                      <SelectTrigger className="h-8 w-[160px] text-sm">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="pending">Payment Pending</SelectItem>
+                        <SelectItem value="paid">Awaiting Review</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      type="date"
+                      value={certDateFrom}
+                      onChange={(e) => setCertDateFrom(e.target.value)}
+                      className="h-8 w-[140px] text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      type="date"
+                      value={certDateTo}
+                      onChange={(e) => setCertDateTo(e.target.value)}
+                      className="h-8 w-[140px] text-sm"
+                    />
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs"
                     onClick={() => {
-                      const url = `${import.meta.env.BASE_URL}api/admin/certification-orders/export`;
+                      const params = new URLSearchParams();
+                      if (certStatus && certStatus !== "all") params.set("status", certStatus);
+                      if (certDateFrom) params.set("dateFrom", certDateFrom);
+                      if (certDateTo) params.set("dateTo", certDateTo);
+                      const url = `${import.meta.env.BASE_URL}api/admin/certification-orders/export${params.toString() ? `?${params.toString()}` : ""}`;
                       window.open(url, "_blank");
                     }}
                   >

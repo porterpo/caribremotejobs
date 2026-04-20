@@ -229,7 +229,31 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   res.json(job);
 });
 
-router.get("/admin/certification-orders/export", async (_req, res): Promise<void> => {
+router.get("/admin/certification-orders/export", async (req, res): Promise<void> => {
+  const { dateFrom, dateTo, status } = req.query as Record<string, string | undefined>;
+
+  const allowedStatuses = ["pending", "paid", "approved", "rejected"];
+  if (status && status !== "all" && !allowedStatuses.includes(status)) {
+    res.status(400).json({ error: "Invalid status" });
+    return;
+  }
+
+  const conditions: SQL[] = [];
+  if (status && status !== "all") {
+    conditions.push(eq(certificationOrdersTable.status, status));
+  }
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
+    conditions.push(gte(certificationOrdersTable.createdAt, from));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
+    to.setHours(23, 59, 59, 999);
+    conditions.push(lte(certificationOrdersTable.createdAt, to));
+  }
+
   const orders = await db
     .select({
       id: certificationOrdersTable.id,
@@ -240,6 +264,7 @@ router.get("/admin/certification-orders/export", async (_req, res): Promise<void
       createdAt: certificationOrdersTable.createdAt,
     })
     .from(certificationOrdersTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(certificationOrdersTable.createdAt));
 
   const escape = (val: string | number | null | undefined): string => {

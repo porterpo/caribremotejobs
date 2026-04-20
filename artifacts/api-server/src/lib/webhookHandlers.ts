@@ -21,18 +21,25 @@ export class WebhookHandlers {
 
     await sync.processWebhook(payload, signature);
 
+    let event: Record<string, unknown>;
     try {
-      const event = JSON.parse(payload.toString("utf8"));
-      if (event?.type === "checkout.session.completed") {
-        const sessionId: string = event?.data?.object?.id;
-        if (sessionId) {
-          await db
-            .update(jobOrdersTable)
-            .set({ status: "paid" })
-            .where(eq(jobOrdersTable.stripeSessionId, sessionId));
-        }
+      event = JSON.parse(payload.toString("utf8"));
+    } catch (parseErr) {
+      const logger = (await import("./logger")).logger;
+      logger.warn({ parseErr }, "Webhook payload JSON parse failed — skipping custom handler");
+      return;
+    }
+
+    if (event?.type === "checkout.session.completed") {
+      const sessionId = (event?.data as Record<string, unknown>)?.object
+        ? ((event.data as Record<string, unknown>).object as Record<string, unknown>)?.id as string | undefined
+        : undefined;
+      if (sessionId) {
+        await db
+          .update(jobOrdersTable)
+          .set({ status: "paid" })
+          .where(eq(jobOrdersTable.stripeSessionId, sessionId));
       }
-    } catch {
     }
   }
 }

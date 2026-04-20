@@ -557,10 +557,10 @@ export default function PostJob() {
         <div className="container mx-auto px-4 py-16 max-w-md">
           <div className="text-center mb-8">
             <Link2 className="h-10 w-10 mx-auto mb-4 text-primary" />
-            <h1 className="text-2xl font-bold mb-2">Recover Your Edit Link</h1>
+            <h1 className="text-2xl font-bold mb-2">Recover Your Job Posting Link</h1>
             <p className="text-muted-foreground text-sm">
               Enter the email you used to purchase your job listing and we'll
-              resend your edit link.
+              resend your submission link or edit link.
             </p>
           </div>
 
@@ -569,8 +569,8 @@ export default function PostJob() {
               <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <p className="font-medium text-lg mb-2">Check your inbox</p>
               <p className="text-sm text-muted-foreground">
-                If we found a pending job listing for that email address, we've
-                sent the edit link. It may take a minute to arrive.
+                If we found any orders for that email address, we've resent your
+                submission or edit link. It may take a minute to arrive.
               </p>
             </div>
           ) : (
@@ -609,7 +609,7 @@ export default function PostJob() {
                     ) : (
                       <Link2 className="mr-2 h-4 w-4" />
                     )}
-                    Send My Edit Link
+                    Send My Posting Link
                   </Button>
                 </form>
               </CardContent>
@@ -653,7 +653,7 @@ export default function PostJob() {
           </Button>
           {!isFeaturedUpgrade && (
             <p className="text-sm text-muted-foreground mt-6">
-              Can't find your edit link email?{" "}
+              Can't find your submission or edit link email?{" "}
               <Link href="/post-job" className="underline text-foreground">
                 Resend it here
               </Link>

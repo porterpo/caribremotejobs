@@ -734,7 +734,7 @@ export default function Admin() {
                                 type="button"
                                 className={`text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/20" : "hover:bg-muted"}`}
                                 title={`Filter by ${label}`}
-                                onClick={() => setOrderProductType(key)}
+                                onClick={() => setOrderProductType(key === orderProductType ? "all" : key)}
                               >
                                 <div className="text-sm font-semibold leading-tight">{count}</div>
                                 <div className="text-xs text-green-700 font-medium">${(revenue / 100).toLocaleString()}</div>

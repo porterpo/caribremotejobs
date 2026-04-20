@@ -23,6 +23,7 @@ import {
   Pencil,
   Upload,
   X,
+  Link2,
 } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -166,8 +167,11 @@ export default function PostJob() {
   const nowRef = useRef(new Date());
   const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(null);
-
   const [logoUploading, setLogoUploading] = useState(false);
+
+  const [logoMode, setLogoMode] = useState<"upload" | "url">("upload");
+  const [logoUrlInput, setLogoUrlInput] = useState("");
+  const [logoUrlStatus, setLogoUrlStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
 
   const uploadLogoFile = async (file: File): Promise<string | null> => {
     setLogoUploading(true);
@@ -290,12 +294,45 @@ export default function PostJob() {
     setCompanyLogoPreview(null);
   };
 
+  const handleLogoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.trim();
+    setLogoUrlInput(val);
+    setErrors((err) => ({ ...err, companyLogo: "" }));
+    if (!val) {
+      setLogoUrlStatus("idle");
+      return;
+    }
+    if (!/^https?:\/\/.+/.test(val)) {
+      setLogoUrlStatus("invalid");
+      return;
+    }
+    setLogoUrlStatus("checking");
+  };
+
+  const switchLogoMode = (mode: "upload" | "url") => {
+    setLogoMode(mode);
+    if (mode === "upload") {
+      setLogoUrlInput("");
+      setLogoUrlStatus("idle");
+    } else {
+      clearLogo();
+    }
+  };
+
+  const effectiveLogoPreview =
+    logoMode === "url"
+      ? logoUrlStatus === "valid" ? logoUrlInput : null
+      : companyLogoPreview;
+
   const submitJob = useMutation({
     mutationFn: async () => {
-      const objectId = companyLogoPath ? companyLogoPath.split("/").pop() : null;
-      const logoServingUrl = objectId
-        ? `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`
-        : undefined;
+      let logoServingUrl: string | undefined;
+      if (logoMode === "url" && logoUrlStatus === "valid" && logoUrlInput) {
+        logoServingUrl = logoUrlInput;
+      } else if (companyLogoPath) {
+        const objectId = companyLogoPath.split("/").pop();
+        logoServingUrl = `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`;
+      }
       const payload = {
         sessionId,
         title: form.title,
@@ -408,6 +445,13 @@ export default function PostJob() {
     if (!form.applyUrl.trim()) newErrors.applyUrl = "Apply URL is required";
     if (form.applyUrl && !/^https?:\/\/.+/.test(form.applyUrl))
       newErrors.applyUrl = "Must be a valid URL (https://...)";
+    if (logoMode === "url" && logoUrlInput) {
+      if (logoUrlStatus === "checking") {
+        newErrors.companyLogo = "Still verifying logo URL — please wait a moment and try again";
+      } else if (logoUrlStatus === "invalid") {
+        newErrors.companyLogo = "Could not load image from that URL. Please check the link or remove it.";
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -678,63 +722,167 @@ export default function PostJob() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Company Logo</Label>
-                    {companyLogoPreview ? (
-                      <div className="flex items-center gap-3">
-                        <div className="h-14 w-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
-                          <img
-                            src={companyLogoPreview}
-                            alt="Logo preview"
-                            className="h-full w-full object-contain p-1"
-                          />
+                    <div className="flex items-center justify-between">
+                      <Label>Company Logo</Label>
+                      <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                        <button
+                          type="button"
+                          onClick={() => switchLogoMode("upload")}
+                          data-testid="logo-mode-upload"
+                          className={`flex items-center gap-1 px-3 py-1.5 transition-colors ${
+                            logoMode === "upload"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <Upload className="h-3 w-3" />
+                          Upload file
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => switchLogoMode("url")}
+                          data-testid="logo-mode-url"
+                          className={`flex items-center gap-1 px-3 py-1.5 transition-colors ${
+                            logoMode === "url"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <Link2 className="h-3 w-3" />
+                          Use a URL
+                        </button>
+                      </div>
+                    </div>
+
+                    {logoMode === "upload" ? (
+                      companyLogoPreview ? (
+                        <div className="flex items-center gap-3">
+                          <div className="h-14 w-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img
+                              src={companyLogoPreview}
+                              alt="Logo preview"
+                              className="h-full w-full object-contain p-1"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {logoUploading ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Uploading logo...
+                              </div>
+                            ) : companyLogoPath ? (
+                              <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Logo ready
+                              </p>
+                            ) : (
+                              <p className="text-sm text-amber-600">Upload pending...</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearLogo}
+                            disabled={logoUploading}
+                            aria-label="Remove logo"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          {logoUploading ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Uploading logo...
-                            </div>
-                          ) : companyLogoPath ? (
-                            <p className="text-sm text-green-600 font-medium flex items-center gap-1">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Logo ready
-                            </p>
-                          ) : (
-                            <p className="text-sm text-amber-600">Upload pending...</p>
+                      ) : (
+                        <label
+                          htmlFor="company-logo-input"
+                          className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                          data-testid="logo-upload-area"
+                        >
+                          <Upload className="h-6 w-6 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground text-center">
+                            Click to upload your company logo
+                            <br />
+                            <span className="text-xs">PNG, JPG, SVG, WebP — max 5MB</span>
+                          </span>
+                          <input
+                            id="company-logo-input"
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleLogoFileChange}
+                            data-testid="logo-file-input"
+                          />
+                        </label>
+                      )
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            data-testid="logo-url-input"
+                            value={logoUrlInput}
+                            onChange={handleLogoUrlChange}
+                            placeholder="https://example.com/logo.png"
+                            type="url"
+                            className="flex-1"
+                          />
+                          {logoUrlInput && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { setLogoUrlInput(""); setLogoUrlStatus("idle"); }}
+                              aria-label="Clear URL"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearLogo}
-                          disabled={logoUploading}
-                          aria-label="Remove logo"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        {logoUrlStatus === "checking" && logoUrlInput && (
+                          <img
+                            src={logoUrlInput}
+                            alt=""
+                            className="sr-only"
+                            onLoad={() => setLogoUrlStatus("valid")}
+                            onError={() => setLogoUrlStatus("invalid")}
+                          />
+                        )}
+                        {logoUrlStatus === "valid" && (
+                          <div className="flex items-center gap-3">
+                            <div className="h-14 w-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                              <img
+                                src={logoUrlInput}
+                                alt="Logo preview"
+                                className="h-full w-full object-contain p-1"
+                              />
+                            </div>
+                            <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Image URL verified
+                            </p>
+                          </div>
+                        )}
+                        {logoUrlStatus === "invalid" && (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Could not load image from that URL. Please check the link.
+                          </p>
+                        )}
+                        {logoUrlStatus === "checking" && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Checking image…
+                          </div>
+                        )}
+                        {logoUrlStatus === "idle" && !logoUrlInput && (
+                          <p className="text-xs text-muted-foreground">
+                            Paste a direct link to your company logo (PNG, JPG, SVG, WebP).
+                          </p>
+                        )}
+                        {errors.companyLogo && (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {errors.companyLogo}
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <label
-                        htmlFor="company-logo-input"
-                        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                        data-testid="logo-upload-area"
-                      >
-                        <Upload className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground text-center">
-                          Click to upload your company logo
-                          <br />
-                          <span className="text-xs">PNG, JPG, SVG, WebP — max 5MB</span>
-                        </span>
-                        <input
-                          id="company-logo-input"
-                          type="file"
-                          accept="image/*"
-                          className="sr-only"
-                          onChange={handleLogoFileChange}
-                          data-testid="logo-file-input"
-                        />
-                      </label>
                     )}
                   </div>
 
@@ -899,7 +1047,7 @@ export default function PostJob() {
               <Eye className="h-4 w-4" />
               Live Preview
             </div>
-            <JobPreview form={form} now={nowRef.current} logoPreviewUrl={companyLogoPreview} />
+            <JobPreview form={form} now={nowRef.current} logoPreviewUrl={effectiveLogoPreview} />
             <p className="text-xs text-muted-foreground text-center">
               This is exactly how your listing will appear on the job board.
             </p>

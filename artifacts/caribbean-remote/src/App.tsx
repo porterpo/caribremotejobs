@@ -15,6 +15,8 @@ import Unsubscribe from "@/pages/unsubscribe";
 import Pricing from "@/pages/pricing";
 import Success from "@/pages/success";
 import PostJob from "@/pages/post-job";
+import Certify from "@/pages/certify";
+import CertifySuccess from "@/pages/certify-success";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,8 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/success" component={Success} />
       <Route path="/post-job" component={PostJob} />
+      <Route path="/certify" component={Certify} />
+      <Route path="/certify/success" component={CertifySuccess} />
       <Route component={NotFound} />
     </Switch>
   );

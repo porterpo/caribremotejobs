@@ -1,5 +1,5 @@
 import { getStripeSync } from "./stripeClient";
-import { db, jobOrdersTable } from "@workspace/db";
+import { db, jobOrdersTable, certificationOrdersTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
 import { sendOrderConfirmation } from "./resend";
 import { logger } from "./logger";
@@ -32,28 +32,39 @@ export class WebhookHandlers {
     }
 
     if (event?.type === "checkout.session.completed") {
-      const sessionId = (event?.data as Record<string, unknown>)?.object
-        ? ((event.data as Record<string, unknown>).object as Record<string, unknown>)?.id as string | undefined
+      const sessionObj = (event?.data as Record<string, unknown>)?.object
+        ? (event.data as Record<string, unknown>).object as Record<string, unknown>
         : undefined;
-      if (sessionId) {
-        const [updatedOrder] = await db
-          .update(jobOrdersTable)
-          .set({ status: "paid" })
-          .where(
-            and(
-              eq(jobOrdersTable.stripeSessionId, sessionId),
-              ne(jobOrdersTable.status, "paid"),
-            ),
-          )
-          .returning();
+      const sessionId = sessionObj?.id as string | undefined;
+      const sessionMetadata = (sessionObj?.metadata as Record<string, string>) ?? {};
+      const productType = sessionMetadata.productType as string | undefined;
 
-        if (updatedOrder) {
-          await sendOrderConfirmation({
-            email: updatedOrder.email,
-            orderId: updatedOrder.id,
-            productType: updatedOrder.productType,
-            jobsRemaining: updatedOrder.jobsRemaining,
-          });
+      if (sessionId) {
+        if (productType === "certification") {
+          await db
+            .update(certificationOrdersTable)
+            .set({ status: "paid" })
+            .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
+        } else {
+          const [updatedOrder] = await db
+            .update(jobOrdersTable)
+            .set({ status: "paid" })
+            .where(
+              and(
+                eq(jobOrdersTable.stripeSessionId, sessionId),
+                ne(jobOrdersTable.status, "paid"),
+              ),
+            )
+            .returning();
+
+          if (updatedOrder) {
+            await sendOrderConfirmation({
+              email: updatedOrder.email,
+              orderId: updatedOrder.id,
+              productType: updatedOrder.productType,
+              jobsRemaining: updatedOrder.jobsRemaining,
+            });
+          }
         }
       }
     }

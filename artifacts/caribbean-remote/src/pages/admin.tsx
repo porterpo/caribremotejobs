@@ -16,9 +16,18 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState } from "react";
+
+interface CertificationOrder {
+  id: number;
+  email: string;
+  companyName: string;
+  stripeSessionId: string;
+  status: string;
+  createdAt: string;
+}
 
 interface PendingJob {
   id: number;
@@ -52,6 +61,49 @@ export default function Admin() {
   
   // Sync
   const syncJobs = useSyncJobs();
+
+  // Certifications
+  const { data: certifications, isLoading: certificationsLoading, refetch: refetchCertifications } = useQuery<CertificationOrder[]>({
+    queryKey: ["certifications"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications`);
+      if (!res.ok) throw new Error("Failed to fetch certifications");
+      return res.json();
+    },
+  });
+
+  const approveCertification = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications/${id}/approve`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to approve certification");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Certification approved" });
+      refetchCertifications();
+      queryClient.invalidateQueries({ queryKey: getListCompaniesQueryKey() });
+    },
+    onError: () => toast({ title: "Failed to approve certification", variant: "destructive" }),
+  });
+
+  const rejectCertification = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications/${id}/reject`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to reject certification");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Certification rejected" });
+      refetchCertifications();
+    },
+    onError: () => toast({ title: "Failed to reject certification", variant: "destructive" }),
+  });
+
+  const pendingCertifications = certifications?.filter(c => c.status === "paid") || [];
 
   // Pending jobs
   const { data: pendingJobs, isLoading: pendingLoading, refetch: refetchPending } = useQuery<PendingJob[]>({
@@ -200,6 +252,12 @@ export default function Admin() {
                 <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0">{pendingJobs.length}</Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="certifications" className="px-6 py-2">
+              Certifications
+              {pendingCertifications.length > 0 && (
+                <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0">{pendingCertifications.length}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
             <TabsTrigger value="companies" className="px-6 py-2">Companies</TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
@@ -270,6 +328,91 @@ export default function Admin() {
             </Card>
           </TabsContent>
           
+          <TabsContent value="certifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Caribbean Friendly Certifications</CardTitle>
+                <CardDescription>Review and approve certification applications from employers.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {certificationsLoading ? (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                      ) : !certifications || certifications.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No certification applications.</TableCell></TableRow>
+                      ) : (
+                        certifications.map((cert) => (
+                          <TableRow key={cert.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Palmtree className="h-4 w-4 text-amber-600 shrink-0" />
+                                {cert.companyName}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{cert.email}</TableCell>
+                            <TableCell>
+                              {cert.status === "paid" && (
+                                <Badge className="bg-orange-100 text-orange-800 border-0">Awaiting Review</Badge>
+                              )}
+                              {cert.status === "pending" && (
+                                <Badge variant="outline" className="text-muted-foreground">Payment Pending</Badge>
+                              )}
+                              {cert.status === "approved" && (
+                                <Badge className="bg-green-100 text-green-800 border-0">Approved</Badge>
+                              )}
+                              {cert.status === "rejected" && (
+                                <Badge variant="outline" className="text-destructive">Rejected</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {format(new Date(cert.createdAt), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {cert.status === "paid" && (
+                                <div className="flex gap-2 justify-end">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => approveCertification.mutate(cert.id)}
+                                    disabled={approveCertification.isPending || rejectCertification.isPending}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => rejectCertification.mutate(cert.id)}
+                                    disabled={approveCertification.isPending || rejectCertification.isPending}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="jobs">
             <Card>
               <CardHeader>

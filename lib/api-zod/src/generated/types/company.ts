@@ -16,6 +16,9 @@ export interface Company {
   /** @nullable */
   description?: string | null;
   caribbeanFriendly: boolean;
+  caribbeanFriendlyCertified: boolean;
+  /** @nullable */
+  certificationExpiresAt?: Date | null;
   hiresBahamas: boolean;
   hiresCaribbean: boolean;
   /** @nullable */

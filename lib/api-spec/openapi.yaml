@@ -434,6 +434,8 @@ components:
           type: ["string", "null"]
         caribbeanFriendly:
           type: boolean
+        entryLevel:
+          type: boolean
         category:
           type: string
         jobType:
@@ -474,6 +476,7 @@ components:
         - title
         - companyName
         - caribbeanFriendly
+        - entryLevel
         - category
         - jobType
         - salaryCurrency
@@ -520,6 +523,8 @@ components:
         companyLogo:
           type: ["string", "null"]
         caribbeanFriendly:
+          type: boolean
+        entryLevel:
           type: boolean
         category:
           type: string
@@ -568,6 +573,8 @@ components:
           type: ["string", "null"]
         caribbeanFriendly:
           type: boolean
+        entryLevel:
+          type: boolean
         category:
           type: string
         jobType:
@@ -604,6 +611,11 @@ components:
           type: ["string", "null"]
         caribbeanFriendly:
           type: boolean
+        caribbeanFriendlyCertified:
+          type: boolean
+        certificationExpiresAt:
+          type: ["string", "null"]
+          format: date-time
         hiresBahamas:
           type: boolean
         hiresCaribbean:
@@ -619,6 +631,7 @@ components:
         - id
         - name
         - caribbeanFriendly
+        - caribbeanFriendlyCertified
         - hiresBahamas
         - hiresCaribbean
         - jobCount

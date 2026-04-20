@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
-import { db, jobsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, jobsTable, companiesTable, certificationOrdersTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -43,6 +43,83 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
     .returning();
 
   res.json(job);
+});
+
+router.get("/admin/certifications", async (_req, res): Promise<void> => {
+  const certifications = await db
+    .select()
+    .from(certificationOrdersTable)
+    .orderBy(certificationOrdersTable.createdAt);
+  res.json(certifications);
+});
+
+router.post("/admin/certifications/:id/approve", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+
+  const [cert] = await db
+    .select()
+    .from(certificationOrdersTable)
+    .where(eq(certificationOrdersTable.id, id));
+
+  if (!cert) {
+    res.status(404).json({ error: "Certification order not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(certificationOrdersTable)
+    .set({ status: "approved" })
+    .where(eq(certificationOrdersTable.id, id))
+    .returning();
+
+  const expiresAt = new Date();
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+  const existingCompanies = await db
+    .select({ id: companiesTable.id })
+    .from(companiesTable)
+    .where(eq(companiesTable.name, cert.companyName));
+
+  if (existingCompanies.length > 0) {
+    const companyId = existingCompanies[0].id;
+    await db
+      .update(companiesTable)
+      .set({
+        caribbeanFriendly: true,
+        caribbeanFriendlyCertified: true,
+        certificationExpiresAt: expiresAt,
+      })
+      .where(eq(companiesTable.id, companyId));
+
+    await db
+      .update(jobsTable)
+      .set({ caribbeanFriendly: true })
+      .where(eq(jobsTable.companyId, companyId));
+  }
+
+  res.json(updated);
+});
+
+router.post("/admin/certifications/:id/reject", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+
+  const [cert] = await db
+    .select()
+    .from(certificationOrdersTable)
+    .where(eq(certificationOrdersTable.id, id));
+
+  if (!cert) {
+    res.status(404).json({ error: "Certification order not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(certificationOrdersTable)
+    .set({ status: "rejected" })
+    .where(eq(certificationOrdersTable.id, id))
+    .returning();
+
+  res.json(updated);
 });
 
 export default router;

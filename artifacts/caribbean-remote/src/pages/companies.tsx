@@ -113,7 +113,13 @@ export default function Companies() {
                   </div>
                   
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {company.caribbeanFriendly && (
+                    {company.caribbeanFriendlyCertified && (
+                      <Badge className="bg-amber-500 text-white hover:bg-amber-600 border-amber-500 gap-1 text-xs px-2 py-0 h-6">
+                        <Palmtree className="h-3 w-3" />
+                        CF Certified
+                      </Badge>
+                    )}
+                    {!company.caribbeanFriendlyCertified && company.caribbeanFriendly && (
                       <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200 gap-1 text-xs px-2 py-0 h-6">
                         <Palmtree className="h-3 w-3" />
                         Caribbean Friendly

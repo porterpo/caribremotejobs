@@ -14,6 +14,7 @@ export interface CreateJobBody {
   /** @nullable */
   companyLogo?: string | null;
   caribbeanFriendly?: boolean;
+  entryLevel?: boolean;
   category: string;
   jobType: string;
   /** @nullable */

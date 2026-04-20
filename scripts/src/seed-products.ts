@@ -29,6 +29,14 @@ const PRODUCTS = [
     price: 9900,
     recurring: false,
   },
+  {
+    name: "Caribbean Friendly Certification",
+    description: "Get certified as a Caribbean Friendly employer. Your company and job listings will display an official badge showing your commitment to hiring Caribbean talent.",
+    metadata: { type: "certification" },
+    price: 19900,
+    recurring: true,
+    recurringInterval: "year" as const,
+  },
 ];
 
 async function seedProducts() {
@@ -55,7 +63,9 @@ async function seedProducts() {
       product: created.id,
       unit_amount: product.price,
       currency: "usd",
-      ...(product.recurring ? { recurring: { interval: "month" } } : {}),
+      ...(product.recurring
+        ? { recurring: { interval: (product as { recurringInterval?: string }).recurringInterval ?? "month" } }
+        : {}),
     });
 
     console.log(

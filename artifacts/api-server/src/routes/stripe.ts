@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, jobOrdersTable } from "@workspace/db";
+import { db, jobOrdersTable, certificationOrdersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
@@ -71,10 +71,10 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
 });
 
 router.post("/stripe/checkout", async (req, res): Promise<void> => {
-  const { priceId, email } = req.body as {
+  const { priceId, email, companyName } = req.body as {
     priceId: string;
     email: string;
-    productType?: string;
+    companyName?: string;
   };
 
   if (!priceId || !email) {
@@ -111,35 +111,57 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
       return;
     }
 
-    const validTypes = ["single", "pack", "monthly", "featured"];
+    const validTypes = ["single", "pack", "monthly", "featured", "certification"];
     if (!validTypes.includes(productType)) {
       res.status(400).json({ error: `Unknown product type: ${productType}` });
+      return;
+    }
+
+    if (productType === "certification" && !companyName) {
+      res.status(400).json({ error: "companyName is required for certification purchases" });
       return;
     }
 
     const stripe = await getUncachableStripeClient();
     const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
 
+    const isCertification = productType === "certification";
+    const successUrl = isCertification
+      ? `${baseUrl}/certify/success?session_id={CHECKOUT_SESSION_ID}`
+      : `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = isCertification ? `${baseUrl}/certify` : `${baseUrl}/pricing`;
+
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: isRecurring ? "subscription" : "payment",
-      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
-      metadata: { productType, email },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { productType, email, ...(companyName ? { companyName } : {}) },
     });
 
-    const jobsRemaining =
-      productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
+    if (productType === "certification") {
+      await db.insert(certificationOrdersTable).values({
+        email,
+        companyName: companyName!,
+        stripeSessionId: session.id,
+        status: "pending",
+      });
+    } else {
+      const jobsRemaining =
+        productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
 
-    await db.insert(jobOrdersTable).values({
-      email,
-      stripeSessionId: session.id,
-      productType,
-      status: "pending",
-      jobsRemaining,
-    });
+      await db.insert(jobOrdersTable).values({
+        email,
+        stripeSessionId: session.id,
+        productType,
+        status: "pending",
+        jobsRemaining,
+      });
+
+      return res.json({ url: session.url });
+    }
 
     res.json({ url: session.url });
   } catch (err) {
@@ -165,6 +187,26 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Error fetching session");
     res.status(500).json({ error: "Failed to fetch session" });
+  }
+});
+
+router.get("/stripe/certification-session/:id", async (req, res): Promise<void> => {
+  const sessionId = req.params.id;
+  try {
+    const [order] = await db
+      .select()
+      .from(certificationOrdersTable)
+      .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Certification order not found" });
+      return;
+    }
+
+    res.json(order);
+  } catch (err) {
+    logger.error({ err }, "Error fetching certification session");
+    res.status(500).json({ error: "Failed to fetch certification session" });
   }
 });
 

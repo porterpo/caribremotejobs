@@ -15,6 +15,7 @@ export interface Job {
   /** @nullable */
   companyLogo?: string | null;
   caribbeanFriendly: boolean;
+  entryLevel: boolean;
   category: string;
   jobType: string;
   /** @nullable */

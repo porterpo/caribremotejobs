@@ -15,13 +15,28 @@ interface JobOrder {
   jobsRemaining: number;
 }
 
-type ResendState = "idle" | "loading" | "success" | "error";
+type ResendState = "idle" | "loading" | "success" | "error" | "rate_limited";
 
 export default function Success() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const sessionId = params.get("session_id");
   const [resendState, setResendState] = useState<ResendState>("idle");
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
+
+  useEffect(() => {
+    if (resendState !== "rate_limited") return;
+    const timer = setInterval(() => {
+      setRateLimitSeconds((s) => {
+        if (s <= 1) {
+          setResendState("idle");
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendState]);
 
   async function handleResend() {
     if (!sessionId || resendState === "loading") return;
@@ -32,6 +47,12 @@ export default function Success() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
+      if (res.status === 429) {
+        const data = await res.json();
+        setRateLimitSeconds(data.secondsLeft ?? 60);
+        setResendState("rate_limited");
+        return;
+      }
       if (!res.ok) throw new Error("Failed");
       setResendState("success");
     } catch {
@@ -126,13 +147,15 @@ export default function Success() {
                 variant="outline"
                 className="w-full"
                 onClick={handleResend}
-                disabled={resendState === "loading" || resendState === "success"}
+                disabled={resendState === "loading" || resendState === "success" || resendState === "rate_limited"}
                 data-testid="resend-confirmation-btn"
               >
                 {resendState === "loading" ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</>
                 ) : resendState === "success" ? (
                   <><CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />Email sent!</>
+                ) : resendState === "rate_limited" ? (
+                  <><AlertCircle className="h-4 w-4 mr-2 text-amber-500" />Please wait {rateLimitSeconds}s before resending</>
                 ) : resendState === "error" ? (
                   <><AlertCircle className="h-4 w-4 mr-2 text-destructive" />Failed — try again</>
                 ) : (

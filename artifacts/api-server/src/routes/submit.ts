@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, jobOrdersTable } from "@workspace/db";
-import { eq, and, isNotNull, ne, sql } from "drizzle-orm";
+import { eq, and, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { sendJobSubmissionConfirmation } from "../lib/resend";
+import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
 
 const router: IRouter = Router();
 
@@ -332,7 +332,8 @@ router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
   }
 
   try {
-    const orders = await db
+    // Post-submission: orders where a job was filed but not yet approved — resend the edit link
+    const submittedOrders = await db
       .select({
         order: jobOrdersTable,
         job: jobsTable,
@@ -349,12 +350,34 @@ router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
         )
       );
 
-    for (const { order, job } of orders) {
+    for (const { order, job } of submittedOrders) {
       await sendJobSubmissionConfirmation({
         email: order.email,
         sessionId: order.stripeSessionId,
         jobTitle: job.title,
         companyName: job.companyName,
+      });
+    }
+
+    // Pre-submission: paid orders where no job has been filed yet — resend the order confirmation
+    const unsubmittedOrders = await db
+      .select()
+      .from(jobOrdersTable)
+      .where(
+        and(
+          sql`lower(${jobOrdersTable.email}) = ${email}`,
+          eq(jobOrdersTable.status, "paid"),
+          isNull(jobOrdersTable.jobId),
+          ne(jobOrdersTable.productType, "featured"),
+        )
+      );
+
+    for (const order of unsubmittedOrders) {
+      await sendOrderConfirmation({
+        email: order.email,
+        orderId: order.id,
+        productType: order.productType,
+        jobsRemaining: order.jobsRemaining,
       });
     }
 

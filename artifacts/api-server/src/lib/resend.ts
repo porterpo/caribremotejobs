@@ -118,6 +118,7 @@ export async function sendOrderConfirmation(params: {
           <a href="${postJobUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Post Your Job</a>
           <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">You can return to this link at any time to submit your job posting.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">Lost this email? Visit <a href="${appUrl}/post-job" style="color: #0d9488;">${appUrl}/post-job</a> to have your submission link resent.</p>
           <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
         </div>
       `,

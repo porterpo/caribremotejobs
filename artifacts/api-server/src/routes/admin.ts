@@ -12,7 +12,16 @@ router.post("/admin/sync-jobs", async (req, res): Promise<void> => {
 
 router.get("/admin/orders", async (_req, res): Promise<void> => {
   const orders = await db
-    .select()
+    .select({
+      id: jobOrdersTable.id,
+      email: jobOrdersTable.email,
+      productType: jobOrdersTable.productType,
+      status: jobOrdersTable.status,
+      jobsRemaining: jobOrdersTable.jobsRemaining,
+      jobId: jobOrdersTable.jobId,
+      createdAt: jobOrdersTable.createdAt,
+      confirmationEmailSentAt: jobOrdersTable.confirmationEmailSentAt,
+    })
     .from(jobOrdersTable)
     .orderBy(desc(jobOrdersTable.createdAt));
   res.json(orders);

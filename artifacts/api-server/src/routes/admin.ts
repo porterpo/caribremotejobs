@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { WebhookHandlers } from "../lib/webhookHandlers";
@@ -105,6 +105,16 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
     .set({ approved: true, featured: featuredValue })
     .where(eq(jobsTable.id, id))
     .returning();
+
+  if (job.companyLogo) {
+    const companyCondition = job.companyId
+      ? eq(companiesTable.id, job.companyId)
+      : eq(companiesTable.name, job.companyName);
+    await db
+      .update(companiesTable)
+      .set({ logo: job.companyLogo })
+      .where(and(companyCondition, isNull(companiesTable.logo)));
+  }
 
   res.json(job);
 });

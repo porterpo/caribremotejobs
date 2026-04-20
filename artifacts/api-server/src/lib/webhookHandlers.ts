@@ -58,6 +58,7 @@ export class WebhookHandlers {
             .returning();
 
           if (updatedOrder) {
+            let emailSent = false;
             try {
               await sendOrderConfirmation({
                 email: updatedOrder.email,
@@ -65,8 +66,19 @@ export class WebhookHandlers {
                 productType: updatedOrder.productType,
                 jobsRemaining: updatedOrder.jobsRemaining,
               });
+              emailSent = true;
             } catch (emailErr) {
               logger.error({ emailErr }, "Failed to send order confirmation email via webhook — order is still marked paid");
+            }
+            if (emailSent) {
+              try {
+                await db
+                  .update(jobOrdersTable)
+                  .set({ confirmationEmailSentAt: new Date() })
+                  .where(eq(jobOrdersTable.id, updatedOrder.id));
+              } catch (dbErr) {
+                logger.error({ dbErr }, "Failed to record confirmationEmailSentAt after successful email send");
+              }
             }
           }
         }

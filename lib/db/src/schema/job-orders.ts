@@ -18,6 +18,9 @@ export const jobOrdersTable = pgTable("job_orders", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  confirmationEmailSentAt: timestamp("confirmation_email_sent_at", {
+    withTimezone: true,
+  }),
 });
 
 export type JobOrder = typeof jobOrdersTable.$inferSelect;

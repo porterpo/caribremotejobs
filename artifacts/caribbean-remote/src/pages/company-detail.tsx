@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetCompany, getGetCompanyQueryKey, useListJobs } from "@workspace/api-client-react";
@@ -12,6 +12,8 @@ export default function CompanyDetail() {
   const [, params] = useRoute("/companies/:id");
   const companyId = parseInt(params?.id || "0", 10);
   const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => { setLogoError(false); }, [companyId]);
 
   const { data: company, isLoading, error } = useGetCompany(companyId, {
     query: { enabled: !!companyId, queryKey: getGetCompanyQueryKey(companyId) }

@@ -548,21 +548,6 @@ export default function Admin() {
                 )}
                 <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
                   <div className="flex flex-col gap-1">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <Select value={certStatus} onValueChange={setCertStatus}>
-                      <SelectTrigger className="h-8 w-[160px] text-sm">
-                        <SelectValue placeholder="All statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        <SelectItem value="pending">Payment Pending</SelectItem>
-                        <SelectItem value="paid">Awaiting Review</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1">
                     <Label className="text-xs text-muted-foreground">From</Label>
                     <Input
                       type="date"

@@ -16,9 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface CertificationOrder {
   id: number;
@@ -75,6 +78,9 @@ export default function Admin() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("jobs");
   const [page, setPage] = useState(1);
+  const [orderProductType, setOrderProductType] = useState("all");
+  const [orderDateFrom, setOrderDateFrom] = useState("");
+  const [orderDateTo, setOrderDateTo] = useState("");
 
   const { data: stats } = useGetStats();
 
@@ -147,9 +153,14 @@ export default function Admin() {
 
   // Orders
   const { data: orders, isLoading: ordersLoading } = useQuery<JobOrder[]>({
-    queryKey: ["admin-orders"],
+    queryKey: ["admin-orders", orderProductType, orderDateFrom, orderDateTo],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/orders`);
+      const params = new URLSearchParams();
+      if (orderProductType && orderProductType !== "all") params.set("productType", orderProductType);
+      if (orderDateFrom) params.set("dateFrom", orderDateFrom);
+      if (orderDateTo) params.set("dateTo", orderDateTo);
+      const qs = params.toString();
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/orders${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch orders");
       return res.json();
     },
@@ -158,6 +169,24 @@ export default function Admin() {
   const missingEmailCount = orders?.filter(
     (o) => o.status === "paid" && (!o.confirmationEmailSentAt || (o.jobId && !o.jobSubmissionEmailSentAt))
   ).length ?? 0;
+
+  const pricePerUnit = useMemo<Record<string, number>>(() => {
+    if (!orderStats) return {};
+    const prices: Record<string, number> = {};
+    for (const key of Object.keys(orderStats.breakdown)) {
+      if (orderStats.breakdown[key] > 0) {
+        prices[key] = Math.round(orderStats.revenueBreakdown[key] / orderStats.breakdown[key]);
+      }
+    }
+    return prices;
+  }, [orderStats]);
+
+  const filteredRevenue = useMemo(() => {
+    if (!orders) return 0;
+    return orders
+      .filter((o) => o.status === "paid")
+      .reduce((sum, o) => sum + (pricePerUnit[o.productType] ?? 0), 0);
+  }, [orders, pricePerUnit]);
 
   const resendOrderEmail = useMutation({
     mutationFn: async (id: number) => {
@@ -538,6 +567,65 @@ export default function Admin() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                  <Filter className="h-4 w-4 text-muted-foreground mt-1 shrink-0 self-center" />
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">Product type</Label>
+                    <Select value={orderProductType} onValueChange={setOrderProductType}>
+                      <SelectTrigger className="h-8 w-[160px] text-sm">
+                        <SelectValue placeholder="All types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        <SelectItem value="single">Single Post</SelectItem>
+                        <SelectItem value="pack">3-Pack</SelectItem>
+                        <SelectItem value="monthly">Monthly Unlimited</SelectItem>
+                        <SelectItem value="featured">Featured Upgrade</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      type="date"
+                      className="h-8 w-[150px] text-sm"
+                      value={orderDateFrom}
+                      onChange={(e) => setOrderDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      type="date"
+                      className="h-8 w-[150px] text-sm"
+                      value={orderDateTo}
+                      onChange={(e) => setOrderDateTo(e.target.value)}
+                    />
+                  </div>
+                  {(orderProductType !== "all" || orderDateFrom || orderDateTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground self-end"
+                      onClick={() => { setOrderProductType("all"); setOrderDateFrom(""); setOrderDateTo(""); }}
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                  {orders && (
+                    <div className="ml-auto self-end text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">{orders.length}</span> order{orders.length !== 1 ? "s" : ""}
+                      {" · "}
+                      <span className="font-semibold text-green-700">
+                        {orders.filter(o => o.status === "paid").length} paid
+                      </span>
+                      {" · "}
+                      <span className="font-semibold text-green-700">
+                        ${(filteredRevenue / 100).toLocaleString()} revenue
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>

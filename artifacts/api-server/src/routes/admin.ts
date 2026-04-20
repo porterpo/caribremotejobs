@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
-import { eq, desc, and, isNull, count, sql } from "drizzle-orm";
+import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
 import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { WebhookHandlers } from "../lib/webhookHandlers";
@@ -13,7 +13,31 @@ router.post("/admin/sync-jobs", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.get("/admin/orders", async (_req, res): Promise<void> => {
+router.get("/admin/orders", async (req, res): Promise<void> => {
+  const { productType, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+
+  const allowedTypes = ["single", "pack", "monthly", "featured"];
+  if (productType && productType !== "all" && !allowedTypes.includes(productType)) {
+    res.status(400).json({ error: "Invalid productType" });
+    return;
+  }
+
+  const conditions: SQL[] = [];
+  if (productType && productType !== "all") {
+    conditions.push(eq(jobOrdersTable.productType, productType));
+  }
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
+    conditions.push(gte(jobOrdersTable.createdAt, from));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
+    to.setHours(23, 59, 59, 999);
+    conditions.push(lte(jobOrdersTable.createdAt, to));
+  }
+
   const orders = await db
     .select({
       id: jobOrdersTable.id,
@@ -27,6 +51,7 @@ router.get("/admin/orders", async (_req, res): Promise<void> => {
       jobSubmissionEmailSentAt: jobOrdersTable.jobSubmissionEmailSentAt,
     })
     .from(jobOrdersTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(jobOrdersTable.createdAt));
   res.json(orders);
 });

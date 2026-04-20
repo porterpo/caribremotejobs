@@ -188,6 +188,28 @@ export default function Admin() {
       .reduce((sum, o) => sum + (pricePerUnit[o.productType] ?? 0), 0);
   }, [orders, pricePerUnit]);
 
+  const filteredBreakdown = useMemo(() => {
+    if (!orders) return [];
+    const productLabels: Record<string, string> = {
+      single: "Single Post",
+      pack: "3-Pack",
+      monthly: "Monthly",
+      featured: "Featured Upgrade",
+    };
+    const counts: Record<string, number> = {};
+    const revenues: Record<string, number> = {};
+    for (const o of orders.filter((o) => o.status === "paid")) {
+      counts[o.productType] = (counts[o.productType] ?? 0) + 1;
+      revenues[o.productType] = (revenues[o.productType] ?? 0) + (pricePerUnit[o.productType] ?? 0);
+    }
+    return Object.keys(counts).map((key) => ({
+      key,
+      label: productLabels[key] ?? key,
+      count: counts[key],
+      revenue: revenues[key],
+    }));
+  }, [orders, pricePerUnit]);
+
   const resendOrderEmail = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/admin/orders/${id}/resend-email`, {
@@ -643,7 +665,7 @@ export default function Admin() {
                     Export CSV
                   </Button>
                   {orders && (orderProductType !== "all" || orderDateFrom || orderDateTo) && (
-                    <div className="ml-auto self-end flex items-center gap-4 bg-background border rounded-md px-3 py-1.5">
+                    <div className="ml-auto self-end flex flex-wrap items-center gap-4 bg-background border rounded-md px-3 py-1.5">
                       <div className="text-center">
                         <div className="text-base font-bold leading-tight">{orders.length}</div>
                         <div className="text-xs text-muted-foreground">Orders</div>
@@ -662,6 +684,20 @@ export default function Admin() {
                         </div>
                         <div className="text-xs text-muted-foreground">Revenue</div>
                       </div>
+                      {filteredBreakdown.length > 0 && (
+                        <>
+                          <div className="h-6 w-px bg-border" />
+                          <div className="flex flex-wrap gap-3">
+                            {filteredBreakdown.map(({ key, label, count, revenue }) => (
+                              <div key={key} className="text-center">
+                                <div className="text-sm font-semibold leading-tight">{count}</div>
+                                <div className="text-xs text-green-700 font-medium">${(revenue / 100).toLocaleString()}</div>
+                                <div className="text-xs text-muted-foreground">{label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

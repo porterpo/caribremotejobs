@@ -304,10 +304,18 @@ router.post("/stripe/resend-certification-confirmation", async (req, res): Promi
       .set({ lastResendAt: new Date(now) })
       .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
 
-    await sendCertificationApplicationConfirmation({
-      email: order.email,
-      companyName: order.companyName,
-    });
+    try {
+      await sendCertificationApplicationConfirmation({
+        email: order.email,
+        companyName: order.companyName,
+      });
+    } catch (sendErr) {
+      await db
+        .update(certificationOrdersTable)
+        .set({ lastResendAt: order.lastResendAt })
+        .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
+      throw sendErr;
+    }
 
     res.json({ success: true });
   } catch (err) {

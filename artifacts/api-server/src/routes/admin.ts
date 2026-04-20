@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
-import { eq, desc, and, isNull, count } from "drizzle-orm";
+import { eq, desc, and, isNull, count, sql } from "drizzle-orm";
 import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { WebhookHandlers } from "../lib/webhookHandlers";
@@ -247,21 +247,45 @@ router.post("/admin/certifications/:id/revoke", async (req, res): Promise<void> 
 });
 
 router.get("/admin/order-stats", async (_req, res): Promise<void> => {
-  const rows = await db
-    .select({ productType: jobOrdersTable.productType, count: count() })
-    .from(jobOrdersTable)
-    .where(eq(jobOrdersTable.status, "paid"))
-    .groupBy(jobOrdersTable.productType);
+  const [orderRows, priceRows] = await Promise.all([
+    db
+      .select({ productType: jobOrdersTable.productType, count: count() })
+      .from(jobOrdersTable)
+      .where(eq(jobOrdersTable.status, "paid"))
+      .groupBy(jobOrdersTable.productType),
+    db.execute(sql`
+      SELECT
+        p.metadata->>'type' AS product_type,
+        pr.unit_amount
+      FROM stripe.products p
+      JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
+      WHERE p.active = true
+        AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured')
+    `),
+  ]);
+
+  const stripePricesByCents: Record<string, number> = {};
+  for (const row of priceRows.rows as Array<{ product_type: string; unit_amount: number }>) {
+    if (row.product_type) {
+      stripePricesByCents[row.product_type] = row.unit_amount;
+    }
+  }
 
   const breakdown: Record<string, number> = { single: 0, pack: 0, monthly: 0, featured: 0 };
+  const revenueBreakdown: Record<string, number> = { single: 0, pack: 0, monthly: 0, featured: 0 };
   let totalPaid = 0;
-  for (const row of rows) {
+  let totalRevenue = 0;
+  for (const row of orderRows) {
     const key = row.productType ?? "other";
     breakdown[key] = (breakdown[key] ?? 0) + row.count;
     totalPaid += row.count;
+    const priceCents = stripePricesByCents[key] ?? 0;
+    const revenueCents = priceCents * row.count;
+    revenueBreakdown[key] = (revenueBreakdown[key] ?? 0) + revenueCents;
+    totalRevenue += revenueCents;
   }
 
-  res.json({ totalPaid, breakdown });
+  res.json({ totalPaid, breakdown, totalRevenue, revenueBreakdown });
 });
 
 router.post("/admin/certifications/expire-lapsed", async (_req, res): Promise<void> => {

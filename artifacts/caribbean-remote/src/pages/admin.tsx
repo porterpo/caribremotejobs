@@ -60,6 +60,14 @@ interface OrderStats {
     featured: number;
     [key: string]: number;
   };
+  totalRevenue: number;
+  revenueBreakdown: {
+    single: number;
+    pack: number;
+    monthly: number;
+    featured: number;
+    [key: string]: number;
+  };
 }
 
 export default function Admin() {
@@ -316,7 +324,14 @@ export default function Admin() {
             <div className="flex flex-wrap items-center gap-6">
               <div>
                 <div className="text-2xl font-bold">{orderStats?.totalPaid ?? 0}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Total paid</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Total orders</div>
+              </div>
+              <div className="h-8 w-px bg-border hidden sm:block" />
+              <div>
+                <div className="text-2xl font-bold text-green-700">
+                  ${((orderStats?.totalRevenue ?? 0) / 100).toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">Total revenue</div>
               </div>
               <div className="h-8 w-px bg-border hidden sm:block" />
               <div className="flex flex-wrap gap-4">
@@ -328,6 +343,9 @@ export default function Admin() {
                 ].map(({ key, label }) => (
                   <div key={key} className="text-center">
                     <div className="text-lg font-semibold">{orderStats?.breakdown?.[key] ?? 0}</div>
+                    <div className="text-xs text-green-700 font-medium">
+                      ${((orderStats?.revenueBreakdown?.[key] ?? 0) / 100).toLocaleString()}
+                    </div>
                     <div className="text-xs text-muted-foreground">{label}</div>
                   </div>
                 ))}

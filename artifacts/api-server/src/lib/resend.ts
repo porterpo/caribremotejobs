@@ -71,6 +71,62 @@ export async function sendAlertConfirmation(
   }
 }
 
+export async function sendOrderConfirmation(params: {
+  email: string;
+  orderId: number;
+  productType: string;
+  jobsRemaining: number;
+}): Promise<void> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const appUrl = process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : (process.env.APP_URL ?? "https://caribbeanremote.com");
+    const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
+
+    const productLabels: Record<string, string> = {
+      single: "Single Job Posting",
+      pack: "3-Job Pack",
+      monthly: "Monthly Unlimited",
+      featured: "Featured Job Posting",
+    };
+    const productLabel = productLabels[params.productType] ?? params.productType;
+
+    await client.emails.send({
+      from: fromEmail,
+      to: params.email,
+      subject: "Your CaribbeanRemote order is confirmed",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0d9488;">Order Confirmed!</h1>
+          <p>Thank you for your purchase. Here are your order details:</p>
+          <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+            <tr>
+              <td style="padding: 8px 12px; background: #f9fafb; font-weight: bold; border: 1px solid #e5e7eb;">Order ID</td>
+              <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">#${params.orderId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 12px; background: #f9fafb; font-weight: bold; border: 1px solid #e5e7eb;">Product</td>
+              <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${productLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 12px; background: #f9fafb; font-weight: bold; border: 1px solid #e5e7eb;">Job Slots</td>
+              <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${params.jobsRemaining === 999 ? "Unlimited" : params.jobsRemaining}</td>
+            </tr>
+          </table>
+          <p>You're ready to post your job. Use the link below to get started:</p>
+          <a href="${postJobUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Post Your Job</a>
+          <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">You can return to this link at any time to submit your job posting.</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to send order confirmation email");
+  }
+}
+
 export async function sendJobAlerts(
   email: string,
   unsubscribeToken: string,

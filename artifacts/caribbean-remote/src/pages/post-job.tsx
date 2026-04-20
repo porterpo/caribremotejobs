@@ -292,6 +292,11 @@ export default function PostJob() {
         setLogoUrlStatus("checking");
       } else if (pendingJob.companyLogo) {
         setExistingLogoUrl(pendingJob.companyLogo);
+      } else {
+        setLogoMode("upload");
+        setLogoUrlInput("");
+        setLogoUrlStatus("idle");
+        setExistingLogoUrl(null);
       }
     }
   }, [pendingJob, editModeLoaded]);

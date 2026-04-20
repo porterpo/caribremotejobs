@@ -38,6 +38,7 @@ interface JobOrder {
   jobId: number | null;
   createdAt: string;
   confirmationEmailSentAt: string | null;
+  jobSubmissionEmailSentAt: string | null;
 }
 
 interface PendingJob {
@@ -127,7 +128,7 @@ export default function Admin() {
   });
 
   const missingEmailCount = orders?.filter(
-    (o) => o.status === "paid" && !o.confirmationEmailSentAt
+    (o) => o.status === "paid" && (!o.confirmationEmailSentAt || (o.jobId && !o.jobSubmissionEmailSentAt))
   ).length ?? 0;
 
   const resendOrderEmail = useMutation({
@@ -467,7 +468,7 @@ export default function Admin() {
               <CardHeader>
                 <CardTitle>Job Posting Orders</CardTitle>
                 <CardDescription>
-                  All paid job posting orders. Orders flagged in red have not received a confirmation email.
+                  All paid job posting orders. Orders flagged in red are missing a confirmation or job submission email.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -480,25 +481,26 @@ export default function Admin() {
                         <TableHead>Status</TableHead>
                         <TableHead>Job Filed</TableHead>
                         <TableHead>Confirmation Email</TableHead>
+                        <TableHead>Submission Email</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {ordersLoading ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center h-24">
+                          <TableCell colSpan={7} className="text-center h-24">
                             <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       ) : !orders || orders.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                             No orders yet.
                           </TableCell>
                         </TableRow>
                       ) : (
                         orders.map((order) => {
-                          const emailMissing = order.status === "paid" && !order.confirmationEmailSentAt;
+                          const emailMissing = order.status === "paid" && (!order.confirmationEmailSentAt || (order.jobId && !order.jobSubmissionEmailSentAt));
                           const productLabel: Record<string, string> = {
                             single: "Single Post",
                             pack: "3-Pack",
@@ -555,6 +557,23 @@ export default function Admin() {
                                         "Resend Email"
                                       )}
                                     </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {order.jobSubmissionEmailSentAt ? (
+                                  <div className="flex items-center gap-1.5 text-green-700">
+                                    <Mail className="h-4 w-4 shrink-0" />
+                                    <span className="text-xs">
+                                      Sent {format(new Date(order.jobSubmissionEmailSentAt), "MMM d, h:mm a")}
+                                    </span>
+                                  </div>
+                                ) : order.jobId && order.status === "paid" ? (
+                                  <div className="flex items-center gap-1.5 text-red-600 font-medium">
+                                    <MailX className="h-4 w-4 shrink-0" />
+                                    <span className="text-xs">Not sent</span>
                                   </div>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">—</span>

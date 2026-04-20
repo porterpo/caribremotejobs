@@ -24,6 +24,7 @@ router.get("/admin/orders", async (_req, res): Promise<void> => {
       jobId: jobOrdersTable.jobId,
       createdAt: jobOrdersTable.createdAt,
       confirmationEmailSentAt: jobOrdersTable.confirmationEmailSentAt,
+      jobSubmissionEmailSentAt: jobOrdersTable.jobSubmissionEmailSentAt,
     })
     .from(jobOrdersTable)
     .orderBy(desc(jobOrdersTable.createdAt));

@@ -3,13 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CaribbeanRemote Job Board API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: jobs
+    description: Job listing operations
+  - name: companies
+    description: Company operations
+  - name: categories
+    description: Job category operations
+  - name: alerts
+    description: Email alert subscriptions
+  - name: admin
+    description: Admin operations
+  - name: stats
+    description: Dashboard stats
+
 paths:
   /healthz:
     get:
@@ -24,6 +37,378 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List job listings
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: jobType
+          in: query
+          schema:
+            type: string
+        - name: salaryMin
+          in: query
+          schema:
+            type: integer
+        - name: salaryMax
+          in: query
+          schema:
+            type: integer
+        - name: caribbeanFriendly
+          in: query
+          schema:
+            type: boolean
+        - name: featured
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobListResponse"
+
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a job listing (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobBody"
+      responses:
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get a job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+
+    patch:
+      operationId: updateJob
+      tags: [jobs]
+      summary: Update a job listing (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobBody"
+      responses:
+        "200":
+          description: Updated job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteJob
+      tags: [jobs]
+      summary: Delete a job listing (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /jobs/featured:
+    get:
+      operationId: listFeaturedJobs
+      tags: [jobs]
+      summary: List featured/pinned job listings
+      responses:
+        "200":
+          description: Featured jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+
+  /jobs/recent:
+    get:
+      operationId: listRecentJobs
+      tags: [jobs]
+      summary: List recently posted jobs (last 7 days)
+      responses:
+        "200":
+          description: Recent jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List companies
+      parameters:
+        - name: caribbeanFriendly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+
+    post:
+      operationId: createCompany
+      tags: [companies]
+      summary: Create a company (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyBody"
+      responses:
+        "201":
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{id}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      summary: Get company details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Company detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "404":
+          description: Not found
+
+    patch:
+      operationId: updateCompany
+      tags: [companies]
+      summary: Update company (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCompanyBody"
+      responses:
+        "200":
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "404":
+          description: Not found
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List job categories with counts
+      responses:
+        "200":
+          description: Job categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /alerts:
+    post:
+      operationId: createAlert
+      tags: [alerts]
+      summary: Subscribe to job alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertBody"
+      responses:
+        "201":
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "409":
+          description: Email already subscribed
+
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List all alert subscriptions (admin)
+      responses:
+        "200":
+          description: Alert subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/{id}:
+    delete:
+      operationId: deleteAlert
+      tags: [alerts]
+      summary: Unsubscribe from alerts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /alerts/unsubscribe/{token}:
+    get:
+      operationId: unsubscribeAlert
+      tags: [alerts]
+      summary: Unsubscribe via token (from email link)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unsubscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnsubscribeResponse"
+
+  /admin/sync-jobs:
+    post:
+      operationId: syncJobs
+      tags: [admin]
+      summary: Trigger job aggregation from external sources
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncJobsResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get platform stats for homepage
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
+  /stats/by-category:
+    get:
+      operationId: getStatsByCategory
+      tags: [stats]
+      summary: Job count grouped by category
+      responses:
+        "200":
+          description: Jobs by category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryCount"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +419,370 @@ components:
       required:
         - status
 
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        companyId:
+          type: ["integer", "null"]
+        companyName:
+          type: string
+        companyLogo:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        category:
+          type: string
+        jobType:
+          type: string
+        salaryMin:
+          type: ["integer", "null"]
+        salaryMax:
+          type: ["integer", "null"]
+        salaryCurrency:
+          type: string
+        description:
+          type: string
+        applyUrl:
+          type: string
+        source:
+          type: string
+        sourceJobId:
+          type: ["string", "null"]
+        locationRestrictions:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        approved:
+          type: boolean
+        postedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - companyName
+        - caribbeanFriendly
+        - category
+        - jobType
+        - salaryCurrency
+        - description
+        - applyUrl
+        - source
+        - featured
+        - approved
+        - postedAt
+        - createdAt
+        - updatedAt
+
+    JobListResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Job"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - jobs
+        - total
+        - page
+        - limit
+        - totalPages
+
+    CreateJobBody:
+      type: object
+      properties:
+        title:
+          type: string
+        companyId:
+          type: ["integer", "null"]
+        companyName:
+          type: string
+        companyLogo:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        category:
+          type: string
+        jobType:
+          type: string
+        salaryMin:
+          type: ["integer", "null"]
+        salaryMax:
+          type: ["integer", "null"]
+        salaryCurrency:
+          type: string
+        description:
+          type: string
+        applyUrl:
+          type: string
+        source:
+          type: string
+        locationRestrictions:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        approved:
+          type: boolean
+        postedAt:
+          type: string
+          format: date-time
+      required:
+        - title
+        - companyName
+        - category
+        - jobType
+        - description
+        - applyUrl
+        - source
+
+    UpdateJobBody:
+      type: object
+      properties:
+        title:
+          type: string
+        companyName:
+          type: string
+        companyLogo:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        category:
+          type: string
+        jobType:
+          type: string
+        salaryMin:
+          type: ["integer", "null"]
+        salaryMax:
+          type: ["integer", "null"]
+        description:
+          type: string
+        applyUrl:
+          type: string
+        locationRestrictions:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        approved:
+          type: boolean
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        hiresBahamas:
+          type: boolean
+        hiresCaribbean:
+          type: boolean
+        country:
+          type: ["string", "null"]
+        jobCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - caribbeanFriendly
+        - hiresBahamas
+        - hiresCaribbean
+        - jobCount
+        - createdAt
+
+    CreateCompanyBody:
+      type: object
+      properties:
+        name:
+          type: string
+        logo:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        hiresBahamas:
+          type: boolean
+        hiresCaribbean:
+          type: boolean
+        country:
+          type: ["string", "null"]
+      required:
+        - name
+
+    UpdateCompanyBody:
+      type: object
+      properties:
+        name:
+          type: string
+        logo:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        caribbeanFriendly:
+          type: boolean
+        hiresBahamas:
+          type: boolean
+        hiresCaribbean:
+          type: boolean
+        country:
+          type: ["string", "null"]
+
+    Category:
+      type: object
+      properties:
+        slug:
+          type: string
+        label:
+          type: string
+        count:
+          type: integer
+        icon:
+          type: ["string", "null"]
+      required:
+        - slug
+        - label
+        - count
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        categories:
+          type: ["string", "null"]
+        jobTypes:
+          type: ["string", "null"]
+        keywords:
+          type: ["string", "null"]
+        token:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - token
+        - active
+        - createdAt
+
+    CreateAlertBody:
+      type: object
+      properties:
+        email:
+          type: string
+        categories:
+          type: ["string", "null"]
+        jobTypes:
+          type: ["string", "null"]
+        keywords:
+          type: ["string", "null"]
+      required:
+        - email
+
+    UnsubscribeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    SyncJobsResponse:
+      type: object
+      properties:
+        jobsSynced:
+          type: integer
+        jobsSkipped:
+          type: integer
+        errors:
+          type: integer
+        sources:
+          type: array
+          items:
+            type: string
+      required:
+        - jobsSynced
+        - jobsSkipped
+        - errors
+        - sources
+
+    PlatformStats:
+      type: object
+      properties:
+        totalJobs:
+          type: integer
+        caribbeanFriendlyJobs:
+          type: integer
+        totalCompanies:
+          type: integer
+        caribbeanFriendlyCompanies:
+          type: integer
+        alertSubscribers:
+          type: integer
+        newJobsThisWeek:
+          type: integer
+      required:
+        - totalJobs
+        - caribbeanFriendlyJobs
+        - totalCompanies
+        - caribbeanFriendlyCompanies
+        - alertSubscribers
+        - newJobsThisWeek
+
+    CategoryCount:
+      type: object
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+      required:
+        - category
+        - count

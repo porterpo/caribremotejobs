@@ -8,6 +8,7 @@ import statsRouter from "./stats";
 import adminRouter from "./admin";
 import stripeRouter from "./stripe";
 import submitRouter from "./submit";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(alertsRouter);
 router.use(statsRouter);
 router.use(adminRouter);
 router.use(stripeRouter);
+router.use(storageRouter);
 
 export default router;

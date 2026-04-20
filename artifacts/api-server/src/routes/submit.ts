@@ -11,6 +11,7 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
   const sessionId = String(body.sessionId ?? "").trim();
   const title = String(body.title ?? "").trim();
   const companyName = String(body.companyName ?? "").trim();
+  const companyLogo = body.companyLogo ? String(body.companyLogo).trim() : null;
   const category = String(body.category ?? "").trim();
   const jobType = String(body.jobType ?? "full-time").trim();
   const description = String(body.description ?? "").trim();
@@ -88,6 +89,7 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
       .values({
         title,
         companyName,
+        companyLogo: companyLogo ?? null,
         category,
         jobType,
         description,

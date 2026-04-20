@@ -21,6 +21,8 @@ import {
   FileText,
   Save,
   Pencil,
+  Upload,
+  X,
 } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -86,13 +88,13 @@ interface JobOrder {
   jobId: number | null;
 }
 
-function formToPreviewJob(form: FormState, now: Date): Job {
+function formToPreviewJob(form: FormState, now: Date, logoPreviewUrl?: string | null): Job {
   const iso = now.toISOString();
   return {
     id: -1,
     title: form.title || "Job Title",
     companyName: form.companyName || "Company Name",
-    companyLogo: null,
+    companyLogo: logoPreviewUrl ?? null,
     companyId: null,
     caribbeanFriendly: false,
     entryLevel: false,
@@ -115,7 +117,7 @@ function formToPreviewJob(form: FormState, now: Date): Job {
   };
 }
 
-function JobPreview({ form, now }: { form: FormState; now: Date }) {
+function JobPreview({ form, now, logoPreviewUrl }: { form: FormState; now: Date; logoPreviewUrl?: string | null }) {
   const isEmpty = !form.title && !form.companyName;
 
   if (isEmpty) {
@@ -131,7 +133,7 @@ function JobPreview({ form, now }: { form: FormState; now: Date }) {
 
   return (
     <div className="pointer-events-none select-none">
-      <JobCard job={formToPreviewJob(form, now)} />
+      <JobCard job={formToPreviewJob(form, now, logoPreviewUrl)} />
     </div>
   );
 }
@@ -162,6 +164,32 @@ export default function PostJob() {
   const [editMode, setEditMode] = useState(false);
   const [editModeLoaded, setEditModeLoaded] = useState(false);
   const nowRef = useRef(new Date());
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
+  const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(null);
+
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const uploadLogoFile = async (file: File): Promise<string | null> => {
+    setLogoUploading(true);
+    try {
+      const metaRes = await fetch(`${import.meta.env.BASE_URL}api/storage/uploads/request-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!metaRes.ok) {
+        const err = await metaRes.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Could not start upload");
+      }
+      const { uploadURL, objectPath } = await metaRes.json() as { uploadURL: string; objectPath: string };
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      return objectPath;
+    } catch {
+      return null;
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   const [form, setForm] = useState<FormState>(() => {
     try {
@@ -231,12 +259,48 @@ export default function PostJob() {
     }
   }, [pendingJob, editModeLoaded]);
 
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file type", description: "Please upload an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Logo must be smaller than 5MB.", variant: "destructive" });
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setCompanyLogoPreview(previewUrl);
+    setCompanyLogoPath(null);
+    const objectPath = await uploadLogoFile(file);
+    if (objectPath) {
+      setCompanyLogoPath(objectPath);
+      toast({ title: "Logo uploaded", description: "Your company logo is ready." });
+    } else {
+      toast({ title: "Logo upload failed", description: "Could not upload logo. You can still submit without one.", variant: "destructive" });
+    }
+  };
+
+  const clearLogo = () => {
+    setCompanyLogoPath(null);
+    if (companyLogoPreview) {
+      URL.revokeObjectURL(companyLogoPreview);
+    }
+    setCompanyLogoPreview(null);
+  };
+
   const submitJob = useMutation({
     mutationFn: async () => {
+      const objectId = companyLogoPath ? companyLogoPath.split("/").pop() : null;
+      const logoServingUrl = objectId
+        ? `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`
+        : undefined;
       const payload = {
         sessionId,
         title: form.title,
         companyName: form.companyName,
+        companyLogo: logoServingUrl,
         category: form.category,
         jobType: form.jobType,
         description: form.description,
@@ -613,6 +677,67 @@ export default function PostJob() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label>Company Logo</Label>
+                    {companyLogoPreview ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-14 w-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <img
+                            src={companyLogoPreview}
+                            alt="Logo preview"
+                            className="h-full w-full object-contain p-1"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {logoUploading ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Uploading logo...
+                            </div>
+                          ) : companyLogoPath ? (
+                            <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Logo ready
+                            </p>
+                          ) : (
+                            <p className="text-sm text-amber-600">Upload pending...</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearLogo}
+                          disabled={logoUploading}
+                          aria-label="Remove logo"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="company-logo-input"
+                        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                        data-testid="logo-upload-area"
+                      >
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground text-center">
+                          Click to upload your company logo
+                          <br />
+                          <span className="text-xs">PNG, JPG, SVG, WebP — max 5MB</span>
+                        </span>
+                        <input
+                          id="company-logo-input"
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={handleLogoFileChange}
+                          data-testid="logo-file-input"
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label>Category *</Label>
@@ -774,7 +899,7 @@ export default function PostJob() {
               <Eye className="h-4 w-4" />
               Live Preview
             </div>
-            <JobPreview form={form} now={nowRef.current} />
+            <JobPreview form={form} now={nowRef.current} logoPreviewUrl={companyLogoPreview} />
             <p className="text-xs text-muted-foreground text-center">
               This is exactly how your listing will appear on the job board.
             </p>

@@ -28,6 +28,7 @@ export const ListJobsQueryParams = zod.object({
   salaryMin: zod.coerce.number().optional(),
   salaryMax: zod.coerce.number().optional(),
   caribbeanFriendly: zod.coerce.boolean().optional(),
+  entryLevel: zod.coerce.boolean().optional(),
   featured: zod.coerce.boolean().optional(),
   page: zod.coerce.number().default(listJobsQueryPageDefault),
   limit: zod.coerce.number().default(listJobsQueryLimitDefault),
@@ -425,3 +426,45 @@ export const GetStatsByCategoryResponseItem = zod.object({
 export const GetStatsByCategoryResponse = zod.array(
   GetStatsByCategoryResponseItem,
 );
+
+/**
+ * Returns a presigned GCS URL for direct upload. The client sends JSON
+metadata here, then uploads the file directly to the returned URL.
+
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1).describe("Original file name."),
+  size: zod.number().min(1).describe("File size in bytes."),
+  contentType: zod
+    .string()
+    .min(1)
+    .describe("MIME type of the file (e.g. image\/jpeg)."),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url().describe("Presigned GCS URL for PUT upload."),
+  objectPath: zod
+    .string()
+    .describe(
+      "Normalized object path (e.g. \/objects\/uploads\/uuid). Store this in your database.",
+    ),
+  metadata: zod
+    .object({
+      name: zod.string().min(1).describe("Original file name."),
+      size: zod.number().min(1).describe("File size in bytes."),
+      contentType: zod
+        .string()
+        .min(1)
+        .describe("MIME type of the file (e.g. image\/jpeg)."),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Serve a company logo by object ID (public)
+ */
+export const GetCompanyLogoParams = zod.object({
+  objectId: zod.coerce.string(),
+});

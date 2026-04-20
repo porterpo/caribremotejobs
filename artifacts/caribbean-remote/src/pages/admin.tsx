@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -612,6 +612,22 @@ export default function Admin() {
                       Clear filters
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs self-end"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (orderProductType && orderProductType !== "all") params.set("productType", orderProductType);
+                      if (orderDateFrom) params.set("dateFrom", orderDateFrom);
+                      if (orderDateTo) params.set("dateTo", orderDateTo);
+                      const url = `${import.meta.env.BASE_URL}api/admin/orders/export${params.toString() ? `?${params.toString()}` : ""}`;
+                      window.open(url, "_blank");
+                    }}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export CSV
+                  </Button>
                   {orders && (
                     <div className="ml-auto self-end text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground">{orders.length}</span> order{orders.length !== 1 ? "s" : ""}

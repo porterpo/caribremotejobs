@@ -56,6 +56,90 @@ router.get("/admin/orders", async (req, res): Promise<void> => {
   res.json(orders);
 });
 
+router.get("/admin/orders/export", async (req, res): Promise<void> => {
+  const { productType, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+
+  const allowedTypes = ["single", "pack", "monthly", "featured"];
+  if (productType && productType !== "all" && !allowedTypes.includes(productType)) {
+    res.status(400).json({ error: "Invalid productType" });
+    return;
+  }
+
+  const conditions: SQL[] = [];
+  if (productType && productType !== "all") {
+    conditions.push(eq(jobOrdersTable.productType, productType));
+  }
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
+    conditions.push(gte(jobOrdersTable.createdAt, from));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
+    to.setHours(23, 59, 59, 999);
+    conditions.push(lte(jobOrdersTable.createdAt, to));
+  }
+
+  const orders = await db
+    .select({
+      id: jobOrdersTable.id,
+      email: jobOrdersTable.email,
+      productType: jobOrdersTable.productType,
+      status: jobOrdersTable.status,
+      jobsRemaining: jobOrdersTable.jobsRemaining,
+      jobId: jobOrdersTable.jobId,
+      createdAt: jobOrdersTable.createdAt,
+      confirmationEmailSentAt: jobOrdersTable.confirmationEmailSentAt,
+      jobSubmissionEmailSentAt: jobOrdersTable.jobSubmissionEmailSentAt,
+    })
+    .from(jobOrdersTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(jobOrdersTable.createdAt));
+
+  const escape = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return "";
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = [
+    "Order ID",
+    "Email",
+    "Product Type",
+    "Status",
+    "Jobs Remaining",
+    "Job ID",
+    "Created Date",
+    "Confirmation Email Sent",
+    "Job Submission Email Sent",
+  ];
+
+  const rows = orders.map((o) => [
+    escape(o.id),
+    escape(o.email),
+    escape(o.productType),
+    escape(o.status),
+    escape(o.jobsRemaining),
+    escape(o.jobId),
+    escape(o.createdAt ? new Date(o.createdAt).toISOString() : null),
+    escape(o.confirmationEmailSentAt ? new Date(o.confirmationEmailSentAt).toISOString() : null),
+    escape(o.jobSubmissionEmailSentAt ? new Date(o.jobSubmissionEmailSentAt).toISOString() : null),
+  ]);
+
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="orders-export.csv"`);
+  res.send(csv);
+});
+
 router.post("/admin/orders/:id/resend-email", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!id || isNaN(id)) {

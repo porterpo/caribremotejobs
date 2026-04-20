@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
+  Clock,
   Star,
   Eye,
   FileText,
@@ -163,6 +164,26 @@ export default function PostJob() {
   const [resendEmail, setResendEmail] = useState("");
   const [resendState, setResendState] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState<number | null>(null);
+
+  // Tick the cooldown down every second
+  useEffect(() => {
+    if (!resendCooldown) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev && prev > 1 ? prev - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!resendCooldown]);
+
+  // Re-enable the form automatically when the cooldown expires
+  useEffect(() => {
+    if (resendCooldown === null && resendState === "error") {
+      setResendError("");
+      setResendState("idle");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendCooldown]);
   const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
   const [draftSaved, setDraftSaved] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -539,9 +560,9 @@ export default function PostJob() {
         body: JSON.stringify({ email: resendEmail }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; message?: string; secondsLeft?: number };
         if (res.status === 429) {
-          setResendError(data.message ?? "Please wait a moment before requesting another edit link.");
+          setResendCooldown(data.secondsLeft ?? 60);
         } else {
           setResendError(data.error ?? "Something went wrong. Please try again.");
         }
@@ -596,17 +617,22 @@ export default function PostJob() {
                       required
                     />
                   </div>
-                  {resendError && (
+                  {resendCooldown !== null ? (
+                    <p className="text-sm text-amber-600 flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      Please wait {resendCooldown}s before requesting another link.
+                    </p>
+                  ) : resendError ? (
                     <p className="text-sm text-destructive flex items-center gap-1">
                       <AlertCircle className="h-4 w-4 shrink-0" />
                       {resendError}
                     </p>
-                  )}
+                  ) : null}
                   <Button
                     type="submit"
                     className="w-full"
                     data-testid="resend-edit-link-btn"
-                    disabled={resendState === "loading" || !resendEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resendEmail)}
+                    disabled={resendState === "loading" || resendCooldown !== null || !resendEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resendEmail)}
                   >
                     {resendState === "loading" ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

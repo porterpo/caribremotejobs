@@ -113,12 +113,18 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
     if (order.email) {
-      void sendJobSubmissionConfirmation({
+      const emailSent = await sendJobSubmissionConfirmation({
         email: order.email,
         sessionId,
         jobTitle: job.title,
         companyName: job.companyName,
       });
+      if (emailSent) {
+        await db
+          .update(jobOrdersTable)
+          .set({ jobSubmissionEmailSentAt: new Date() })
+          .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+      }
     }
 
     res.status(201).json({ job, jobsRemaining: order.jobsRemaining - 1 });

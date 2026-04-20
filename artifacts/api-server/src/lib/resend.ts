@@ -133,7 +133,7 @@ export async function sendJobSubmissionConfirmation(params: {
   sessionId: string;
   jobTitle: string;
   companyName: string;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     const { client, fromEmail } = await getResendClient();
     const appUrl = process.env.REPLIT_DOMAINS
@@ -141,7 +141,7 @@ export async function sendJobSubmissionConfirmation(params: {
       : (process.env.APP_URL ?? "https://caribbeanremote.com");
     const editUrl = `${appUrl}/post-job?sessionId=${encodeURIComponent(params.sessionId)}`;
 
-    await client.emails.send({
+    const { data, error } = await client.emails.send({
       from: fromEmail,
       to: params.email,
       subject: "Your job listing is under review — here's your edit link",
@@ -159,8 +159,17 @@ export async function sendJobSubmissionConfirmation(params: {
         </div>
       `,
     });
+
+    if (error) {
+      logger.error({ error }, "Failed to send job submission confirmation email");
+      return false;
+    }
+
+    logger.info({ emailId: data?.id }, "Job submission confirmation email sent");
+    return true;
   } catch (err) {
     logger.error({ err }, "Failed to send job submission confirmation email");
+    return false;
   }
 }
 

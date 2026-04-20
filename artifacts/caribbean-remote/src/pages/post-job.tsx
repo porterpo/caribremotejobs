@@ -170,6 +170,21 @@ export default function PostJob() {
   // Tracks which email address owns the currently-active countdown (for cleanup)
   const resendCooldownEmailRef = useRef<string>("");
 
+  // On mount: prune any stale resendCooldownUntil:<email> keys left by previous sessions
+  useEffect(() => {
+    const prefix = "resendCooldownUntil:";
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(prefix)) continue;
+      const expiry = Number(localStorage.getItem(k));
+      if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  }, []);
+
   // When the email input changes, load (or clear) that address's cooldown from localStorage
   useEffect(() => {
     if (!resendEmail) {

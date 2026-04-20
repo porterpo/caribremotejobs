@@ -732,7 +732,7 @@ export default function Admin() {
                               <button
                                 key={key}
                                 type="button"
-                                className="text-center cursor-pointer rounded px-1.5 py-0.5 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className={`text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/20" : "hover:bg-muted"}`}
                                 title={`Filter by ${label}`}
                                 onClick={() => setOrderProductType(key)}
                               >

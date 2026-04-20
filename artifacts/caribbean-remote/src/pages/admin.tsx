@@ -191,6 +191,23 @@ export default function Admin() {
       .reduce((sum, o) => sum + (pricePerUnit[o.productType] ?? 0), 0);
   }, [orders, pricePerUnit]);
 
+  const certStatusCounts = useMemo(() => {
+    if (!certifications) return { pending: 0, paid: 0, approved: 0, rejected: 0 };
+    return certifications.reduce(
+      (acc, c) => {
+        if (c.status in acc) acc[c.status as keyof typeof acc]++;
+        return acc;
+      },
+      { pending: 0, paid: 0, approved: 0, rejected: 0 },
+    );
+  }, [certifications]);
+
+  const filteredCertifications = useMemo(() => {
+    if (!certifications) return [];
+    if (certStatus === "all") return certifications;
+    return certifications.filter((c) => c.status === certStatus);
+  }, [certifications, certStatus]);
+
   const filteredBreakdown = useMemo(() => {
     if (!orders) return [];
     const productLabels: Record<string, string> = {
@@ -505,6 +522,30 @@ export default function Admin() {
                 <CardDescription>Review and approve certification applications from employers.</CardDescription>
               </CardHeader>
               <CardContent>
+                {certifications && certifications.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {([
+                      { key: "paid", label: "Awaiting Review", count: certStatusCounts.paid },
+                      { key: "pending", label: "Payment Pending", count: certStatusCounts.pending },
+                      { key: "approved", label: "Approved", count: certStatusCounts.approved },
+                      { key: "rejected", label: "Rejected", count: certStatusCounts.rejected },
+                    ] as const).map(({ key, label, count }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`relative text-center cursor-pointer rounded px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === certStatus ? "bg-primary border border-primary shadow-sm" : "hover:bg-muted border border-border"}`}
+                        title={key === certStatus ? "Click to clear filter" : `Filter by ${label}`}
+                        onClick={() => setCertStatus(key === certStatus ? "all" : key)}
+                      >
+                        {key === certStatus && (
+                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white leading-none border border-white/30">×</span>
+                        )}
+                        <div className={`text-sm font-semibold leading-tight ${key === certStatus ? "text-primary-foreground" : ""}`}>{count}</div>
+                        <div className={`text-xs underline decoration-dotted ${key === certStatus ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{label}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs text-muted-foreground">Status</Label>
@@ -570,10 +611,10 @@ export default function Admin() {
                     <TableBody>
                       {certificationsLoading ? (
                         <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
-                      ) : !certifications || certifications.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No certification applications.</TableCell></TableRow>
+                      ) : filteredCertifications.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">{certStatus === "all" ? "No certification applications." : "No certifications match this filter."}</TableCell></TableRow>
                       ) : (
-                        certifications.map((cert) => (
+                        filteredCertifications.map((cert) => (
                           <TableRow key={cert.id}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">

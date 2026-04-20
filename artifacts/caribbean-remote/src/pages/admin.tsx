@@ -51,6 +51,17 @@ interface PendingJob {
   postedAt: string;
 }
 
+interface OrderStats {
+  totalPaid: number;
+  breakdown: {
+    single: number;
+    pack: number;
+    monthly: number;
+    featured: number;
+    [key: string]: number;
+  };
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -58,6 +69,15 @@ export default function Admin() {
   const [page, setPage] = useState(1);
 
   const { data: stats } = useGetStats();
+
+  const { data: orderStats } = useQuery<OrderStats>({
+    queryKey: ["admin-order-stats"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/order-stats`);
+      if (!res.ok) throw new Error("Failed to fetch order stats");
+      return res.json();
+    },
+  });
   
   // Jobs
   const { data: jobsResponse, isLoading: jobsLoading } = useListJobs({ page, limit: 20 });
@@ -253,7 +273,7 @@ export default function Admin() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Jobs</CardTitle>
@@ -287,6 +307,34 @@ export default function Admin() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-8">
+          <CardHeader className="py-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Paid Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <div className="text-2xl font-bold">{orderStats?.totalPaid ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Total paid</div>
+              </div>
+              <div className="h-8 w-px bg-border hidden sm:block" />
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { key: "single", label: "Single Post" },
+                  { key: "pack", label: "3-Pack" },
+                  { key: "monthly", label: "Monthly" },
+                  { key: "featured", label: "Featured Upgrade" },
+                ].map(({ key, label }) => (
+                  <div key={key} className="text-center">
+                    <div className="text-lg font-semibold">{orderStats?.breakdown?.[key] ?? 0}</div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 w-full justify-start h-auto p-1 bg-muted/50 overflow-x-auto">

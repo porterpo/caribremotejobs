@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, count } from "drizzle-orm";
 import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { WebhookHandlers } from "../lib/webhookHandlers";
@@ -244,6 +244,24 @@ router.post("/admin/certifications/:id/revoke", async (req, res): Promise<void> 
   logger.info({ certId: id, companyId, companyName: cert.companyName }, "Certification manually revoked by admin");
 
   res.json({ success: true, companyId, companyName: cert.companyName });
+});
+
+router.get("/admin/order-stats", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({ productType: jobOrdersTable.productType, count: count() })
+    .from(jobOrdersTable)
+    .where(eq(jobOrdersTable.status, "paid"))
+    .groupBy(jobOrdersTable.productType);
+
+  const breakdown: Record<string, number> = { single: 0, pack: 0, monthly: 0, featured: 0 };
+  let totalPaid = 0;
+  for (const row of rows) {
+    const key = row.productType ?? "other";
+    breakdown[key] = (breakdown[key] ?? 0) + row.count;
+    totalPaid += row.count;
+  }
+
+  res.json({ totalPaid, breakdown });
 });
 
 router.post("/admin/certifications/expire-lapsed", async (_req, res): Promise<void> => {

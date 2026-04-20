@@ -164,7 +164,16 @@ export default function PostJob() {
   const [resendEmail, setResendEmail] = useState("");
   const [resendState, setResendState] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState<number | null>(null);
+  const [resendCooldown, setResendCooldown] = useState<number | null>(() => {
+    const stored = localStorage.getItem("resendCooldownUntil");
+    if (!stored) return null;
+    const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
+    if (remaining <= 0) {
+      localStorage.removeItem("resendCooldownUntil");
+      return null;
+    }
+    return remaining;
+  });
 
   // Tick the cooldown down every second
   useEffect(() => {
@@ -176,11 +185,14 @@ export default function PostJob() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!resendCooldown]);
 
-  // Re-enable the form automatically when the cooldown expires
+  // Re-enable the form automatically when the cooldown expires; clear localStorage
   useEffect(() => {
-    if (resendCooldown === null && resendState === "error") {
-      setResendError("");
-      setResendState("idle");
+    if (resendCooldown === null) {
+      localStorage.removeItem("resendCooldownUntil");
+      if (resendState === "error") {
+        setResendError("");
+        setResendState("idle");
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resendCooldown]);
@@ -562,7 +574,9 @@ export default function PostJob() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string; message?: string; secondsLeft?: number };
         if (res.status === 429) {
-          setResendCooldown(data.secondsLeft ?? 60);
+          const secondsLeft = data.secondsLeft ?? 60;
+          localStorage.setItem("resendCooldownUntil", String(Date.now() + secondsLeft * 1000));
+          setResendCooldown(secondsLeft);
         } else {
           setResendError(data.error ?? "Something went wrong. Please try again.");
         }

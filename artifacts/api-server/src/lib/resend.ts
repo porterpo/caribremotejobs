@@ -77,21 +77,21 @@ export async function sendOrderConfirmation(params: {
   productType: string;
   jobsRemaining: number;
 }): Promise<void> {
+  const { client, fromEmail } = await getResendClient();
+  const appUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+  const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
+
+  const productLabels: Record<string, string> = {
+    single: "Single Job Posting",
+    pack: "3-Job Pack",
+    monthly: "Monthly Unlimited",
+    featured: "Featured Job Posting",
+  };
+  const productLabel = productLabels[params.productType] ?? params.productType;
+
   try {
-    const { client, fromEmail } = await getResendClient();
-    const appUrl = process.env.REPLIT_DOMAINS
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : (process.env.APP_URL ?? "https://caribbeanremote.com");
-    const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
-
-    const productLabels: Record<string, string> = {
-      single: "Single Job Posting",
-      pack: "3-Job Pack",
-      monthly: "Monthly Unlimited",
-      featured: "Featured Job Posting",
-    };
-    const productLabel = productLabels[params.productType] ?? params.productType;
-
     await client.emails.send({
       from: fromEmail,
       to: params.email,
@@ -124,6 +124,7 @@ export async function sendOrderConfirmation(params: {
     });
   } catch (err) {
     logger.error({ err }, "Failed to send order confirmation email");
+    throw err;
   }
 }
 

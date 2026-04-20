@@ -58,12 +58,16 @@ export class WebhookHandlers {
             .returning();
 
           if (updatedOrder) {
-            await sendOrderConfirmation({
-              email: updatedOrder.email,
-              orderId: updatedOrder.id,
-              productType: updatedOrder.productType,
-              jobsRemaining: updatedOrder.jobsRemaining,
-            });
+            try {
+              await sendOrderConfirmation({
+                email: updatedOrder.email,
+                orderId: updatedOrder.id,
+                productType: updatedOrder.productType,
+                jobsRemaining: updatedOrder.jobsRemaining,
+              });
+            } catch (emailErr) {
+              logger.error({ emailErr }, "Failed to send order confirmation email via webhook — order is still marked paid");
+            }
           }
         }
       }

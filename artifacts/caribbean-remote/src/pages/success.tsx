@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Loader2, AlertCircle, Mail } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
@@ -15,10 +15,29 @@ interface JobOrder {
   jobsRemaining: number;
 }
 
+type ResendState = "idle" | "loading" | "success" | "error";
+
 export default function Success() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const sessionId = params.get("session_id");
+  const [resendState, setResendState] = useState<ResendState>("idle");
+
+  async function handleResend() {
+    if (!sessionId || resendState === "loading") return;
+    setResendState("loading");
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/stripe/resend-confirmation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setResendState("success");
+    } catch {
+      setResendState("error");
+    }
+  }
 
   const { data: order, isLoading, isError, refetch } = useQuery<JobOrder>({
     queryKey: ["order", sessionId],
@@ -102,6 +121,23 @@ export default function Success() {
                 <Link href={`/post-job?sessionId=${sessionId}`}>
                   {order.productType === "featured" ? "Apply Featured Upgrade" : "Post Your Job Now"}
                 </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleResend}
+                disabled={resendState === "loading" || resendState === "success"}
+                data-testid="resend-confirmation-btn"
+              >
+                {resendState === "loading" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</>
+                ) : resendState === "success" ? (
+                  <><CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />Email sent!</>
+                ) : resendState === "error" ? (
+                  <><AlertCircle className="h-4 w-4 mr-2 text-destructive" />Failed — try again</>
+                ) : (
+                  <><Mail className="h-4 w-4 mr-2" />Resend confirmation email</>
+                )}
               </Button>
               <p className="text-xs text-center text-muted-foreground">
                 You can return to this page later using your confirmation email.

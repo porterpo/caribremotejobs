@@ -3,6 +3,7 @@ import { db, jobOrdersTable, certificationOrdersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
+import { sendOrderConfirmation } from "../lib/resend";
 
 const router: IRouter = Router();
 
@@ -207,6 +208,44 @@ router.get("/stripe/certification-session/:id", async (req, res): Promise<void> 
   } catch (err) {
     logger.error({ err }, "Error fetching certification session");
     res.status(500).json({ error: "Failed to fetch certification session" });
+  }
+});
+
+router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
+  const { sessionId } = req.body as { sessionId?: string };
+
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+
+  try {
+    const [order] = await db
+      .select()
+      .from(jobOrdersTable)
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.status !== "paid") {
+      res.status(400).json({ error: "Order is not yet confirmed" });
+      return;
+    }
+
+    await sendOrderConfirmation({
+      email: order.email,
+      orderId: order.id,
+      productType: order.productType,
+      jobsRemaining: order.jobsRemaining,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Error resending order confirmation");
+    res.status(500).json({ error: "Failed to resend confirmation email" });
   }
 });
 

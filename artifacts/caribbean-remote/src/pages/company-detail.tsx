@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetCompany, getGetCompanyQueryKey, useListJobs } from "@workspace/api-client-react";
@@ -10,6 +11,7 @@ import { JobCard } from "@/components/JobCard";
 export default function CompanyDetail() {
   const [, params] = useRoute("/companies/:id");
   const companyId = parseInt(params?.id || "0", 10);
+  const [logoError, setLogoError] = useState(false);
 
   const { data: company, isLoading, error } = useGetCompany(companyId, {
     query: { enabled: !!companyId, queryKey: getGetCompanyQueryKey(companyId) }
@@ -68,8 +70,13 @@ export default function CompanyDetail() {
 
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="h-32 w-32 rounded-2xl bg-white border shadow-sm flex items-center justify-center shrink-0 p-4">
-              {company.logo ? (
-                <img src={company.logo} alt={company.name} className="max-h-full max-w-full object-contain" />
+              {company.logo && !logoError ? (
+                <img
+                  src={company.logo}
+                  alt={company.name}
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => setLogoError(true)}
+                />
               ) : (
                 <Building2 className="h-12 w-12 text-muted-foreground" />
               )}

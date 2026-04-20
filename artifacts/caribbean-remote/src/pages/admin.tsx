@@ -732,10 +732,13 @@ export default function Admin() {
                               <button
                                 key={key}
                                 type="button"
-                                className={`text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/20" : "hover:bg-muted"}`}
-                                title={`Filter by ${label}`}
+                                className={`relative text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/20" : "hover:bg-muted"}`}
+                                title={key === orderProductType ? "Click to clear filter" : `Filter by ${label}`}
                                 onClick={() => setOrderProductType(key === orderProductType ? "all" : key)}
                               >
+                                {key === orderProductType && (
+                                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground leading-none">×</span>
+                                )}
                                 <div className="text-sm font-semibold leading-tight">{count}</div>
                                 <div className="text-xs text-green-700 font-medium">${(revenue / 100).toLocaleString()}</div>
                                 <div className="text-xs text-muted-foreground underline decoration-dotted">{label}</div>

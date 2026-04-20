@@ -172,6 +172,7 @@ export default function PostJob() {
   const [logoMode, setLogoMode] = useState<"upload" | "url">("upload");
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [logoUrlStatus, setLogoUrlStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
 
   const uploadLogoFile = async (file: File): Promise<string | null> => {
     setLogoUploading(true);
@@ -264,6 +265,8 @@ export default function PostJob() {
         setLogoMode("url");
         setLogoUrlInput(pendingJob.companyLogo);
         setLogoUrlStatus("checking");
+      } else if (pendingJob.companyLogo) {
+        setExistingLogoUrl(pendingJob.companyLogo);
       }
     }
   }, [pendingJob, editModeLoaded]);
@@ -282,6 +285,7 @@ export default function PostJob() {
     const previewUrl = URL.createObjectURL(file);
     setCompanyLogoPreview(previewUrl);
     setCompanyLogoPath(null);
+    setExistingLogoUrl(null);
     const objectPath = await uploadLogoFile(file);
     if (objectPath) {
       setCompanyLogoPath(objectPath);
@@ -297,6 +301,7 @@ export default function PostJob() {
       URL.revokeObjectURL(companyLogoPreview);
     }
     setCompanyLogoPreview(null);
+    setExistingLogoUrl(null);
   };
 
   const handleLogoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,7 +332,7 @@ export default function PostJob() {
   const effectiveLogoPreview =
     logoMode === "url"
       ? logoUrlStatus === "valid" ? logoUrlInput : null
-      : companyLogoPreview;
+      : companyLogoPreview ?? existingLogoUrl;
 
   const submitJob = useMutation({
     mutationFn: async () => {
@@ -790,6 +795,43 @@ export default function PostJob() {
                             size="sm"
                             onClick={clearLogo}
                             disabled={logoUploading}
+                            aria-label="Remove logo"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : existingLogoUrl ? (
+                        <div className="flex items-center gap-3">
+                          <div className="h-14 w-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img
+                              src={existingLogoUrl}
+                              alt="Current company logo"
+                              className="h-full w-full object-contain p-1"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-muted-foreground">Current logo — change by uploading a new file</p>
+                            <label
+                              htmlFor="company-logo-input"
+                              className="mt-1 inline-flex items-center gap-1 text-xs text-primary cursor-pointer hover:underline"
+                            >
+                              <Upload className="h-3 w-3" />
+                              Replace logo
+                              <input
+                                id="company-logo-input"
+                                type="file"
+                                accept="image/*"
+                                className="sr-only"
+                                onChange={handleLogoFileChange}
+                                data-testid="logo-file-input"
+                              />
+                            </label>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearLogo}
                             aria-label="Remove logo"
                           >
                             <X className="h-4 w-4" />

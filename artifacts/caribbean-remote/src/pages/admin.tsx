@@ -628,17 +628,26 @@ export default function Admin() {
                     <Download className="h-3 w-3 mr-1" />
                     Export CSV
                   </Button>
-                  {orders && (
-                    <div className="ml-auto self-end text-xs text-muted-foreground">
-                      <span className="font-semibold text-foreground">{orders.length}</span> order{orders.length !== 1 ? "s" : ""}
-                      {" · "}
-                      <span className="font-semibold text-green-700">
-                        {orders.filter(o => o.status === "paid").length} paid
-                      </span>
-                      {" · "}
-                      <span className="font-semibold text-green-700">
-                        ${(filteredRevenue / 100).toLocaleString()} revenue
-                      </span>
+                  {orders && (orderProductType !== "all" || orderDateFrom || orderDateTo) && (
+                    <div className="ml-auto self-end flex items-center gap-4 bg-background border rounded-md px-3 py-1.5">
+                      <div className="text-center">
+                        <div className="text-base font-bold leading-tight">{orders.length}</div>
+                        <div className="text-xs text-muted-foreground">Orders</div>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div className="text-center">
+                        <div className="text-base font-bold leading-tight text-green-700">
+                          {orders.filter(o => o.status === "paid").length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Paid</div>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div className="text-center">
+                        <div className="text-base font-bold leading-tight text-green-700">
+                          ${(filteredRevenue / 100).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Revenue</div>
+                      </div>
                     </div>
                   )}
                 </div>

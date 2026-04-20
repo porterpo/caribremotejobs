@@ -547,12 +547,12 @@ export default function Admin() {
                                       variant="outline"
                                       className="h-6 text-xs px-2"
                                       onClick={() => resendOrderEmail.mutate(order.id)}
-                                      disabled={resendOrderEmail.isPending}
+                                      disabled={resendOrderEmail.isPending && resendOrderEmail.variables === order.id}
                                     >
-                                      {resendOrderEmail.isPending ? (
+                                      {resendOrderEmail.isPending && resendOrderEmail.variables === order.id ? (
                                         <Loader2 className="h-3 w-3 animate-spin" />
                                       ) : (
-                                        "Resend"
+                                        "Resend Email"
                                       )}
                                     </Button>
                                   </div>

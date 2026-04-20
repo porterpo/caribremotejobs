@@ -539,8 +539,12 @@ export default function PostJob() {
         body: JSON.stringify({ email: resendEmail }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setResendError((err as { error?: string }).error ?? "Something went wrong. Please try again.");
+        const data = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        if (res.status === 429) {
+          setResendError(data.message ?? "Please wait a moment before requesting another edit link.");
+        } else {
+          setResendError(data.error ?? "Something went wrong. Please try again.");
+        }
         setResendState("error");
       } else {
         setResendState("sent");

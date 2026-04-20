@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, jobsTable, jobOrdersTable } from "@workspace/db";
-import { eq, and, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
 
@@ -322,6 +322,8 @@ router.put("/jobs/update", async (req, res): Promise<void> => {
   }
 });
 
+const EDIT_LINK_RESEND_COOLDOWN_MS = 60_000;
+
 router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
   const email = String(body.email ?? "").trim().toLowerCase();
@@ -332,6 +334,38 @@ router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
   }
 
   try {
+    const cooldownCutoff = new Date(Date.now() - EDIT_LINK_RESEND_COOLDOWN_MS);
+
+    const [recentResend] = await db
+      .select({ editLinkResendAt: jobOrdersTable.editLinkResendAt })
+      .from(jobOrdersTable)
+      .where(
+        and(
+          sql`lower(${jobOrdersTable.email}) = ${email}`,
+          gt(jobOrdersTable.editLinkResendAt, cooldownCutoff),
+        )
+      )
+      .limit(1);
+
+    if (recentResend) {
+      const elapsed = Date.now() - recentResend.editLinkResendAt!.getTime();
+      const secondsLeft = Math.ceil((EDIT_LINK_RESEND_COOLDOWN_MS - elapsed) / 1000);
+      res.setHeader("Retry-After", String(secondsLeft));
+      res.status(429).json({
+        error: "rate_limited",
+        secondsLeft,
+        message: `Please wait ${secondsLeft} second${secondsLeft !== 1 ? "s" : ""} before requesting another edit link.`,
+      });
+      return;
+    }
+
+    const now = new Date();
+
+    await db
+      .update(jobOrdersTable)
+      .set({ editLinkResendAt: now })
+      .where(sql`lower(${jobOrdersTable.email}) = ${email}`);
+
     // Post-submission: orders where a job was filed but not yet approved — resend the edit link
     const submittedOrders = await db
       .select({

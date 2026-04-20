@@ -154,6 +154,8 @@ function jobToFormState(job: Job): FormState {
   };
 }
 
+const cooldownKey = (email: string) => `resendCooldownUntil:${email.toLowerCase()}`;
+
 export default function PostJob() {
   const search = useSearch();
   const params = new URLSearchParams(search);
@@ -164,21 +166,34 @@ export default function PostJob() {
   const [resendEmail, setResendEmail] = useState("");
   const [resendState, setResendState] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState<number | null>(() => {
-    const stored = localStorage.getItem("resendCooldownUntil");
-    if (!stored) return null;
+  const [resendCooldown, setResendCooldown] = useState<number | null>(null);
+  // Tracks which email address owns the currently-active countdown (for cleanup)
+  const resendCooldownEmailRef = useRef<string>("");
+
+  // When the email input changes, load (or clear) that address's cooldown from localStorage
+  useEffect(() => {
+    if (!resendEmail) {
+      setResendCooldown(null);
+      return;
+    }
+    const key = cooldownKey(resendEmail);
+    const stored = localStorage.getItem(key);
+    if (!stored) { setResendCooldown(null); return; }
     const expiry = Number(stored);
     if (!Number.isFinite(expiry)) {
-      localStorage.removeItem("resendCooldownUntil");
-      return null;
+      localStorage.removeItem(key);
+      setResendCooldown(null);
+      return;
     }
     const remaining = Math.ceil((expiry - Date.now()) / 1000);
     if (remaining <= 0) {
-      localStorage.removeItem("resendCooldownUntil");
-      return null;
+      localStorage.removeItem(key);
+      setResendCooldown(null);
+      return;
     }
-    return remaining;
-  });
+    resendCooldownEmailRef.current = resendEmail;
+    setResendCooldown(remaining);
+  }, [resendEmail]);
 
   // Tick the cooldown down every second
   useEffect(() => {
@@ -190,10 +205,21 @@ export default function PostJob() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!resendCooldown]);
 
-  // Re-enable the form automatically when the cooldown expires; clear localStorage
+  // Re-enable the form when the cooldown expires; clean up localStorage only if expired
   useEffect(() => {
     if (resendCooldown === null) {
-      localStorage.removeItem("resendCooldownUntil");
+      const email = resendCooldownEmailRef.current;
+      if (email) {
+        const key = cooldownKey(email);
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const expiry = Number(stored);
+          if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+            localStorage.removeItem(key);
+          }
+          // If still future: leave it — user switched email mid-cooldown
+        }
+      }
       if (resendState === "error") {
         setResendError("");
         setResendState("idle");
@@ -580,7 +606,8 @@ export default function PostJob() {
         const data = await res.json().catch(() => ({})) as { error?: string; message?: string; secondsLeft?: number };
         if (res.status === 429) {
           const secondsLeft = data.secondsLeft ?? 60;
-          localStorage.setItem("resendCooldownUntil", String(Date.now() + secondsLeft * 1000));
+          localStorage.setItem(cooldownKey(resendEmail), String(Date.now() + secondsLeft * 1000));
+          resendCooldownEmailRef.current = resendEmail;
           setResendCooldown(secondsLeft);
         } else {
           setResendError(data.error ?? "Something went wrong. Please try again.");

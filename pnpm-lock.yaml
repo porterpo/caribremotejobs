@@ -206,6 +206,12 @@ importers:
       rss-parser:
         specifier: ^3.13.0
         version: 3.13.0
+      stripe:
+        specifier: '*'
+        version: 22.0.2(@types/node@25.3.5)
+      stripe-replit-sync:
+        specifier: '*'
+        version: 1.0.0(stripe@22.0.2(@types/node@25.3.5))
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -654,6 +660,10 @@ importers:
         version: 0.31.9
 
   scripts:
+    dependencies:
+      stripe:
+        specifier: '*'
+        version: 22.0.2(@types/node@25.3.5)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

@@ -130,6 +130,24 @@ export default function Admin() {
     (o) => o.status === "paid" && !o.confirmationEmailSentAt
   ).length ?? 0;
 
+  const resendOrderEmail = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/orders/${id}/resend-email`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Failed to resend email");
+      }
+      return res.json() as Promise<{ confirmationEmailSentAt: string }>;
+    },
+    onSuccess: (_data, id) => {
+      toast({ title: `Confirmation email resent for order #${id}` });
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
+  });
+
   // Pending jobs
   const { data: pendingJobs, isLoading: pendingLoading, refetch: refetchPending } = useQuery<PendingJob[]>({
     queryKey: ["pending-jobs"],
@@ -519,9 +537,24 @@ export default function Admin() {
                                     </span>
                                   </div>
                                 ) : order.status === "paid" ? (
-                                  <div className="flex items-center gap-1.5 text-red-600 font-medium">
-                                    <MailX className="h-4 w-4 shrink-0" />
-                                    <span className="text-xs">Not sent</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 text-red-600 font-medium">
+                                      <MailX className="h-4 w-4 shrink-0" />
+                                      <span className="text-xs">Not sent</span>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 text-xs px-2"
+                                      onClick={() => resendOrderEmail.mutate(order.id)}
+                                      disabled={resendOrderEmail.isPending}
+                                    >
+                                      {resendOrderEmail.isPending ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        "Resend"
+                                      )}
+                                    </Button>
                                   </div>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">—</span>

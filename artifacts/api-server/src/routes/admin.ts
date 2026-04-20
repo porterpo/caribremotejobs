@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { sendOrderConfirmation } from "../lib/resend";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -25,6 +27,50 @@ router.get("/admin/orders", async (_req, res): Promise<void> => {
     .from(jobOrdersTable)
     .orderBy(desc(jobOrdersTable.createdAt));
   res.json(orders);
+});
+
+router.post("/admin/orders/:id/resend-email", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!id || isNaN(id)) {
+    res.status(400).json({ error: "Invalid order id" });
+    return;
+  }
+
+  const [order] = await db
+    .select()
+    .from(jobOrdersTable)
+    .where(eq(jobOrdersTable.id, id));
+
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  if (order.status !== "paid") {
+    res.status(400).json({ error: "Can only resend email for paid orders" });
+    return;
+  }
+
+  try {
+    await sendOrderConfirmation({
+      email: order.email,
+      orderId: order.id,
+      productType: order.productType,
+      jobsRemaining: order.jobsRemaining,
+    });
+  } catch (err) {
+    logger.error({ err }, "Admin resend email failed");
+    res.status(502).json({ error: "Failed to send email" });
+    return;
+  }
+
+  const sentAt = new Date();
+  await db
+    .update(jobOrdersTable)
+    .set({ confirmationEmailSentAt: sentAt })
+    .where(eq(jobOrdersTable.id, id));
+
+  res.json({ confirmationEmailSentAt: sentAt.toISOString() });
 });
 
 router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {

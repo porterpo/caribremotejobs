@@ -5,6 +5,8 @@ export const certificationOrdersTable = pgTable("certification_orders", {
   email: text("email").notNull(),
   companyName: text("company_name").notNull(),
   stripeSessionId: text("stripe_session_id").notNull().unique(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeCustomerId: text("stripe_customer_id"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

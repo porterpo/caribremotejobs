@@ -4,6 +4,7 @@ import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable
 import { eq, desc } from "drizzle-orm";
 import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
+import { WebhookHandlers } from "../lib/webhookHandlers";
 
 const router: IRouter = Router();
 
@@ -192,6 +193,56 @@ router.post("/admin/certifications/:id/reject", async (req, res): Promise<void> 
     .returning();
 
   res.json(updated);
+});
+
+router.post("/admin/certifications/:id/revoke", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+
+  const [cert] = await db
+    .select()
+    .from(certificationOrdersTable)
+    .where(eq(certificationOrdersTable.id, id));
+
+  if (!cert) {
+    res.status(404).json({ error: "Certification order not found" });
+    return;
+  }
+
+  const existingCompanies = await db
+    .select({ id: companiesTable.id })
+    .from(companiesTable)
+    .where(eq(companiesTable.name, cert.companyName));
+
+  if (existingCompanies.length === 0) {
+    res.status(404).json({ error: "No matching company found for this certification" });
+    return;
+  }
+
+  const companyId = existingCompanies[0].id;
+
+  await db
+    .update(companiesTable)
+    .set({ caribbeanFriendlyCertified: false, certificationExpiresAt: null })
+    .where(eq(companiesTable.id, companyId));
+
+  await db
+    .update(jobsTable)
+    .set({ caribbeanFriendly: false })
+    .where(eq(jobsTable.companyId, companyId));
+
+  logger.info({ certId: id, companyId, companyName: cert.companyName }, "Certification manually revoked by admin");
+
+  res.json({ success: true, companyId, companyName: cert.companyName });
+});
+
+router.post("/admin/certifications/expire-lapsed", async (_req, res): Promise<void> => {
+  try {
+    const count = await WebhookHandlers.expireElapsedCertifications();
+    res.json({ expired: count });
+  } catch (err) {
+    logger.error({ err }, "Failed to expire lapsed certifications");
+    res.status(500).json({ error: "Failed to expire lapsed certifications" });
+  }
 });
 
 export default router;

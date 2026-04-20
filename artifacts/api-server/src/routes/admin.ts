@@ -1,13 +1,21 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
-import { db, jobsTable, companiesTable, certificationOrdersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.post("/admin/sync-jobs", async (req, res): Promise<void> => {
   const result = await runJobSync();
   res.json(result);
+});
+
+router.get("/admin/orders", async (_req, res): Promise<void> => {
+  const orders = await db
+    .select()
+    .from(jobOrdersTable)
+    .orderBy(desc(jobOrdersTable.createdAt));
+  res.json(orders);
 });
 
 router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState } from "react";
 
@@ -27,6 +27,17 @@ interface CertificationOrder {
   stripeSessionId: string;
   status: string;
   createdAt: string;
+}
+
+interface JobOrder {
+  id: number;
+  email: string;
+  productType: string;
+  status: string;
+  jobsRemaining: number;
+  jobId: number | null;
+  createdAt: string;
+  confirmationEmailSentAt: string | null;
 }
 
 interface PendingJob {
@@ -104,6 +115,20 @@ export default function Admin() {
   });
 
   const pendingCertifications = certifications?.filter(c => c.status === "paid") || [];
+
+  // Orders
+  const { data: orders, isLoading: ordersLoading } = useQuery<JobOrder[]>({
+    queryKey: ["admin-orders"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/orders`);
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      return res.json();
+    },
+  });
+
+  const missingEmailCount = orders?.filter(
+    (o) => o.status === "paid" && !o.confirmationEmailSentAt
+  ).length ?? 0;
 
   // Pending jobs
   const { data: pendingJobs, isLoading: pendingLoading, refetch: refetchPending } = useQuery<PendingJob[]>({
@@ -258,6 +283,12 @@ export default function Admin() {
                 <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0">{pendingCertifications.length}</Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="orders" className="px-6 py-2">
+              Orders
+              {missingEmailCount > 0 && (
+                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0">{missingEmailCount}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
             <TabsTrigger value="companies" className="px-6 py-2">Companies</TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
@@ -405,6 +436,103 @@ export default function Admin() {
                             </TableCell>
                           </TableRow>
                         ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="orders">
+            <Card>
+              <CardHeader>
+                <CardTitle>Job Posting Orders</CardTitle>
+                <CardDescription>
+                  All paid job posting orders. Orders flagged in red have not received a confirmation email.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Job Filed</TableHead>
+                        <TableHead>Confirmation Email</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ordersLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center h-24">
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                          </TableCell>
+                        </TableRow>
+                      ) : !orders || orders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                            No orders yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        orders.map((order) => {
+                          const emailMissing = order.status === "paid" && !order.confirmationEmailSentAt;
+                          const productLabel: Record<string, string> = {
+                            single: "Single Post",
+                            pack: "3-Pack",
+                            monthly: "Monthly Unlimited",
+                            featured: "Featured Upgrade",
+                          };
+                          return (
+                            <TableRow key={order.id} className={emailMissing ? "bg-red-50 hover:bg-red-100" : ""}>
+                              <TableCell className="font-medium">{order.email}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {productLabel[order.productType] ?? order.productType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {order.status === "paid" && (
+                                  <Badge className="bg-green-100 text-green-800 border-0 text-xs">Paid</Badge>
+                                )}
+                                {order.status === "pending" && (
+                                  <Badge variant="outline" className="text-muted-foreground text-xs">Pending</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {order.jobId ? (
+                                  <span className="text-xs text-green-700 font-medium">Job #{order.jobId}</span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {order.confirmationEmailSentAt ? (
+                                  <div className="flex items-center gap-1.5 text-green-700">
+                                    <Mail className="h-4 w-4 shrink-0" />
+                                    <span className="text-xs">
+                                      Sent {format(new Date(order.confirmationEmailSentAt), "MMM d, h:mm a")}
+                                    </span>
+                                  </div>
+                                ) : order.status === "paid" ? (
+                                  <div className="flex items-center gap-1.5 text-red-600 font-medium">
+                                    <MailX className="h-4 w-4 shrink-0" />
+                                    <span className="text-xs">Not sent</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {format(new Date(order.createdAt), "MMM d, yyyy")}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>

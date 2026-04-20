@@ -229,6 +229,56 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   res.json(job);
 });
 
+router.get("/admin/certification-orders/export", async (_req, res): Promise<void> => {
+  const orders = await db
+    .select({
+      id: certificationOrdersTable.id,
+      email: certificationOrdersTable.email,
+      companyName: certificationOrdersTable.companyName,
+      stripeSessionId: certificationOrdersTable.stripeSessionId,
+      status: certificationOrdersTable.status,
+      createdAt: certificationOrdersTable.createdAt,
+    })
+    .from(certificationOrdersTable)
+    .orderBy(desc(certificationOrdersTable.createdAt));
+
+  const escape = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return "";
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = [
+    "Order ID",
+    "Email",
+    "Company Name",
+    "Stripe Session ID",
+    "Status",
+    "Created Date",
+  ];
+
+  const rows = orders.map((o) => [
+    escape(o.id),
+    escape(o.email),
+    escape(o.companyName),
+    escape(o.stripeSessionId),
+    escape(o.status),
+    escape(o.createdAt ? new Date(o.createdAt).toISOString() : null),
+  ]);
+
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="certification-orders-export.csv"`);
+  res.send(csv);
+});
+
 router.get("/admin/certifications", async (_req, res): Promise<void> => {
   const certifications = await db
     .select()

@@ -480,6 +480,20 @@ export default function Admin() {
                 <CardDescription>Review and approve certification applications from employers.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      const url = `${import.meta.env.BASE_URL}api/admin/certification-orders/export`;
+                      window.open(url, "_blank");
+                    }}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export CSV
+                  </Button>
+                </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>

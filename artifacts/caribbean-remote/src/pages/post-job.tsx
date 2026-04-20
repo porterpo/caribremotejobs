@@ -169,8 +169,26 @@ export default function PostJob() {
   const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
-  const [logoMode, setLogoMode] = useState<"upload" | "url">("upload");
-  const [logoUrlInput, setLogoUrlInput] = useState("");
+  const [logoMode, setLogoMode] = useState<"upload" | "url">(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.logoMode === "url") return "url";
+      }
+    } catch {}
+    return "upload";
+  });
+  const [logoUrlInput, setLogoUrlInput] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return typeof parsed.logoUrlInput === "string" ? parsed.logoUrlInput : "";
+      }
+    } catch {}
+    return "";
+  });
   const [logoUrlStatus, setLogoUrlStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
 
@@ -217,9 +235,16 @@ export default function PostJob() {
     }
   }, [toast]);
 
+  useEffect(() => {
+    if (logoMode === "url" && logoUrlInput) {
+      setLogoUrlStatus("checking");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const saveDraft = () => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...form, logoMode, logoUrlInput }));
       setDraftSaved(true);
       toast({ title: "Draft saved", description: "You can safely close this tab and return later." });
       setTimeout(() => setDraftSaved(false), 3000);

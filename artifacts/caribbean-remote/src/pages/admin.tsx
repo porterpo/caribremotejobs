@@ -732,16 +732,16 @@ export default function Admin() {
                               <button
                                 key={key}
                                 type="button"
-                                className={`relative text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/20" : "hover:bg-muted"}`}
+                                className={`relative text-center cursor-pointer rounded px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === orderProductType ? "bg-primary border border-primary shadow-sm" : "hover:bg-muted border border-transparent"}`}
                                 title={key === orderProductType ? "Click to clear filter" : `Filter by ${label}`}
                                 onClick={() => setOrderProductType(key === orderProductType ? "all" : key)}
                               >
                                 {key === orderProductType && (
-                                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground leading-none">×</span>
+                                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white leading-none border border-white/30">×</span>
                                 )}
-                                <div className="text-sm font-semibold leading-tight">{count}</div>
-                                <div className="text-xs text-green-700 font-medium">${(revenue / 100).toLocaleString()}</div>
-                                <div className="text-xs text-muted-foreground underline decoration-dotted">{label}</div>
+                                <div className={`text-sm font-semibold leading-tight ${key === orderProductType ? "text-primary-foreground" : ""}`}>{count}</div>
+                                <div className={`text-xs font-medium ${key === orderProductType ? "text-primary-foreground/80" : "text-green-700"}`}>${(revenue / 100).toLocaleString()}</div>
+                                <div className={`text-xs underline decoration-dotted ${key === orderProductType ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{label}</div>
                               </button>
                             ))}
                           </div>

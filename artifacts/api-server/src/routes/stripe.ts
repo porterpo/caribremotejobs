@@ -1,0 +1,130 @@
+import { Router, type IRouter } from "express";
+import { db, jobOrdersTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { getUncachableStripeClient } from "../lib/stripeClient";
+import { logger } from "../lib/logger";
+
+const router: IRouter = Router();
+
+router.get("/stripe/products", async (_req, res): Promise<void> => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        p.id AS product_id,
+        p.name AS product_name,
+        p.description AS product_description,
+        p.metadata AS product_metadata,
+        p.active AS product_active,
+        pr.id AS price_id,
+        pr.unit_amount,
+        pr.currency,
+        pr.recurring,
+        pr.active AS price_active
+      FROM stripe.products p
+      LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
+      WHERE p.active = true
+      ORDER BY pr.unit_amount ASC
+    `);
+
+    const productsMap = new Map<string, {
+      id: string; name: string; description: string | null;
+      metadata: Record<string, string> | null; prices: Array<{
+        id: string; unit_amount: number; currency: string;
+        recurring: { interval: string } | null;
+      }>;
+    }>();
+
+    for (const row of rows.rows as Record<string, unknown>[]) {
+      const pid = row.product_id as string;
+      if (!productsMap.has(pid)) {
+        productsMap.set(pid, {
+          id: pid,
+          name: row.product_name as string,
+          description: row.product_description as string | null,
+          metadata: row.product_metadata as Record<string, string> | null,
+          prices: [],
+        });
+      }
+      if (row.price_id) {
+        productsMap.get(pid)!.prices.push({
+          id: row.price_id as string,
+          unit_amount: row.unit_amount as number,
+          currency: row.currency as string,
+          recurring: row.recurring as { interval: string } | null,
+        });
+      }
+    }
+
+    res.json({ products: Array.from(productsMap.values()) });
+  } catch (err) {
+    logger.error({ err }, "Error fetching Stripe products");
+    res.status(500).json({ error: "Failed to load products" });
+  }
+});
+
+router.post("/stripe/checkout", async (req, res): Promise<void> => {
+  const { priceId, email, productType } = req.body as {
+    priceId: string;
+    email: string;
+    productType: string;
+  };
+
+  if (!priceId || !email || !productType) {
+    res.status(400).json({ error: "priceId, email, and productType are required" });
+    return;
+  }
+
+  try {
+    const stripe = await getUncachableStripeClient();
+    const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
+
+    const isMonthly = productType === "monthly";
+
+    const session = await stripe.checkout.sessions.create({
+      customer_email: email,
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: isMonthly ? "subscription" : "payment",
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+      metadata: { productType, email },
+    });
+
+    const jobsRemaining = productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
+
+    await db.insert(jobOrdersTable).values({
+      email,
+      stripeSessionId: session.id,
+      productType,
+      status: "pending",
+      jobsRemaining,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Error creating checkout session");
+    res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+router.get("/stripe/session/:id", async (req, res): Promise<void> => {
+  const sessionId = req.params.id;
+  try {
+    const [order] = await db
+      .select()
+      .from(jobOrdersTable)
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    res.json(order);
+  } catch (err) {
+    logger.error({ err }, "Error fetching session");
+    res.status(500).json({ error: "Failed to fetch session" });
+  }
+});
+
+export default router;

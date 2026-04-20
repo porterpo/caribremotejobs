@@ -12,6 +12,9 @@ import CompanyDetail from "@/pages/company-detail";
 import Alerts from "@/pages/alerts";
 import Admin from "@/pages/admin";
 import Unsubscribe from "@/pages/unsubscribe";
+import Pricing from "@/pages/pricing";
+import Success from "@/pages/success";
+import PostJob from "@/pages/post-job";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +29,9 @@ function Router() {
       <Route path="/alerts" component={Alerts} />
       <Route path="/admin" component={Admin} />
       <Route path="/unsubscribe/:token" component={Unsubscribe} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/success" component={Success} />
+      <Route path="/post-job" component={PostJob} />
       <Route component={NotFound} />
     </Switch>
   );

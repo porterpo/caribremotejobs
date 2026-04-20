@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Building2, BellRing, Settings, Menu } from "lucide-react";
+import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 
@@ -12,6 +12,7 @@ export function Navbar() {
     { name: "Jobs", href: "/jobs", icon: Briefcase },
     { name: "Companies", href: "/companies", icon: Building2 },
     { name: "Alerts", href: "/alerts", icon: BellRing },
+    { name: "Post a Job", href: "/pricing", icon: DollarSign },
   ];
 
   return (

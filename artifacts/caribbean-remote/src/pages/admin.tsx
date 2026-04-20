@@ -8,7 +8,7 @@ import {
   useSyncJobs,
   useGetStats
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,9 +16,19 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, XCircle, RefreshCw, Star, Building2, Palmtree } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState } from "react";
+
+interface PendingJob {
+  id: number;
+  title: string;
+  companyName: string;
+  category: string;
+  jobType: string;
+  source: string;
+  postedAt: string;
+}
 
 export default function Admin() {
   const { toast } = useToast();
@@ -42,6 +52,34 @@ export default function Admin() {
   
   // Sync
   const syncJobs = useSyncJobs();
+
+  // Pending jobs
+  const { data: pendingJobs, isLoading: pendingLoading, refetch: refetchPending } = useQuery<PendingJob[]>({
+    queryKey: ["pending-jobs"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/pending-jobs`);
+      if (!res.ok) throw new Error("Failed to fetch pending jobs");
+      return res.json();
+    },
+  });
+
+  const approveJob = useMutation({
+    mutationFn: async ({ id, featured }: { id: number; featured: boolean }) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/jobs/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featured }),
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      toast({ title: vars.featured ? "Job approved & featured" : "Job approved" });
+      refetchPending();
+      queryClient.invalidateQueries({ queryKey: getListJobsQueryKey() });
+    },
+    onError: () => toast({ title: "Failed to approve job", variant: "destructive" }),
+  });
 
   const handleSyncJobs = () => {
     syncJobs.mutate(undefined, {
@@ -156,10 +194,81 @@ export default function Admin() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 w-full justify-start h-auto p-1 bg-muted/50 overflow-x-auto">
+            <TabsTrigger value="pending" className="px-6 py-2">
+              Pending Review
+              {pendingJobs && pendingJobs.length > 0 && (
+                <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0">{pendingJobs.length}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
             <TabsTrigger value="companies" className="px-6 py-2">Companies</TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="pending">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Job Review</CardTitle>
+                <CardDescription>Jobs submitted by employers awaiting approval before going live.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Job Title</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingLoading ? (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                      ) : !pendingJobs || pendingJobs.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No jobs pending review.</TableCell></TableRow>
+                      ) : (
+                        pendingJobs.map((job) => (
+                          <TableRow key={job.id}>
+                            <TableCell className="font-medium max-w-[220px] truncate">{job.title}</TableCell>
+                            <TableCell>{job.companyName}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{job.category}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {format(new Date(job.postedAt), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-right flex gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => approveJob.mutate({ id: job.id, featured: false })}
+                                disabled={approveJob.isPending}
+                                data-testid={`approve-${job.id}`}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => approveJob.mutate({ id: job.id, featured: true })}
+                                disabled={approveJob.isPending}
+                                data-testid={`approve-feature-${job.id}`}
+                              >
+                                <Star className="h-4 w-4 mr-1" />
+                                Approve + Feature
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           <TabsContent value="jobs">
             <Card>

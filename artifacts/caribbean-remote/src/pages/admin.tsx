@@ -729,11 +729,17 @@ export default function Admin() {
                           <div className="h-6 w-px bg-border" />
                           <div className="flex flex-wrap gap-3">
                             {filteredBreakdown.map(({ key, label, count, revenue }) => (
-                              <div key={key} className="text-center">
+                              <button
+                                key={key}
+                                type="button"
+                                className="text-center cursor-pointer rounded px-1.5 py-0.5 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                title={`Filter by ${label}`}
+                                onClick={() => setOrderProductType(key)}
+                              >
                                 <div className="text-sm font-semibold leading-tight">{count}</div>
                                 <div className="text-xs text-green-700 font-medium">${(revenue / 100).toLocaleString()}</div>
-                                <div className="text-xs text-muted-foreground">{label}</div>
-                              </div>
+                                <div className="text-xs text-muted-foreground underline decoration-dotted">{label}</div>
+                              </button>
                             ))}
                           </div>
                         </>

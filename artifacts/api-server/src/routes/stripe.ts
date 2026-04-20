@@ -3,7 +3,7 @@ import { db, jobOrdersTable, certificationOrdersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
-import { sendOrderConfirmation } from "../lib/resend";
+import { sendOrderConfirmation, sendCertificationApplicationConfirmation } from "../lib/resend";
 
 const router: IRouter = Router();
 
@@ -260,6 +260,56 @@ router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
   } catch (err) {
     resendTimestamps.delete(sessionId);
     logger.error({ err }, "Error resending order confirmation");
+    res.status(500).json({ error: "Failed to resend confirmation email" });
+  }
+});
+
+const certResendTimestamps = new Map<string, number>();
+
+router.post("/stripe/resend-certification-confirmation", async (req, res): Promise<void> => {
+  const { sessionId } = req.body as { sessionId?: string };
+
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+
+  const now = Date.now();
+  const lastSent = certResendTimestamps.get(sessionId);
+  if (lastSent !== undefined && now - lastSent < RESEND_COOLDOWN_MS) {
+    const secondsLeft = Math.ceil((RESEND_COOLDOWN_MS - (now - lastSent)) / 1000);
+    res.setHeader("Retry-After", String(secondsLeft));
+    res.status(429).json({ error: "rate_limited", secondsLeft });
+    return;
+  }
+
+  try {
+    const [order] = await db
+      .select()
+      .from(certificationOrdersTable)
+      .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
+
+    if (!order) {
+      res.status(404).json({ error: "Certification order not found" });
+      return;
+    }
+
+    if (order.status !== "paid") {
+      res.status(400).json({ error: "Order is not yet confirmed" });
+      return;
+    }
+
+    certResendTimestamps.set(sessionId, now);
+
+    await sendCertificationApplicationConfirmation({
+      email: order.email,
+      companyName: order.companyName,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    certResendTimestamps.delete(sessionId);
+    logger.error({ err }, "Error resending certification confirmation");
     res.status(500).json({ error: "Failed to resend confirmation email" });
   }
 });

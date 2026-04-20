@@ -3,33 +3,79 @@ import { useLocation } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Palmtree, Loader2 } from "lucide-react";
+import { CheckCircle2, Palmtree, Loader2, Mail, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
+
+type ResendState = "idle" | "loading" | "success" | "error" | "rate_limited";
 
 export default function CertifySuccess() {
   const [location] = useLocation();
   const [status, setStatus] = useState<"loading" | "paid" | "error">("loading");
   const [companyName, setCompanyName] = useState<string>("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [resendState, setResendState] = useState<ResendState>("idle");
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id");
-    if (!sessionId) {
+    const sid = params.get("session_id");
+    if (!sid) {
       setStatus("error");
       return;
     }
+    setSessionId(sid);
 
-    fetch(`${import.meta.env.BASE_URL}api/stripe/certification-session/${sessionId}`)
+    fetch(`${import.meta.env.BASE_URL}api/stripe/certification-session/${sid}`)
       .then(res => {
         if (!res.ok) throw new Error("Not found");
         return res.json() as Promise<{ status: string; companyName: string }>;
       })
       .then(order => {
+        if (order.status !== "paid") {
+          setStatus("error");
+          return;
+        }
         setCompanyName(order.companyName);
         setStatus("paid");
       })
       .catch(() => setStatus("error"));
   }, [location]);
+
+  useEffect(() => {
+    if (resendState !== "rate_limited") return;
+    const timer = setInterval(() => {
+      setRateLimitSeconds((s) => {
+        if (s <= 1) {
+          setResendState("idle");
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendState]);
+
+  async function handleResend() {
+    if (!sessionId || resendState === "loading") return;
+    setResendState("loading");
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/stripe/resend-certification-confirmation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (res.status === 429) {
+        const data = await res.json();
+        setRateLimitSeconds(data.secondsLeft ?? 60);
+        setResendState("rate_limited");
+        return;
+      }
+      if (!res.ok) throw new Error("Failed");
+      setResendState("success");
+    } catch {
+      setResendState("error");
+    }
+  }
 
   return (
     <PageLayout>
@@ -61,7 +107,7 @@ export default function CertifySuccess() {
               <p className="text-sm text-muted-foreground mb-8">
                 Once approved, your Caribbean Friendly Certified badge will appear automatically on your company profile and all job listings.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
                 <Button asChild>
                   <Link href="/companies">Browse Companies</Link>
                 </Button>
@@ -69,6 +115,25 @@ export default function CertifySuccess() {
                   <Link href="/jobs">View Jobs</Link>
                 </Button>
               </div>
+              <Button
+                variant="ghost"
+                className="w-full sm:w-auto text-muted-foreground"
+                onClick={handleResend}
+                disabled={resendState === "loading" || resendState === "success" || resendState === "rate_limited"}
+                data-testid="resend-certification-btn"
+              >
+                {resendState === "loading" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</>
+                ) : resendState === "success" ? (
+                  <><CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />Email sent!</>
+                ) : resendState === "rate_limited" ? (
+                  <><AlertCircle className="h-4 w-4 mr-2 text-amber-500" />Please wait {rateLimitSeconds}s before resending</>
+                ) : resendState === "error" ? (
+                  <><AlertCircle className="h-4 w-4 mr-2 text-destructive" />Failed — try again</>
+                ) : (
+                  <><Mail className="h-4 w-4 mr-2" />Resend confirmation email</>
+                )}
+              </Button>
             </>
           )}
 

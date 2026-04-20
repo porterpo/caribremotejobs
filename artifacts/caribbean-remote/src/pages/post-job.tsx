@@ -167,7 +167,12 @@ export default function PostJob() {
   const [resendCooldown, setResendCooldown] = useState<number | null>(() => {
     const stored = localStorage.getItem("resendCooldownUntil");
     if (!stored) return null;
-    const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
+    const expiry = Number(stored);
+    if (!Number.isFinite(expiry)) {
+      localStorage.removeItem("resendCooldownUntil");
+      return null;
+    }
+    const remaining = Math.ceil((expiry - Date.now()) / 1000);
     if (remaining <= 0) {
       localStorage.removeItem("resendCooldownUntil");
       return null;

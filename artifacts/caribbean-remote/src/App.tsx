@@ -17,6 +17,7 @@ import Success from "@/pages/success";
 import PostJob from "@/pages/post-job";
 import Certify from "@/pages/certify";
 import CertifySuccess from "@/pages/certify-success";
+import Certified from "@/pages/certified";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/post-job" component={PostJob} />
       <Route path="/certify" component={Certify} />
       <Route path="/certify/success" component={CertifySuccess} />
+      <Route path="/certified" component={Certified} />
       <Route component={NotFound} />
     </Switch>
   );

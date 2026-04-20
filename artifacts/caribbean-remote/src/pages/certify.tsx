@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Palmtree, CheckCircle2, Star, Users, Globe, ShieldCheck, Loader2 } from "lucide-react";
+import { Palmtree, CheckCircle2, Star, Users, Globe, ShieldCheck, Loader2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 const BENEFITS = [
   {
@@ -110,6 +111,15 @@ export default function Certify() {
               <span className="text-base font-normal text-muted-foreground">/year</span>
             </div>
             <p className="text-sm text-muted-foreground mt-2">Renews annually. Cancel any time.</p>
+            <div className="mt-6">
+              <Link
+                href="/certified"
+                className="inline-flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-900 font-medium transition-colors"
+              >
+                See who's already certified
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </div>

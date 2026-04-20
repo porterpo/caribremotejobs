@@ -11,6 +11,7 @@ export function Navbar() {
   const navigation = [
     { name: "Jobs", href: "/jobs", icon: Briefcase },
     { name: "Companies", href: "/companies", icon: Building2 },
+    { name: "CF Certified", href: "/certified", icon: Palmtree },
     { name: "Alerts", href: "/alerts", icon: BellRing },
     { name: "Post a Job", href: "/pricing", icon: DollarSign },
     { name: "Get Certified", href: "/certify", icon: Palmtree },

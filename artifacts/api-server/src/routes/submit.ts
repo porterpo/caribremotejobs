@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, jobsTable, jobOrdersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { sendJobSubmissionConfirmation } from "../lib/resend";
 
 const router: IRouter = Router();
 
@@ -110,6 +111,15 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
       .update(jobOrdersTable)
       .set({ jobsRemaining: order.jobsRemaining - 1, jobId: job.id })
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+    if (order.email) {
+      void sendJobSubmissionConfirmation({
+        email: order.email,
+        sessionId,
+        jobTitle: job.title,
+        companyName: job.companyName,
+      });
+    }
 
     res.status(201).json({ job, jobsRemaining: order.jobsRemaining - 1 });
   } catch (err) {

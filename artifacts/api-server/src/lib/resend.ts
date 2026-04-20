@@ -128,6 +128,42 @@ export async function sendOrderConfirmation(params: {
   }
 }
 
+export async function sendJobSubmissionConfirmation(params: {
+  email: string;
+  sessionId: string;
+  jobTitle: string;
+  companyName: string;
+}): Promise<void> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const appUrl = process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : (process.env.APP_URL ?? "https://caribbeanremote.com");
+    const editUrl = `${appUrl}/post-job?sessionId=${encodeURIComponent(params.sessionId)}`;
+
+    await client.emails.send({
+      from: fromEmail,
+      to: params.email,
+      subject: "Your job listing is under review — here's your edit link",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0d9488;">Job Submitted Successfully!</h1>
+          <p>Hi there,</p>
+          <p>We've received your listing for <strong>${params.jobTitle}</strong> at <strong>${params.companyName}</strong>. It's currently <strong>pending review</strong> and will go live once our team approves it — usually within 1 business day.</p>
+          <p>Need to make changes before it goes live? You can edit your listing at any time using the link below:</p>
+          <a href="${editUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 0;">Edit Your Listing</a>
+          <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">Or copy this link: <a href="${editUrl}">${editUrl}</a></p>
+          <p style="font-size: 14px; color: #374151;">Once approved, your job will appear live on CaribbeanRemote and job seekers will be able to apply directly.</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to send job submission confirmation email");
+  }
+}
+
 export async function sendJobAlerts(
   email: string,
   unsubscribeToken: string,

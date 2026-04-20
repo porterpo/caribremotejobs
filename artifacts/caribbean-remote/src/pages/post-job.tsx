@@ -260,6 +260,11 @@ export default function PostJob() {
       setForm(jobToFormState(pendingJob));
       setEditModeLoaded(true);
       localStorage.removeItem(DRAFT_KEY);
+      if (pendingJob.companyLogo && /^https?:\/\/.+/.test(pendingJob.companyLogo)) {
+        setLogoMode("url");
+        setLogoUrlInput(pendingJob.companyLogo);
+        setLogoUrlStatus("checking");
+      }
     }
   }, [pendingJob, editModeLoaded]);
 

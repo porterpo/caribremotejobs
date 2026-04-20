@@ -82,8 +82,10 @@ async function syncRemotive(): Promise<SourceResult> {
     let synced = 0, skipped = 0;
 
     for (const job of data.jobs ?? []) {
-      const fullText = `${job.title} ${job.description} ${job.candidate_required_location ?? ""}`;
+      const location = job.candidate_required_location ?? "";
+      const fullText = `${job.title} ${job.description} ${location}`;
       if (!isInternationallyHiring(fullText)) { skipped++; continue; }
+      if (!isCaribBean(location)) { skipped++; continue; }
       const sourceJobId = `remotive-${job.id}`;
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
@@ -127,6 +129,7 @@ async function syncWWR(): Promise<SourceResult> {
       const categoryRaw: string = (item as Record<string, unknown>)["category"] as string ?? "other";
 
       if (!isInternationallyHiring(`${title} ${description} ${region}`)) { skipped++; continue; }
+      if (!isCaribBean(region)) { skipped++; continue; }
 
       const cleanTitle = title.includes(":") ? title.split(":").slice(1).join(":").trim() : title;
       const companyName = title.includes(":") ? title.split(":")[0]?.trim() ?? "Unknown" : "Unknown";
@@ -178,6 +181,7 @@ async function syncRemoteOK(): Promise<SourceResult> {
       const location = job.location ?? "";
       const description = job.description ?? "";
       if (!isInternationallyHiring(`${job.position} ${description} ${location}`)) { skipped++; continue; }
+      if (!isCaribBean(location)) { skipped++; continue; }
 
       const sourceJobId = `remoteok-${job.id}`;
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
@@ -237,6 +241,7 @@ async function syncHimalayas(): Promise<SourceResult> {
 
       const locationText = restrictions.join(", ");
       if (!isInternationallyHiring(`${job.title} ${job.description ?? ""} ${locationText}`)) { skipped++; continue; }
+      if (restrictions.length > 0 && !isCaribBean(locationText)) { skipped++; continue; }
 
       const sourceJobId = `himalayas-${job.guid}`;
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
@@ -291,6 +296,7 @@ async function syncWorkingNomads(): Promise<SourceResult> {
       const location = job.location ?? "";
       const description = job.description ?? "";
       if (!isInternationallyHiring(`${job.title} ${description} ${location}`)) { skipped++; continue; }
+      if (!isCaribBean(location)) { skipped++; continue; }
 
       const sourceJobId = `workingnomads-${job.url.replace(/[^a-z0-9]/gi, "-")}`;
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));

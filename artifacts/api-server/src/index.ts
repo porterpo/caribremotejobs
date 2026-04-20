@@ -22,17 +22,19 @@ async function initStripe() {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) throw new Error("DATABASE_URL is required");
 
-    await runMigrations({ databaseUrl, schema: "stripe" });
+    await runMigrations({ databaseUrl });
     logger.info("Stripe schema ready");
 
     const { getStripeSync } = await import("./lib/stripeClient");
     const stripeSync = await getStripeSync();
 
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
-    await stripeSync.findOrCreateManagedWebhook(
-      `${webhookBaseUrl}/api/stripe/webhook`,
-    );
-    logger.info("Stripe webhook configured");
+    const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    if (domain) {
+      await stripeSync.findOrCreateManagedWebhook(
+        `https://${domain}/api/stripe/webhook`,
+      );
+      logger.info("Stripe webhook configured");
+    }
 
     stripeSync.syncBackfill().then(() => {
       logger.info("Stripe data synced");

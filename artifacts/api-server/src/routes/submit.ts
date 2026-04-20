@@ -213,6 +213,10 @@ router.put("/jobs/update", async (req, res): Promise<void> => {
   const locationRestrictions = body.locationRestrictions
     ? String(body.locationRestrictions).trim()
     : null;
+  const companyLogo =
+    "companyLogo" in body
+      ? (body.companyLogo ? String(body.companyLogo).trim() : null)
+      : undefined;
 
   if (!sessionId) {
     res.status(400).json({ error: "sessionId is required" });
@@ -300,6 +304,7 @@ router.put("/jobs/update", async (req, res): Promise<void> => {
         salaryMin: salaryMin ?? null,
         salaryMax: salaryMax ?? null,
         locationRestrictions: locationRestrictions ?? null,
+        ...(companyLogo !== undefined ? { companyLogo } : {}),
       })
       .where(eq(jobsTable.id, order.jobId))
       .returning();

@@ -382,10 +382,22 @@ export default function PostJob() {
 
   const updateJob = useMutation({
     mutationFn: async () => {
+      let logoServingUrl: string | null;
+      if (logoMode === "url" && logoUrlStatus === "valid" && logoUrlInput) {
+        logoServingUrl = logoUrlInput;
+      } else if (companyLogoPath) {
+        const objectId = companyLogoPath.split("/").pop();
+        logoServingUrl = `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`;
+      } else if (existingLogoUrl) {
+        logoServingUrl = existingLogoUrl;
+      } else {
+        logoServingUrl = null;
+      }
       const payload = {
         sessionId,
         title: form.title,
         companyName: form.companyName,
+        companyLogo: logoServingUrl,
         category: form.category,
         jobType: form.jobType,
         description: form.description,

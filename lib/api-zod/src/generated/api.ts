@@ -28,6 +28,7 @@ export const ListJobsQueryParams = zod.object({
   salaryMin: zod.coerce.number().optional(),
   salaryMax: zod.coerce.number().optional(),
   caribbeanFriendly: zod.coerce.boolean().optional(),
+  entryLevel: zod.coerce.boolean().optional(),
   featured: zod.coerce.boolean().optional(),
   page: zod.coerce.number().default(listJobsQueryPageDefault),
   limit: zod.coerce.number().default(listJobsQueryLimitDefault),

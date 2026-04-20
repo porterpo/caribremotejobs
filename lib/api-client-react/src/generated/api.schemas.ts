@@ -18,6 +18,7 @@ export interface Job {
   /** @nullable */
   companyLogo?: string | null;
   caribbeanFriendly: boolean;
+  entryLevel: boolean;
   category: string;
   jobType: string;
   /** @nullable */
@@ -211,6 +212,7 @@ export type ListJobsParams = {
   salaryMin?: number;
   salaryMax?: number;
   caribbeanFriendly?: boolean;
+  entryLevel?: boolean;
   featured?: boolean;
   page?: number;
   limit?: number;

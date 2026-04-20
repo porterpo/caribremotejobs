@@ -35,6 +35,7 @@ export default function Jobs() {
   const [category, setCategory] = useState(initialCategory);
   const [jobType, setJobType] = useState("all");
   const [caribbeanFriendly, setCaribbeanFriendly] = useState(false);
+  const [entryLevel, setEntryLevel] = useState(false);
   const [featured, setFeatured] = useState(initialFeatured);
   const [page, setPage] = useState(1);
   
@@ -46,6 +47,7 @@ export default function Jobs() {
     ...(category !== "all" ? { category } : {}),
     ...(jobType !== "all" ? { jobType } : {}),
     ...(caribbeanFriendly ? { caribbeanFriendly: true } : {}),
+    ...(entryLevel ? { entryLevel: true } : {}),
     ...(featured ? { featured: true } : {}),
     page,
     limit: 10,
@@ -55,7 +57,7 @@ export default function Jobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, caribbeanFriendly, featured]);
+  }, [debouncedSearch, category, jobType, caribbeanFriendly, entryLevel, featured]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -104,6 +106,16 @@ export default function Jobs() {
         </div>
         <div className="flex items-center space-x-2">
           <Checkbox 
+            id="entryLevel" 
+            checked={entryLevel} 
+            onCheckedChange={(c) => setEntryLevel(c as boolean)} 
+          />
+          <Label htmlFor="entryLevel" className="font-normal cursor-pointer">
+            Entry Level Only
+          </Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox 
             id="featured" 
             checked={featured} 
             onCheckedChange={(c) => setFeatured(c as boolean)} 
@@ -122,6 +134,7 @@ export default function Jobs() {
           setCategory("all");
           setJobType("all");
           setCaribbeanFriendly(false);
+          setEntryLevel(false);
           setFeatured(false);
         }}
       >

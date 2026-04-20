@@ -9,6 +9,7 @@ export const jobsTable = pgTable("jobs", {
   companyName: text("company_name").notNull(),
   companyLogo: text("company_logo"),
   caribbeanFriendly: boolean("caribbean_friendly").notNull().default(false),
+  entryLevel: boolean("entry_level").notNull().default(false),
   category: text("category").notNull(),
   jobType: text("job_type").notNull().default("full-time"),
   salaryMin: integer("salary_min"),

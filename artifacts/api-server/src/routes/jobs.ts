@@ -50,6 +50,7 @@ router.get("/jobs", async (req, res): Promise<void> => {
   if (params.category) conditions.push(eq(jobsTable.category, params.category));
   if (params.jobType) conditions.push(eq(jobsTable.jobType, params.jobType));
   if (params.caribbeanFriendly !== undefined) conditions.push(eq(jobsTable.caribbeanFriendly, params.caribbeanFriendly));
+  if ((params as Record<string, unknown>).entryLevel !== undefined) conditions.push(eq(jobsTable.entryLevel, (params as Record<string, unknown>).entryLevel as boolean));
   if (params.featured !== undefined) conditions.push(eq(jobsTable.featured, params.featured));
   if (params.salaryMin !== undefined) {
     conditions.push(gte(jobsTable.salaryMin, params.salaryMin));

@@ -264,22 +264,11 @@ router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
   }
 });
 
-const certResendTimestamps = new Map<string, number>();
-
 router.post("/stripe/resend-certification-confirmation", async (req, res): Promise<void> => {
   const { sessionId } = req.body as { sessionId?: string };
 
   if (!sessionId) {
     res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-
-  const now = Date.now();
-  const lastSent = certResendTimestamps.get(sessionId);
-  if (lastSent !== undefined && now - lastSent < RESEND_COOLDOWN_MS) {
-    const secondsLeft = Math.ceil((RESEND_COOLDOWN_MS - (now - lastSent)) / 1000);
-    res.setHeader("Retry-After", String(secondsLeft));
-    res.status(429).json({ error: "rate_limited", secondsLeft });
     return;
   }
 
@@ -299,7 +288,21 @@ router.post("/stripe/resend-certification-confirmation", async (req, res): Promi
       return;
     }
 
-    certResendTimestamps.set(sessionId, now);
+    const now = Date.now();
+    if (order.lastResendAt) {
+      const elapsed = now - order.lastResendAt.getTime();
+      if (elapsed < RESEND_COOLDOWN_MS) {
+        const secondsLeft = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
+        res.setHeader("Retry-After", String(secondsLeft));
+        res.status(429).json({ error: "rate_limited", secondsLeft });
+        return;
+      }
+    }
+
+    await db
+      .update(certificationOrdersTable)
+      .set({ lastResendAt: new Date(now) })
+      .where(eq(certificationOrdersTable.stripeSessionId, sessionId));
 
     await sendCertificationApplicationConfirmation({
       email: order.email,
@@ -308,7 +311,6 @@ router.post("/stripe/resend-certification-confirmation", async (req, res): Promi
 
     res.json({ success: true });
   } catch (err) {
-    certResendTimestamps.delete(sessionId);
     logger.error({ err }, "Error resending certification confirmation");
     res.status(500).json({ error: "Failed to resend confirmation email" });
   }

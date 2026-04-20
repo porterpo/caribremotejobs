@@ -40,7 +40,7 @@ async function getCredentials(): Promise<{
     );
   }
 
-  const data = await response.json();
+  const data = await response.json() as { items?: Array<{ settings?: { publishable?: string; secret?: string } }> };
   const settings = data.items?.[0]?.settings;
 
   if (!settings?.publishable || !settings?.secret) {

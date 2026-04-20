@@ -79,6 +79,7 @@ export default function Success() {
       const timer = setTimeout(refetch, 1500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [sessionId, refetch]);
 
   if (!sessionId) {

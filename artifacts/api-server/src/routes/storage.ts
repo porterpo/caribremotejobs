@@ -49,7 +49,7 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
 });
 
 router.get("/storage/logos/:objectId", async (req: Request, res: Response) => {
-  const { objectId } = req.params;
+  const objectId = String(req.params["objectId"] ?? "");
   if (!objectId || !/^[\w-]+$/.test(objectId)) {
     res.status(400).json({ error: "Invalid object ID" });
     return;

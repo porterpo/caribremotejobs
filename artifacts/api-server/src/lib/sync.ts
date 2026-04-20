@@ -124,9 +124,9 @@ async function syncWWR(): Promise<SourceResult> {
       const title = item.title ?? "";
       const link = item.link ?? item.guid ?? "";
       const description = item.content ?? item.contentSnippet ?? "";
-      const region: string = (item as Record<string, unknown>)["region"] as string ?? "";
-      const jobTypeRaw: string = (item as Record<string, unknown>)["type"] as string ?? "Full-Time";
-      const categoryRaw: string = (item as Record<string, unknown>)["category"] as string ?? "other";
+      const region: string = (item as unknown as Record<string, unknown>)["region"] as string ?? "";
+      const jobTypeRaw: string = (item as unknown as Record<string, unknown>)["type"] as string ?? "Full-Time";
+      const categoryRaw: string = (item as unknown as Record<string, unknown>)["category"] as string ?? "other";
 
       if (!isInternationallyHiring(`${title} ${description} ${region}`)) { skipped++; continue; }
       if (!isCaribBean(region)) { skipped++; continue; }

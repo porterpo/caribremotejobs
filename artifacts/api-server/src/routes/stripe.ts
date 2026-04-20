@@ -161,7 +161,8 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
         jobsRemaining,
       });
 
-      return res.json({ url: session.url });
+      res.json({ url: session.url });
+      return;
     }
 
     res.json({ url: session.url });

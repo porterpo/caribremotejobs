@@ -121,7 +121,6 @@ export default function Jobs() {
           setSearch("");
           setCategory("all");
           setJobType("all");
-          setCaribbeanFriendly(false);
           setEntryLevel(false);
           setFeatured(false);
         }}
@@ -245,7 +244,6 @@ export default function Jobs() {
                   setSearch("");
                   setCategory("all");
                   setJobType("all");
-                  setCaribbeanFriendly(false);
                   setFeatured(false);
                 }}
               >

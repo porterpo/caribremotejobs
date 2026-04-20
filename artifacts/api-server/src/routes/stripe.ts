@@ -26,13 +26,21 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
       ORDER BY pr.unit_amount ASC
     `);
 
-    const productsMap = new Map<string, {
-      id: string; name: string; description: string | null;
-      metadata: Record<string, string> | null; prices: Array<{
-        id: string; unit_amount: number; currency: string;
-        recurring: { interval: string } | null;
-      }>;
-    }>();
+    const productsMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        description: string | null;
+        metadata: Record<string, string> | null;
+        prices: Array<{
+          id: string;
+          unit_amount: number;
+          currency: string;
+          recurring: { interval: string } | null;
+        }>;
+      }
+    >();
 
     for (const row of rows.rows as Record<string, unknown>[]) {
       const pid = row.product_id as string;
@@ -63,34 +71,67 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
 });
 
 router.post("/stripe/checkout", async (req, res): Promise<void> => {
-  const { priceId, email, productType } = req.body as {
+  const { priceId, email } = req.body as {
     priceId: string;
     email: string;
-    productType: string;
+    productType?: string;
   };
 
-  if (!priceId || !email || !productType) {
-    res.status(400).json({ error: "priceId, email, and productType are required" });
+  if (!priceId || !email) {
+    res.status(400).json({ error: "priceId and email are required" });
     return;
   }
 
   try {
+    const rows = await db.execute(sql`
+      SELECT
+        pr.id AS price_id,
+        pr.recurring,
+        p.metadata AS product_metadata
+      FROM stripe.prices pr
+      JOIN stripe.products p ON pr.product = p.id
+      WHERE pr.id = ${priceId}
+        AND pr.active = true
+        AND p.active = true
+      LIMIT 1
+    `);
+
+    if (!rows.rows.length) {
+      res.status(400).json({ error: "Invalid or inactive price" });
+      return;
+    }
+
+    const row = rows.rows[0] as Record<string, unknown>;
+    const metadata = (row.product_metadata as Record<string, string>) ?? {};
+    const productType = metadata.type as string | undefined;
+    const isRecurring = !!row.recurring;
+
+    if (!productType) {
+      res.status(400).json({ error: "Product is missing type metadata" });
+      return;
+    }
+
+    const validTypes = ["single", "pack", "monthly", "featured"];
+    if (!validTypes.includes(productType)) {
+      res.status(400).json({ error: `Unknown product type: ${productType}` });
+      return;
+    }
+
     const stripe = await getUncachableStripeClient();
     const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
-
-    const isMonthly = productType === "monthly";
 
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: isMonthly ? "subscription" : "payment",
+      mode: isRecurring ? "subscription" : "payment",
       success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing`,
       metadata: { productType, email },
     });
 
-    const jobsRemaining = productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
+    const jobsRemaining =
+      productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
 
     await db.insert(jobOrdersTable).values({
       email,

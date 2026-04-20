@@ -65,11 +65,11 @@ export default function Pricing() {
   });
 
   const checkout = useMutation({
-    mutationFn: async ({ priceId, email, productType }: { priceId: string; email: string; productType: string }) => {
+    mutationFn: async ({ priceId, email }: { priceId: string; email: string }) => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/stripe/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId, email, productType }),
+        body: JSON.stringify({ priceId, email }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -99,8 +99,7 @@ export default function Pricing() {
     if (!selectedProduct) return;
     const price = selectedProduct.prices[0];
     if (!price) return;
-    const productType = getProductType(selectedProduct.metadata);
-    checkout.mutate({ priceId: price.id, email, productType });
+    checkout.mutate({ priceId: price.id, email });
   };
 
   const products = data?.products ?? [];

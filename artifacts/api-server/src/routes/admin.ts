@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
-import { db, jobsTable, jobOrdersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, jobsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -21,18 +21,26 @@ router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {
 
 router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
-  const featured = req.body?.featured === true;
+  const body = req.body as Record<string, unknown>;
 
-  const [job] = await db
-    .update(jobsTable)
-    .set({ approved: true, featured })
-    .where(eq(jobsTable.id, id))
-    .returning();
+  const [existing] = await db
+    .select({ featured: jobsTable.featured })
+    .from(jobsTable)
+    .where(eq(jobsTable.id, id));
 
-  if (!job) {
+  if (!existing) {
     res.status(404).json({ error: "Job not found" });
     return;
   }
+
+  const featuredValue =
+    typeof body.featured === "boolean" ? body.featured : existing.featured;
+
+  const [job] = await db
+    .update(jobsTable)
+    .set({ approved: true, featured: featuredValue })
+    .where(eq(jobsTable.id, id))
+    .returning();
 
   res.json(job);
 });

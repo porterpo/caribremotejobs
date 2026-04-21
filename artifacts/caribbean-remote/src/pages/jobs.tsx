@@ -564,7 +564,7 @@ export default function Jobs() {
                   </span>
                 </div>
               )}
-              {trimmed && suggestions.slice(0, 8).map(({ tag }) => (
+              {trimmed && suggestions.slice(0, 8).map(({ tag, count }) => (
                 <button
                   key={tag}
                   onClick={() => { toggleTag(tag); setTagInput(""); }}
@@ -572,6 +572,7 @@ export default function Jobs() {
                 >
                   <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="truncate">{tag}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">{count}</span>
                 </button>
               ))}
               {trimmed && suggestions.length === 0 && (

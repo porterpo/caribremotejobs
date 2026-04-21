@@ -24,6 +24,7 @@ const FILTER_FEATURED_KEY = "cr_filter_featured";
 const FILTER_TAGS_KEY = "cr_filter_tags";
 const FILTER_TAG_LOGIC_KEY = "cr_filter_tag_logic";
 const FILTER_MIN_MATCH_KEY = "cr_filter_min_match";
+const FILTER_ONLY_MATCHING_KEY = "cr_filter_only_matching";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const ALLOWED_MIN_MATCH_VALUES = [0, 25, 50, 75] as const;
@@ -134,6 +135,14 @@ export default function Jobs() {
     }
   });
 
+  const [onlyMatching, setOnlyMatching] = useState(() => {
+    try {
+      return localStorage.getItem(FILTER_ONLY_MATCHING_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
 
@@ -188,7 +197,7 @@ export default function Jobs() {
   };
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
-  const needsAllJobs = hasSkills && (isBestMatch || minMatch > 0);
+  const needsAllJobs = hasSkills && (isBestMatch || minMatch > 0 || onlyMatching);
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
@@ -206,7 +215,7 @@ export default function Jobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, minMatch, selectedTags, tagLogic]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, minMatch, onlyMatching, selectedTags, tagLogic]);
 
   // Persist sort preference to localStorage
   useEffect(() => {
@@ -262,13 +271,19 @@ export default function Jobs() {
     try { localStorage.setItem(FILTER_MIN_MATCH_KEY, String(minMatch)); } catch {}
   }, [minMatch]);
 
-  // Reset skill-based settings when skills disappear
   useEffect(() => {
-    if (!hasSkills) {
+    try { localStorage.setItem(FILTER_ONLY_MATCHING_KEY, onlyMatching ? "1" : "0"); } catch {}
+  }, [onlyMatching]);
+
+  // Reset skill-based settings when skills are confirmed gone (not just loading)
+  const skillsResolved = !isSignedIn || resumeStatus === "success" || resumeStatus === "error";
+  useEffect(() => {
+    if (skillsResolved && !hasSkills) {
       if (sortBy === "best-match") setSortBy("newest");
       if (minMatch > 0) setMinMatch(0);
+      if (onlyMatching) setOnlyMatching(false);
     }
-  }, [hasSkills, sortBy, minMatch]);
+  }, [skillsResolved, hasSkills, sortBy, minMatch, onlyMatching]);
 
   const { displayedJobs, activeTotal, activeTotalPages } = useMemo(() => {
     if (needsAllJobs) {
@@ -286,9 +301,11 @@ export default function Jobs() {
         score: computeSkillMatch(resumeSkills, job.tags ?? null)?.percentage ?? 0,
       }));
 
-      const filtered = minMatch > 0
-        ? jobsWithScores.filter(({ score }) => score >= minMatch)
-        : jobsWithScores;
+      const filtered = jobsWithScores.filter(({ score }) => {
+        if (onlyMatching && score === 0) return false;
+        if (minMatch > 0 && score < minMatch) return false;
+        return true;
+      });
 
       if (isBestMatch) {
         filtered.sort((a, b) => {
@@ -309,7 +326,7 @@ export default function Jobs() {
       activeTotal: jobsResponse?.total ?? 0,
       activeTotalPages: jobsResponse?.totalPages ?? 1,
     };
-  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, page]);
+  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, onlyMatching, page]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -366,6 +383,18 @@ export default function Jobs() {
             Featured Jobs Only
           </Label>
         </div>
+        {hasSkills && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="onlyMatching"
+              checked={onlyMatching}
+              onCheckedChange={(c) => setOnlyMatching(c as boolean)}
+            />
+            <Label htmlFor="onlyMatching" className="font-normal cursor-pointer">
+              Matching my skills only
+            </Label>
+          </div>
+        )}
       </div>
 
       {hasSkills && (
@@ -452,6 +481,7 @@ export default function Jobs() {
           setSelectedTags([]);
           setTagLogic("and");
           setMinMatch(0);
+          setOnlyMatching(false);
           setTagInput("");
         }}
       >
@@ -631,7 +661,7 @@ export default function Jobs() {
               <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium text-foreground mb-2">Couldn't load results</h3>
               <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
-              <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); }}>
+              <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); setOnlyMatching(false); }}>
                 Reset and show newest first
               </Button>
             </div>

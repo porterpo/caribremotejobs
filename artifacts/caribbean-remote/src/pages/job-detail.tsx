@@ -493,7 +493,7 @@ export default function JobDetail() {
 
   return (
     <PageLayout>
-      {job && (
+      {isSignedIn && job && (
         <ApplyWithResumeDialog
           open={applyDialogOpen}
           onClose={() => setApplyDialogOpen(false)}
@@ -502,7 +502,7 @@ export default function JobDetail() {
           onShowPreview={showPreviewOnApply ? () => { setApplyDialogOpen(false); setPreviewDialogOpen(true); } : undefined}
         />
       )}
-      {job && mailtoPreview && (
+      {isSignedIn && job && mailtoPreview && (
         <MailtoPreviewDialog
           open={previewDialogOpen}
           onClose={() => setPreviewDialogOpen(false)}
@@ -790,6 +790,22 @@ export default function JobDetail() {
               </div>
             </div>
 
+            {!isSignedIn && (
+              <div className="border rounded-xl p-6 bg-primary/5 border-primary/20 text-center">
+                <Palmtree className="h-8 w-8 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold mb-2">Join CaribbeanRemote</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create a free account to apply with your resume, set job alerts, and track opportunities.
+                </p>
+                <Button className="w-full" asChild>
+                  <Link href="/sign-up">Create free account</Link>
+                </Button>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Already have an account?{" "}
+                  <Link href="/sign-in" className="text-primary hover:underline">Sign in</Link>
+                </p>
+              </div>
+            )}
             <div className="border rounded-xl p-6 bg-primary/5 border-primary/20 text-center">
               <BellRing className="h-8 w-8 text-primary mx-auto mb-3" />
               <h3 className="font-semibold mb-2">Get alerts for similar jobs</h3>

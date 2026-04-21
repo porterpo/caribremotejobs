@@ -345,6 +345,8 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 gap-1 px-2.5">
                   <CheckCircle2 className="h-3 w-3" />
                   Applied
+                  {appliedRecord.resumeType === "pdf" && " · PDF"}
+                  {appliedRecord.resumeType === "built" && " · Built Resume"}
                 </Badge>
               )}
               {isVerifiedEmployer && (

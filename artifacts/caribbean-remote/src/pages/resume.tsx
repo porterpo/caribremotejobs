@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check, AlertTriangle, Briefcase } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -88,43 +90,110 @@ function getResumeTypeLabel(resumeType?: "built" | "pdf" | "none") {
   return "Resume";
 }
 
+interface ApiApplicationRecord {
+  jobId: number;
+  jobTitle: string | null;
+  companyName: string | null;
+  appliedAt: string | null;
+  resumeType: "built" | "pdf" | "none" | null;
+}
+
 function ApplicationsHistorySection() {
-  const [records, setRecords] = useState<Record<string, AppliedJobRecord>>({});
+  const { isSignedIn } = useUser();
+  const [localRecords, setLocalRecords] = useState<Record<string, AppliedJobRecord>>({});
 
   useEffect(() => {
-    setRecords(getAppliedJobRecords());
+    setLocalRecords(getAppliedJobRecords());
   }, []);
 
-  const entries = Object.entries(records)
-    .map(([jobId, record]) => ({ jobId, ...record }))
-    .filter((entry) => entry.appliedAt)
-    .sort((a, b) => new Date(b.appliedAt!).getTime() - new Date(a.appliedAt!).getTime());
+  const { data: apiData, isLoading: apiLoading } = useQuery<{ applications: ApiApplicationRecord[] }>({
+    queryKey: ["applications-history"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/applications/history`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!isSignedIn,
+    staleTime: 1000 * 60,
+  });
 
-  if (entries.length === 0) return null;
+  // For signed-in users: use API data merged with localStorage resume type
+  // For guests: use localStorage only
+  const entries = (() => {
+    if (isSignedIn) {
+      if (!apiData) return [];
+      return apiData.applications.map((row) => {
+        const local = localRecords[String(row.jobId)];
+        return {
+          jobId: String(row.jobId),
+          jobTitle: row.jobTitle,
+          companyName: row.companyName,
+          appliedAt: row.appliedAt ?? local?.appliedAt ?? null,
+          resumeType: (local?.resumeType ?? row.resumeType) as "built" | "pdf" | "none" | null | undefined,
+        };
+      });
+    }
+    return Object.entries(localRecords)
+      .map(([jobId, record]) => ({
+        jobId,
+        jobTitle: null as string | null,
+        companyName: null as string | null,
+        appliedAt: record.appliedAt ?? null,
+        resumeType: record.resumeType as "built" | "pdf" | "none" | null | undefined,
+      }))
+      .filter((e) => e.appliedAt)
+      .sort((a, b) => new Date(b.appliedAt!).getTime() - new Date(a.appliedAt!).getTime());
+  })();
+
+  if (!isSignedIn && entries.length === 0) return null;
+  if (isSignedIn && !apiLoading && entries.length === 0) return null;
 
   return (
     <section className="border rounded-xl p-6 bg-card space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <Briefcase className="h-5 w-5 text-muted-foreground shrink-0" />
         <div>
-          <h2 className="text-xl font-semibold">Recent applications</h2>
-          <p className="text-sm text-muted-foreground">Saved on this device.</p>
+          <h2 className="text-xl font-semibold">Application history</h2>
+          <p className="text-sm text-muted-foreground">
+            {isSignedIn ? "Synced across all your devices." : "Saved on this device only."}
+          </p>
         </div>
       </div>
-      <div className="space-y-3">
-        {entries.map((entry) => (
-          <div key={entry.jobId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3">
-            <div>
-              <p className="font-medium">Job #{entry.jobId}</p>
-              <p className="text-xs text-muted-foreground">
-                Applied {new Date(entry.appliedAt!).toLocaleString()}
-              </p>
-            </div>
-            <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-              {getResumeTypeLabel(entry.resumeType)}
-            </Badge>
-          </div>
-        ))}
-      </div>
+
+      {apiLoading && isSignedIn ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading history…
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {entries.map((entry) => (
+            <Link
+              key={entry.jobId}
+              href={`/jobs/${entry.jobId}`}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3 hover:bg-muted/40 transition-colors"
+            >
+              <div className="min-w-0">
+                <p className="font-medium truncate">
+                  {entry.jobTitle ?? `Job #${entry.jobId}`}
+                </p>
+                {entry.companyName && (
+                  <p className="text-xs text-muted-foreground">{entry.companyName}</p>
+                )}
+                {entry.appliedAt && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Applied {new Date(entry.appliedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                )}
+              </div>
+              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 shrink-0">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                {getResumeTypeLabel(entry.resumeType ?? undefined)}
+              </Badge>
+            </Link>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

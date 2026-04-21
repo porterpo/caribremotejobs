@@ -452,7 +452,7 @@ export default function Jobs() {
           ) : displayedJobs.length ? (
             <div className="space-y-4">
               {displayedJobs.map((job) => (
-                <JobCard key={job.id} job={job} isBestMatch={isBestMatch} onTagClick={toggleTag} />
+                <JobCard key={job.id} job={job} isBestMatch={isBestMatch} onTagClick={toggleTag} selectedTags={selectedTags} />
               ))}
               
               {/* Pagination */}

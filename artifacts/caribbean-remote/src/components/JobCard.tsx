@@ -59,9 +59,10 @@ interface JobCardProps {
   job: Job;
   isBestMatch?: boolean;
   onTagClick?: (tag: string) => void;
+  selectedTags?: string[];
 }
 
-export function JobCard({ job, isBestMatch = false, onTagClick }: JobCardProps) {
+export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: JobCardProps) {
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
   const { isSignedIn } = useUser();
@@ -82,6 +83,9 @@ export function JobCard({ job, isBestMatch = false, onTagClick }: JobCardProps) 
   const overflowCount = allTags.length - visibleTags.length;
   const matchedSet = new Set(
     skillMatch ? skillMatch.matchedSkills.map((s) => s.toLowerCase()) : []
+  );
+  const activeSet = new Set(
+    selectedTags ? selectedTags.map((s) => s.toLowerCase()) : []
   );
 
   return (
@@ -159,15 +163,23 @@ export function JobCard({ job, isBestMatch = false, onTagClick }: JobCardProps) 
                 <div className="flex flex-wrap items-center gap-1.5 mb-3 relative z-20">
                   {visibleTags.map((tag, idx) => {
                     const isMatched = matchedSet.has(tag.toLowerCase());
+                    const isActive = activeSet.has(tag.toLowerCase());
+                    const tooltipLabel = isActive
+                      ? "Active filter"
+                      : isMatched
+                      ? "Matches your resume"
+                      : "Required skill";
                     return (
                       <SkillBadgeTooltip
                         key={`${tag}-${idx}`}
-                        label={isMatched ? "Matches your resume" : "Required skill"}
+                        label={tooltipLabel}
                       >
                         <Badge
                           variant="secondary"
                           className={
-                            isMatched
+                            isActive
+                              ? `bg-primary text-primary-foreground border border-primary text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-primary/80 transition-colors" : ""}`
+                              : isMatched
                               ? `bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-emerald-200 transition-colors" : ""}`
                               : `bg-muted text-muted-foreground text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-muted/70 transition-colors" : ""}`
                           }

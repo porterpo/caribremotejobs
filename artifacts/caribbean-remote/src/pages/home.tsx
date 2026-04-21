@@ -47,11 +47,11 @@ export default function Home() {
                 Connect with international companies hiring remote talent from the Caribbean. Build a world-class career without leaving the islands you love.
               </p>
               
-              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 mb-12">
-                <Button size="lg" asChild className="text-base h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 mb-12">
+                <Button size="lg" asChild className="text-base h-12 sm:h-14 px-6 sm:px-7 w-full sm:w-auto justify-center sm:min-w-[190px]">
                   <Link href="/jobs">Browse Opportunities</Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild className="text-base h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto justify-center bg-background">
+                <Button size="lg" variant="outline" asChild className="text-base h-12 sm:h-14 px-6 sm:px-7 w-full sm:w-auto justify-center sm:min-w-[170px] bg-background">
                   <Link href="/alerts">Get Job Alerts</Link>
                 </Button>
               </div>

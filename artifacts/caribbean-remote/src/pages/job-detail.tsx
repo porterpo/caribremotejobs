@@ -830,6 +830,7 @@ export default function JobDetail() {
   }
 
   function handleMailClientOpened() {
+    setLocalApplyCount(prev => prev + 1);
     saveApplicationRecord(jobId, pendingResumeType);
     track("application_started", { job_id: jobId, resume_type: pendingResumeType });
     setAppliedRecord({ resumeType: pendingResumeType, appliedAt: new Date().toISOString() });

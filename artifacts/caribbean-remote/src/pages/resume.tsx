@@ -367,6 +367,8 @@ export default function ResumePage() {
       const hasSkillsNow = (saved.skills ?? []).length > 0;
       if (hasSkillsNow && !hadSkillsBefore) {
         track("skills_added", { skill_count: saved.skills!.length });
+      } else if (hasSkillsNow && hadSkillsBefore) {
+        track("skills_updated", { skill_count: saved.skills!.length });
       }
       queryClient.setQueryData(["resume", "me"], saved);
       toast({ title: "Resume saved", description: "Your resume has been updated." });

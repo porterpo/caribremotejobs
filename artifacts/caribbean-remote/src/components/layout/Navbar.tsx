@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, Palmtree, LogOut, ChevronDown, User } from "lucide-react";
+import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, Palmtree, LogOut, ChevronDown, User, FileText } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -78,6 +78,12 @@ function UserMenu() {
           <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
             <User className="h-4 w-4" />
             My Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/resume" className="flex items-center gap-2 cursor-pointer">
+            <FileText className="h-4 w-4" />
+            My Resume
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -193,6 +199,14 @@ export function Navbar() {
                     >
                       <User className="h-4 w-4" />
                       My Profile
+                    </Link>
+                    <Link
+                      href="/resume"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      <FileText className="h-4 w-4" />
+                      My Resume
                     </Link>
                     <Link
                       href="/admin"

@@ -30,6 +30,17 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `ProfileOnboardingRedirect` in `App.tsx` fetches `/api/profile/me` on first load; if no profile exists, redirects to `/profile?onboarding=true`
 - The navbar `UserMenu` shows the profile `displayName` (with Clerk fallback) using React Query with key `["profile", "me"]`
 
+## Resume Builder
+
+- DB table: `resumes` — fields: id, clerkUserId (unique), summary (text), experience (jsonb), education (jsonb), skills (text[]), updatedAt
+- Schema: `lib/db/src/schema/resumes.ts`; exported from `lib/db/src/schema/index.ts`
+- Experience entries: `{ id, title, company, startDate, endDate (null=Present), description }`
+- Education entries: `{ id, degree, institution, graduationYear }`
+- API routes in `artifacts/api-server/src/routes/resume.ts`: GET/POST/PATCH `/api/resume` — all require auth
+- Resume page: `artifacts/caribbean-remote/src/pages/resume.tsx` — section-by-section form (summary, experience, education, skills tag input), live preview, print/PDF download via `window.print()`
+- React Query key: `["resume", "me"]`
+- Job detail page has an "Apply with Resume" button that opens a dialog showing the resume before redirecting to the employer URL; if no resume, prompts the user to create one at /resume
+
 ## Job Seeker Profiles
 
 - DB table: `profiles` — fields: id, clerkUserId (unique), displayName, headline, location, bio, linkedIn, website, createdAt, updatedAt

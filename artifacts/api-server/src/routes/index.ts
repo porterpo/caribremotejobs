@@ -10,6 +10,7 @@ import stripeRouter from "./stripe";
 import submitRouter from "./submit";
 import storageRouter from "./storage";
 import profileRouter from "./profile";
+import resumeRouter from "./resume";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
@@ -26,5 +27,6 @@ router.use(adminRouter);
 router.use(stripeRouter);
 router.use(storageRouter);
 router.use(profileRouter);
+router.use(resumeRouter);
 
 export default router;

@@ -23,6 +23,7 @@ import Certify from "@/pages/certify";
 import CertifySuccess from "@/pages/certify-success";
 import Certified from "@/pages/certified";
 import Profile from "@/pages/profile";
+import Resume from "@/pages/resume";
 
 const queryClient = new QueryClient();
 
@@ -278,6 +279,9 @@ function ClerkProviderWithRoutes() {
 
             <Route path="/profile">
               {() => <ProtectedRoute component={Profile} />}
+            </Route>
+            <Route path="/resume">
+              {() => <ProtectedRoute component={Resume} />}
             </Route>
 
             {/* Email token route — stays public; accessed from email links without Clerk session */}

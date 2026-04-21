@@ -1,16 +1,200 @@
+import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetJob, getGetJobQueryKey, useListJobs } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
 
+const BASE = import.meta.env.BASE_URL;
+
+interface ResumeData {
+  id: number;
+  summary: string | null;
+  experience: Array<{
+    id: string;
+    title: string;
+    company: string;
+    startDate: string;
+    endDate: string | null;
+    description: string;
+  }> | null;
+  education: Array<{
+    id: string;
+    degree: string;
+    institution: string;
+    graduationYear: string;
+  }> | null;
+  skills: string[] | null;
+}
+
+function ApplyWithResumeDialog({
+  open,
+  onClose,
+  applyUrl,
+  jobTitle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  applyUrl: string;
+  jobTitle: string;
+}) {
+  const { data: resume, status } = useQuery<ResumeData | null>({
+    queryKey: ["resume", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/resume/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch resume");
+      return res.json() as Promise<ResumeData>;
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const isLoading = status === "pending";
+  const hasResume = status === "success" && resume !== null;
+  const noResume = status === "success" && resume === null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Apply for {jobTitle}</DialogTitle>
+          <DialogDescription>
+            {hasResume
+              ? "Review your resume before heading to the application."
+              : "Add a resume to stand out when applying."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading && (
+          <div className="space-y-3 py-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-6 bg-muted rounded animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {noResume && (
+          <div className="py-6 text-center space-y-4">
+            <div className="h-14 w-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <FileText className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold mb-1">No resume yet</p>
+              <p className="text-sm text-muted-foreground">
+                Build your CaribbeanRemote resume once and attach it to every application.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button asChild onClick={onClose}>
+                <Link href="/resume">Build my Resume <ChevronRight className="h-4 w-4 ml-1" /></Link>
+              </Button>
+              <Button variant="ghost" asChild onClick={onClose}>
+                <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+                  Apply without resume <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                </a>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {hasResume && resume && (
+          <div className="space-y-5 py-2">
+            {resume.summary && (
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                  Summary
+                </h4>
+                <p className="text-sm leading-relaxed">{resume.summary}</p>
+              </section>
+            )}
+
+            {resume.experience && resume.experience.length > 0 && (
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Experience
+                </h4>
+                <div className="space-y-3">
+                  {resume.experience.map((exp) => (
+                    <div key={exp.id} className="text-sm">
+                      <div className="flex justify-between gap-2">
+                        <span className="font-medium">{exp.title}</span>
+                        <span className="text-muted-foreground text-xs shrink-0">
+                          {exp.startDate} – {exp.endDate ?? "Present"}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">{exp.company}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {resume.education && resume.education.length > 0 && (
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Education
+                </h4>
+                <div className="space-y-2">
+                  {resume.education.map((edu) => (
+                    <div key={edu.id} className="text-sm flex justify-between gap-2">
+                      <div>
+                        <span className="font-medium">{edu.degree}</span>
+                        <span className="text-muted-foreground"> · {edu.institution}</span>
+                      </div>
+                      {edu.graduationYear && (
+                        <span className="text-muted-foreground text-xs shrink-0">
+                          {edu.graduationYear}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {resume.skills && resume.skills.length > 0 && (
+              <section>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Skills
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {resume.skills.map((s) => (
+                    <Badge key={s} variant="secondary" className="text-xs font-normal">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <div className="pt-3 border-t flex gap-2">
+              <Button className="flex-1" asChild onClick={onClose}>
+                <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+                  Apply Now <ExternalLink className="h-4 w-4 ml-2" />
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/resume" onClick={onClose}>Edit Resume</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
   const jobId = parseInt(params?.id || "0", 10);
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
     query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
@@ -67,6 +251,15 @@ export default function JobDetail() {
 
   return (
     <PageLayout>
+      {job && (
+        <ApplyWithResumeDialog
+          open={applyDialogOpen}
+          onClose={() => setApplyDialogOpen(false)}
+          applyUrl={job.applyUrl}
+          jobTitle={job.title}
+        />
+      )}
+
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-8 md:py-12">
           <Button variant="ghost" size="sm" asChild className="mb-6 -ml-3 text-muted-foreground hover:text-foreground">
@@ -135,6 +328,15 @@ export default function JobDetail() {
                   Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => setApplyDialogOpen(true)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Apply with Resume
+              </Button>
             </div>
           </div>
         </div>
@@ -165,11 +367,20 @@ export default function JobDetail() {
               </div>
             )}
 
-            <div className="pt-8 border-t">
-              <Button size="lg" className="w-full md:w-auto px-8" asChild>
+            <div className="pt-8 border-t flex flex-wrap gap-3">
+              <Button size="lg" className="px-8" asChild>
                 <a href={job.applyUrl} target="_blank" rel="noopener noreferrer">
                   Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-8"
+                onClick={() => setApplyDialogOpen(true)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Apply with Resume
               </Button>
             </div>
           </div>

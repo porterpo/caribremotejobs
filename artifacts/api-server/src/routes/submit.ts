@@ -3,10 +3,11 @@ import { db, jobsTable, jobOrdersTable } from "@workspace/db";
 import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-router.post("/jobs/submit", async (req, res): Promise<void> => {
+router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();
@@ -134,7 +135,7 @@ router.post("/jobs/submit", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/jobs/feature", async (req, res): Promise<void> => {
+router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();

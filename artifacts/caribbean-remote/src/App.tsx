@@ -232,12 +232,24 @@ function ClerkProviderWithRoutes() {
               {() => <ProtectedRoute component={Certified} />}
             </Route>
 
+            <Route path="/pricing">
+              {() => <ProtectedRoute component={Pricing} />}
+            </Route>
+            <Route path="/success">
+              {() => <ProtectedRoute component={Success} />}
+            </Route>
+            <Route path="/post-job">
+              {() => <ProtectedRoute component={PostJob} />}
+            </Route>
+            <Route path="/certify">
+              {() => <ProtectedRoute component={Certify} />}
+            </Route>
+            <Route path="/certify/success">
+              {() => <ProtectedRoute component={CertifySuccess} />}
+            </Route>
+
+            {/* Email token route — stays public; accessed from email links without Clerk session */}
             <Route path="/unsubscribe/:token" component={Unsubscribe} />
-            <Route path="/pricing" component={Pricing} />
-            <Route path="/success" component={Success} />
-            <Route path="/post-job" component={PostJob} />
-            <Route path="/certify" component={Certify} />
-            <Route path="/certify/success" component={CertifySuccess} />
 
             <Route component={NotFound} />
           </Switch>

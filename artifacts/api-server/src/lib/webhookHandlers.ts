@@ -1,6 +1,6 @@
 import { getStripeSync } from "./stripeClient";
 import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
-import { eq, ne, and, or } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import { sendOrderConfirmation } from "./resend";
 import { logger } from "./logger";
 
@@ -111,15 +111,13 @@ export class WebhookHandlers {
       const customerId = eventObj?.customer as string | undefined;
       const subscriptionId = eventObj?.id as string | undefined;
 
-      // Fallback: look up clerkUserId via stored subscription/customer IDs when metadata is absent
-      if (!clerkUserId && (subscriptionId || customerId)) {
-        const conditions = [];
-        if (subscriptionId) conditions.push(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
-        if (customerId) conditions.push(eq(seekerSubscriptionsTable.stripeCustomerId, customerId));
+      // Fallback: look up clerkUserId via stripeSubscriptionId only (not customerId)
+      // to avoid cross-product contamination if the customer has other recurring subscriptions
+      if (!clerkUserId && subscriptionId) {
         const [existing] = await db
           .select({ clerkUserId: seekerSubscriptionsTable.clerkUserId })
           .from(seekerSubscriptionsTable)
-          .where(or(...conditions));
+          .where(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
         clerkUserId = existing?.clerkUserId;
       }
 
@@ -158,15 +156,13 @@ export class WebhookHandlers {
       const customerId = eventObj?.customer as string | undefined;
       const subscriptionId = eventObj?.id as string | undefined;
 
-      // Fallback: look up clerkUserId via stored subscription/customer IDs when metadata is absent
-      if (!clerkUserId && (subscriptionId || customerId)) {
-        const conditions = [];
-        if (subscriptionId) conditions.push(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
-        if (customerId) conditions.push(eq(seekerSubscriptionsTable.stripeCustomerId, customerId));
+      // Fallback: look up clerkUserId via stripeSubscriptionId only (not customerId)
+      // to avoid cross-product contamination if the customer has other recurring subscriptions
+      if (!clerkUserId && subscriptionId) {
         const [existing] = await db
           .select({ clerkUserId: seekerSubscriptionsTable.clerkUserId })
           .from(seekerSubscriptionsTable)
-          .where(or(...conditions));
+          .where(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
         clerkUserId = existing?.clerkUserId;
       }
 

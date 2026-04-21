@@ -235,8 +235,25 @@ export default function Admin() {
     topJobs: { jobId: number | null; jobTitle: string | null; companyName: string | null; clicks: number }[];
   }
 
-  const [analyticsDateFrom, setAnalyticsDateFrom] = useState("");
-  const [analyticsDateTo, setAnalyticsDateTo] = useState("");
+  const [analyticsDateFrom, setAnalyticsDateFrom] = useState(
+    () => localStorage.getItem("admin_analyticsDateFrom") ?? ""
+  );
+  const [analyticsDateTo, setAnalyticsDateTo] = useState(
+    () => localStorage.getItem("admin_analyticsDateTo") ?? ""
+  );
+
+  useEffect(() => {
+    if (analyticsDateFrom) {
+      localStorage.setItem("admin_analyticsDateFrom", analyticsDateFrom);
+    } else {
+      localStorage.removeItem("admin_analyticsDateFrom");
+    }
+    if (analyticsDateTo) {
+      localStorage.setItem("admin_analyticsDateTo", analyticsDateTo);
+    } else {
+      localStorage.removeItem("admin_analyticsDateTo");
+    }
+  }, [analyticsDateFrom, analyticsDateTo]);
 
   const { data: analyticsSummary, isLoading: analyticsLoading } = useQuery<AnalyticsSummary>({
     queryKey: ["admin-analytics-summary", analyticsDateFrom, analyticsDateTo],

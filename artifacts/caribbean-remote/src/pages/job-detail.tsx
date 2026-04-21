@@ -1032,7 +1032,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.open(effectiveApplyUrl, "_blank", "noopener,noreferrer"); }}
+                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.location.href = effectiveApplyUrl; }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1263,7 +1263,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.open(effectiveApplyUrl, "_blank", "noopener,noreferrer"); }}
+                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.location.href = effectiveApplyUrl; }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>

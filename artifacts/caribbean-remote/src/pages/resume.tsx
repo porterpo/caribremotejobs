@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -362,6 +363,11 @@ export default function ResumePage() {
       return res.json() as Promise<ResumeData>;
     },
     onSuccess: (saved) => {
+      const hadSkillsBefore = (resume?.skills ?? []).length > 0;
+      const hasSkillsNow = (saved.skills ?? []).length > 0;
+      if (hasSkillsNow && !hadSkillsBefore) {
+        track("skills_added", { skill_count: saved.skills!.length });
+      }
       queryClient.setQueryData(["resume", "me"], saved);
       toast({ title: "Resume saved", description: "Your resume has been updated." });
     },

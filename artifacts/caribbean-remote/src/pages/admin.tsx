@@ -34,6 +34,7 @@ import {
 
 const ANALYTICS_PREF_KEY_FROM = "admin_analyticsDateFrom";
 const ANALYTICS_PREF_KEY_TO = "admin_analyticsDateTo";
+const ANALYTICS_PREF_KEY_TREND_EVENT = "admin_trendEventFilter";
 
 interface CertificationOrder {
   id: number;
@@ -244,7 +245,9 @@ export default function Admin() {
   const [analyticsDateTo, setAnalyticsDateTo] = useState(
     () => localStorage.getItem("admin_analyticsDateTo") ?? ""
   );
-  const [trendEventFilter, setTrendEventFilter] = useState("");
+  const [trendEventFilter, setTrendEventFilter] = useState(
+    () => localStorage.getItem(ANALYTICS_PREF_KEY_TREND_EVENT) ?? ""
+  );
   const [trendEventFilterSecondary, setTrendEventFilterSecondary] = useState("");
   const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">("auto");
   const [analyticsPreferenceLoaded, setAnalyticsPreferenceLoaded] = useState(false);
@@ -311,6 +314,14 @@ export default function Admin() {
       return res.json();
     },
   });
+
+  useEffect(() => {
+    if (trendEventFilter) {
+      localStorage.setItem(ANALYTICS_PREF_KEY_TREND_EVENT, trendEventFilter);
+    } else {
+      localStorage.removeItem(ANALYTICS_PREF_KEY_TREND_EVENT);
+    }
+  }, [trendEventFilter]);
 
   useEffect(() => {
     if (!trendEventFilter && !trendEventFilterSecondary) return;

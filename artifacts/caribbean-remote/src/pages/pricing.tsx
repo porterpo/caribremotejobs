@@ -102,7 +102,7 @@ export default function Pricing() {
     checkout.mutate({ priceId: price.id, email });
   };
 
-  const products = data?.products ?? [];
+  const products = (data?.products ?? []).filter(p => p.metadata?.type !== "seeker_pro");
 
   const ORDER: Record<string, number> = { single: 0, pack: 1, monthly: 2, featured: 3 };
   const sorted = [...products].sort((a, b) => {

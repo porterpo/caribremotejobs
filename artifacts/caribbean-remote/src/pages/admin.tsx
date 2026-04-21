@@ -35,6 +35,7 @@ import {
 const ANALYTICS_PREF_KEY_FROM = "admin_analyticsDateFrom";
 const ANALYTICS_PREF_KEY_TO = "admin_analyticsDateTo";
 const ANALYTICS_PREF_KEY_TREND_EVENT = "admin_trendEventFilter";
+const ANALYTICS_PREF_KEY_GRANULARITY = "admin_trendGranularity";
 
 interface CertificationOrder {
   id: number;
@@ -249,7 +250,13 @@ export default function Admin() {
     () => localStorage.getItem(ANALYTICS_PREF_KEY_TREND_EVENT) ?? ""
   );
   const [trendEventFilterSecondary, setTrendEventFilterSecondary] = useState("");
-  const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">("auto");
+  const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">(
+    () => {
+      const stored = localStorage.getItem(ANALYTICS_PREF_KEY_GRANULARITY);
+      if (stored === "day" || stored === "week") return stored;
+      return "auto";
+    }
+  );
   const [analyticsPreferenceLoaded, setAnalyticsPreferenceLoaded] = useState(false);
 
   const { data: analyticsPreference } = useQuery<{
@@ -322,6 +329,14 @@ export default function Admin() {
       localStorage.removeItem(ANALYTICS_PREF_KEY_TREND_EVENT);
     }
   }, [trendEventFilter]);
+
+  useEffect(() => {
+    if (granularityOverride === "auto") {
+      localStorage.removeItem(ANALYTICS_PREF_KEY_GRANULARITY);
+    } else {
+      localStorage.setItem(ANALYTICS_PREF_KEY_GRANULARITY, granularityOverride);
+    }
+  }, [granularityOverride]);
 
   useEffect(() => {
     if (!trendEventFilter && !trendEventFilterSecondary) return;

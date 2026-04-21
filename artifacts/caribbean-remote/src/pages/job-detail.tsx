@@ -39,7 +39,7 @@ interface ResumeData {
   skills: string[] | null;
 }
 
-export function buildMailtoPreview(
+function buildMailtoPreview(
   jobTitle: string,
   userName: string,
   resume: ResumeData | null,
@@ -94,7 +94,7 @@ export function buildMailtoPreview(
   return { subject, body: lines.join("\n") };
 }
 
-export function buildEnhancedMailto(
+function buildEnhancedMailto(
   applyUrl: string,
   jobTitle: string,
   userName: string,

@@ -188,7 +188,7 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                     const isMatched = matchedSet.has(tag.toLowerCase());
                     const isActive = activeSet.has(tag.toLowerCase());
                     const tooltipLabel = isActive
-                      ? "Click to remove filter"
+                      ? onTagClick ? "Click to remove filter" : "Active filter"
                       : isMatched
                       ? "Matches your resume"
                       : "Required skill";
@@ -217,7 +217,7 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                           }}
                         >
                           {tag}
-                          {isActive && (
+                          {isActive && onTagClick && (
                             <X className="h-3 w-3 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0" />
                           )}
                         </Badge>

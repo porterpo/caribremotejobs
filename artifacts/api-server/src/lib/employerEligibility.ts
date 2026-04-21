@@ -8,9 +8,17 @@ export interface EligibilityCriteria {
   accountAgeDays: number;
 }
 
+export interface DirectListing {
+  id: number;
+  title: string;
+  approved: boolean;
+  rejectedForViolation: boolean;
+}
+
 export interface EligibilityResult {
   eligible: boolean;
   criteria: EligibilityCriteria;
+  directListings: DirectListing[];
 }
 
 export async function getEmployerEligibility(companyId: number): Promise<EligibilityResult> {
@@ -20,7 +28,6 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
       description: companiesTable.description,
       website: companiesTable.website,
       createdAt: companiesTable.createdAt,
-      hasViolation: companiesTable.hasViolation,
     })
     .from(companiesTable)
     .where(eq(companiesTable.id, companyId));
@@ -34,21 +41,27 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
         noViolations: false,
         accountAgeDays: 0,
       },
+      directListings: [],
     };
   }
 
-  const [directListingsResult] = await db
-    .select({ count: count() })
+  const directListings = await db
+    .select({
+      id: jobsTable.id,
+      title: jobsTable.title,
+      approved: jobsTable.approved,
+      rejectedForViolation: jobsTable.rejectedForViolation,
+    })
     .from(jobsTable)
     .where(
       and(
         eq(jobsTable.companyId, companyId),
-        eq(jobsTable.approved, true),
         sql`${jobsTable.source} IN ('manual', 'employer')`,
       ),
     );
 
-  const approvedDirectListings = directListingsResult?.count ?? 0;
+  const approvedDirectListings = directListings.filter((j) => j.approved && !j.rejectedForViolation).length;
+  const noViolations = directListings.every((j) => !j.rejectedForViolation);
 
   const profileComplete =
     !!company.logo?.trim() &&
@@ -58,8 +71,6 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
   const accountAgeDays = Math.floor(
     (Date.now() - new Date(company.createdAt).getTime()) / (1000 * 60 * 60 * 24),
   );
-
-  const noViolations = !company.hasViolation;
 
   const eligible =
     approvedDirectListings >= 2 &&
@@ -75,5 +86,6 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
       noViolations,
       accountAgeDays,
     },
+    directListings,
   };
 }

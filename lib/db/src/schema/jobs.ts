@@ -23,6 +23,7 @@ export const jobsTable = pgTable("jobs", {
   tags: text("tags"),
   featured: boolean("featured").notNull().default(false),
   approved: boolean("approved").notNull().default(true),
+  rejectedForViolation: boolean("rejected_for_violation").notNull().default(false),
   postedAt: timestamp("posted_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

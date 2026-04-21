@@ -45,6 +45,13 @@ interface EligibilityCriteria {
   accountAgeDays: number;
 }
 
+interface DirectListing {
+  id: number;
+  title: string;
+  approved: boolean;
+  rejectedForViolation: boolean;
+}
+
 interface AdminCompany {
   id: number;
   name: string;
@@ -52,12 +59,12 @@ interface AdminCompany {
   website: string | null;
   description: string | null;
   verifiedEmployer: boolean;
-  hasViolation: boolean;
   caribbeanFriendly: boolean;
   createdAt: string;
   eligibility: {
     eligible: boolean;
     criteria: EligibilityCriteria;
+    directListings: DirectListing[];
   };
 }
 
@@ -214,27 +221,27 @@ export default function Admin() {
     onError: () => toast({ title: "Failed to revoke badge", variant: "destructive" }),
   });
 
-  const flagViolation = useMutation({
+  const jobFlagViolation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/flag-violation`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to flag violation");
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/jobs/${id}/flag-violation`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to flag job violation");
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Company flagged for policy violation" });
+      toast({ title: "Job flagged for policy violation" });
       refetchAdminCompanies();
     },
     onError: () => toast({ title: "Failed to flag violation", variant: "destructive" }),
   });
 
-  const clearViolation = useMutation({
+  const jobClearViolation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/clear-violation`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to clear violation");
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/jobs/${id}/clear-violation`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to clear job violation");
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Company violation flag cleared" });
+      toast({ title: "Job violation flag cleared" });
       refetchAdminCompanies();
     },
     onError: () => toast({ title: "Failed to clear violation", variant: "destructive" }),
@@ -1219,7 +1226,7 @@ export default function Admin() {
                       ) : (
                         adminCompanies?.map((company) => {
                           const { criteria, eligible } = company.eligibility;
-                          const isMutating = grantVerified.isPending || revokeVerified.isPending || flagViolation.isPending || clearViolation.isPending;
+                          const isMutating = grantVerified.isPending || revokeVerified.isPending || jobFlagViolation.isPending || jobClearViolation.isPending;
                           const isIneligible = !eligible && !company.verifiedEmployer;
                           return (
                             <TableRow key={company.id} className={company.verifiedEmployer ? "bg-blue-50/40" : isIneligible ? "opacity-50" : ""}>
@@ -1303,44 +1310,53 @@ export default function Admin() {
                                 </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        {criteria.noViolations ? (
-                                          <CheckCircle2 className="h-4 w-4 text-green-700 cursor-default" />
-                                        ) : (
-                                          <XCircle className="h-4 w-4 text-red-600 cursor-default" />
-                                        )}
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {criteria.noViolations
-                                          ? "No policy violations recorded ✓"
-                                          : "Flagged for policy violation by admin"}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  {company.hasViolation ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-1.5 text-xs text-green-700 hover:text-green-900"
-                                      disabled={isMutating}
-                                      onClick={() => clearViolation.mutate(company.id)}
-                                    >
-                                      Clear
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-1.5 text-xs text-red-600 hover:text-red-800"
-                                      disabled={isMutating}
-                                      onClick={() => flagViolation.mutate(company.id)}
-                                    >
-                                      Flag
-                                    </Button>
-                                  )}
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          {criteria.noViolations ? (
+                                            <CheckCircle2 className="h-4 w-4 text-green-700 cursor-default" />
+                                          ) : (
+                                            <XCircle className="h-4 w-4 text-red-600 cursor-default" />
+                                          )}
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {criteria.noViolations
+                                            ? "No policy violations on any listing ✓"
+                                            : `${company.eligibility.directListings.filter(l => l.rejectedForViolation).length} listing(s) flagged for violation`}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                  {company.eligibility.directListings.map((listing) => (
+                                    <div key={listing.id} className="flex items-center gap-1 text-xs">
+                                      <span className="truncate max-w-[100px]" title={listing.title}>
+                                        {listing.title.length > 18 ? `${listing.title.slice(0, 18)}…` : listing.title}
+                                      </span>
+                                      {listing.rejectedForViolation ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 px-1 text-xs text-green-700 hover:text-green-900"
+                                          disabled={isMutating}
+                                          onClick={() => jobClearViolation.mutate(listing.id)}
+                                        >
+                                          Clear
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 px-1 text-xs text-red-600 hover:text-red-800"
+                                          disabled={isMutating}
+                                          onClick={() => jobFlagViolation.mutate(listing.id)}
+                                        >
+                                          Flag
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">

@@ -113,7 +113,6 @@ export interface Company {
   description?: string | null;
   caribbeanFriendly: boolean;
   verifiedEmployer: boolean;
-  hasViolation: boolean;
   hiresBahamas: boolean;
   hiresCaribbean: boolean;
   /** @nullable */

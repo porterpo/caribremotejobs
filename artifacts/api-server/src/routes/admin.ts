@@ -230,7 +230,7 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   res.json(job);
 });
 
-router.get("/admin/companies", async (_req, res): Promise<void> => {
+router.get("/admin/companies", requireAdmin, async (_req, res): Promise<void> => {
   const companies = await db
     .select({
       id: companiesTable.id,
@@ -239,7 +239,6 @@ router.get("/admin/companies", async (_req, res): Promise<void> => {
       website: companiesTable.website,
       description: companiesTable.description,
       verifiedEmployer: companiesTable.verifiedEmployer,
-      hasViolation: companiesTable.hasViolation,
       caribbeanFriendly: companiesTable.caribbeanFriendly,
       hiresBahamas: companiesTable.hiresBahamas,
       hiresCaribbean: companiesTable.hiresCaribbean,
@@ -259,30 +258,30 @@ router.get("/admin/companies", async (_req, res): Promise<void> => {
   res.json(results);
 });
 
-router.post("/admin/companies/:id/flag-violation", requireAdmin, async (req, res): Promise<void> => {
+router.post("/admin/jobs/:id/flag-violation", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid company id" }); return; }
-  const [company] = await db
-    .update(companiesTable)
-    .set({ hasViolation: true })
-    .where(eq(companiesTable.id, id))
-    .returning();
-  if (!company) { res.status(404).json({ error: "Company not found" }); return; }
-  logger.info({ companyId: id, companyName: company.name }, "Company flagged for policy violation by admin");
-  res.json(company);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid job id" }); return; }
+  const [job] = await db
+    .update(jobsTable)
+    .set({ rejectedForViolation: true, approved: false })
+    .where(eq(jobsTable.id, id))
+    .returning({ id: jobsTable.id, title: jobsTable.title, companyId: jobsTable.companyId });
+  if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+  logger.info({ jobId: id, jobTitle: job.title }, "Job flagged for policy violation by admin");
+  res.json(job);
 });
 
-router.post("/admin/companies/:id/clear-violation", requireAdmin, async (req, res): Promise<void> => {
+router.post("/admin/jobs/:id/clear-violation", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid company id" }); return; }
-  const [company] = await db
-    .update(companiesTable)
-    .set({ hasViolation: false })
-    .where(eq(companiesTable.id, id))
-    .returning();
-  if (!company) { res.status(404).json({ error: "Company not found" }); return; }
-  logger.info({ companyId: id, companyName: company.name }, "Company violation flag cleared by admin");
-  res.json(company);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid job id" }); return; }
+  const [job] = await db
+    .update(jobsTable)
+    .set({ rejectedForViolation: false })
+    .where(eq(jobsTable.id, id))
+    .returning({ id: jobsTable.id, title: jobsTable.title, companyId: jobsTable.companyId });
+  if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+  logger.info({ jobId: id, jobTitle: job.title }, "Job violation flag cleared by admin");
+  res.json(job);
 });
 
 router.post("/admin/companies/:id/verify", requireAdmin, async (req, res): Promise<void> => {

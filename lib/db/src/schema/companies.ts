@@ -10,7 +10,6 @@ export const companiesTable = pgTable("companies", {
   description: text("description"),
   caribbeanFriendly: boolean("caribbean_friendly").notNull().default(false),
   verifiedEmployer: boolean("verified_employer").notNull().default(false),
-  hasViolation: boolean("has_violation").notNull().default(false),
   hiresBahamas: boolean("hires_bahamas").notNull().default(false),
   hiresCaribbean: boolean("hires_caribbean").notNull().default(false),
   country: text("country"),

@@ -411,6 +411,24 @@ export default function Admin() {
     return [{ event: trendEventFilter || "Events", trend: trendData }];
   }, [analyticsTrend, trendData, trendEventFilter]);
 
+  const weekDeltaMap = useMemo(() => {
+    if (effectiveGranularity !== "week") return {} as Record<string, number | null>;
+    const data = (Array.isArray(trendData) && trendData.length && !("event" in trendData[0]))
+      ? (trendData as { date: string; count: number }[])
+      : [];
+    const map: Record<string, number | null> = {};
+    for (let i = 0; i < data.length; i++) {
+      if (i === 0) {
+        map[data[i].date] = null;
+      } else {
+        const prev = data[i - 1].count;
+        const curr = data[i].count;
+        map[data[i].date] = prev === 0 ? null : Math.round(((curr - prev) / prev) * 100);
+      }
+    }
+    return map;
+  }, [trendData, effectiveGranularity]);
+
   const pricePerUnit = useMemo<Record<string, number>>(() => {
     if (!orderStats) return {};
     const prices: Record<string, number> = {};
@@ -1557,10 +1575,27 @@ export default function Admin() {
                         />
                         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                         <Tooltip
-                          labelFormatter={(label: string) =>
-                            effectiveGranularity === "week" ? `Week of ${label}` : label
-                          }
-                          formatter={(value: number) => [value, "Events"]}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            const delta = effectiveGranularity === "week" ? weekDeltaMap[label as string] : undefined;
+                            return (
+                              <div className="rounded-md border bg-background px-3 py-2 text-sm shadow-md">
+                                <p className="font-medium mb-1">
+                                  {effectiveGranularity === "week" ? `Week of ${label}` : label}
+                                </p>
+                                {payload.map((entry, i) => (
+                                  <p key={i} style={{ color: entry.color }}>
+                                    {entry.name}: {entry.value as number}
+                                  </p>
+                                ))}
+                                {effectiveGranularity === "week" && delta != null && (
+                                  <p className={delta >= 0 ? "text-green-600" : "text-red-500"}>
+                                    {delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}% vs prior week
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }}
                         />
                         <Bar dataKey="count" name={trendEventFilter || "Events"} fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                         {trendEventFilterSecondary && (

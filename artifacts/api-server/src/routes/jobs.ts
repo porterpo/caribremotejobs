@@ -55,6 +55,60 @@ router.get("/jobs/tags", async (_req, res): Promise<void> => {
   res.json(result);
 });
 
+router.get("/jobs/tag-counts", async (req, res): Promise<void> => {
+  const rawTag = req.query.tag;
+  const normalizedQuery = {
+    ...req.query,
+    tag: rawTag !== undefined
+      ? (Array.isArray(rawTag) ? rawTag : [rawTag])
+      : undefined,
+  };
+  const parsed = ListJobsQueryParams.safeParse(normalizedQuery);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const params = parsed.data;
+  const tagList = params.tag ?? [];
+
+  if (tagList.length < 2) {
+    res.status(400).json({ error: "At least 2 tags required" });
+    return;
+  }
+
+  const baseConditions: ReturnType<typeof eq>[] = [eq(jobsTable.approved, true)];
+  if (params.category) baseConditions.push(eq(jobsTable.category, params.category));
+  if (params.jobType) baseConditions.push(eq(jobsTable.jobType, params.jobType));
+  if (params.caribbeanFriendly !== undefined) baseConditions.push(eq(jobsTable.caribbeanFriendly, params.caribbeanFriendly));
+  if (params.entryLevel !== undefined) baseConditions.push(eq(jobsTable.entryLevel, params.entryLevel));
+  if (params.featured !== undefined) baseConditions.push(eq(jobsTable.featured, params.featured));
+
+  const tagSqlConditions = tagList.map((t) => {
+    const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return sql`${jobsTable.tags} ~* ${`(^|,\\s*)${escapedTag}(\\s*,|$)`}`;
+  });
+
+  const andWhere = and(...baseConditions, ...tagSqlConditions.map((c) => c as ReturnType<typeof eq>));
+  const orWhere = and(...baseConditions, or(...tagSqlConditions) as ReturnType<typeof eq>);
+
+  let andCountQuery = db.select({ count: count() }).from(jobsTable).$dynamic().where(andWhere);
+  let orCountQuery = db.select({ count: count() }).from(jobsTable).$dynamic().where(orWhere);
+
+  if (params.search) {
+    const searchWhere = ilike(jobsTable.title, `%${params.search}%`);
+    andCountQuery = andCountQuery.where(searchWhere);
+    orCountQuery = orCountQuery.where(searchWhere);
+  }
+
+  const [andResult, orResult] = await Promise.all([andCountQuery, orCountQuery]);
+
+  res.json({
+    andCount: andResult[0]?.count ?? 0,
+    orCount: orResult[0]?.count ?? 0,
+  });
+});
+
 router.get("/jobs", async (req, res): Promise<void> => {
   const rawTag = req.query.tag;
   const normalizedQuery = {

@@ -191,6 +191,26 @@ export default function Jobs() {
 
   const [tagInput, setTagInput] = useState("");
 
+  const debouncedSelectedTags = useDebounce(selectedTags, 400);
+
+  const { data: tagCounts } = useQuery<{ andCount: number; orCount: number }>({
+    queryKey: ["jobs", "tag-counts", debouncedSelectedTags, debouncedSearch, category, jobType, entryLevel, featured],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      debouncedSelectedTags.forEach((t) => params.append("tag", t));
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (category !== "all") params.set("category", category);
+      if (jobType !== "all") params.set("jobType", jobType);
+      if (entryLevel) params.set("entryLevel", "true");
+      if (featured) params.set("featured", "true");
+      const res = await fetch(`${BASE}api/jobs/tag-counts?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch tag counts");
+      return res.json();
+    },
+    enabled: debouncedSelectedTags.length >= 2,
+    staleTime: 30_000,
+  });
+
   const { data: categories } = useListCategories();
   const { data: allTags } = useListJobTags();
 
@@ -529,14 +549,14 @@ export default function Jobs() {
                       className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       aria-pressed={tagLogic === "and"}
                     >
-                      Match ALL
+                      Match ALL{tagCounts != null ? ` (${tagCounts.andCount})` : ""}
                     </button>
                     <button
                       onClick={() => setTagLogic("or")}
                       className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       aria-pressed={tagLogic === "or"}
                     >
-                      Match ANY
+                      Match ANY{tagCounts != null ? ` (${tagCounts.orCount})` : ""}
                     </button>
                   </div>
                   <span className="text-xs text-muted-foreground pl-0.5">
@@ -701,14 +721,14 @@ export default function Jobs() {
                       className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       aria-pressed={tagLogic === "and"}
                     >
-                      Match ALL
+                      Match ALL{tagCounts != null ? ` (${tagCounts.andCount})` : ""}
                     </button>
                     <button
                       onClick={() => setTagLogic("or")}
                       className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                       aria-pressed={tagLogic === "or"}
                     >
-                      Match ANY
+                      Match ANY{tagCounts != null ? ` (${tagCounts.orCount})` : ""}
                     </button>
                   </div>
                   <span className="text-xs text-muted-foreground pl-0.5">

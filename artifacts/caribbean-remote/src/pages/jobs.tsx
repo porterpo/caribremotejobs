@@ -516,6 +516,11 @@ export default function Jobs() {
                   </button>
                 </div>
               ))}
+              {selectedTags.length === 1 && (
+                <p className="text-xs text-muted-foreground px-0.5 pt-0.5">
+                  Add another tag to choose AND/OR matching
+                </p>
+              )}
               {selectedTags.length >= 2 && (
                 <div className="flex flex-col gap-1 pt-1">
                   <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden self-start">
@@ -683,6 +688,11 @@ export default function Jobs() {
                   </button>
                 </span>
               ))}
+              {selectedTags.length === 1 && (
+                <span className="text-xs text-muted-foreground w-full">
+                  Add another tag to choose AND/OR matching
+                </span>
+              )}
               {selectedTags.length >= 2 && (
                 <div className="inline-flex flex-col items-start gap-0.5">
                   <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden">

@@ -444,6 +444,11 @@ export default function JobDetail() {
       ? computeSkillMatch(resume.skills, job.tags)
       : null;
 
+  const missingSkills =
+    skillMatch && job?.tags
+      ? job.tags.split(',').map(t => t.trim()).filter(tag => tag && !skillMatch.matchedSkills.includes(tag))
+      : [];
+
   if (isLoading) {
     return (
       <PageLayout>
@@ -661,6 +666,25 @@ export default function JobDetail() {
                   <p className="text-xs text-muted-foreground mt-2">
                     Highlighted skills match your resume.
                   </p>
+                )}
+                {missingSkills.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-950/20 px-4 py-3">
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-2">Skills you're missing</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {missingSkills.map(skill => (
+                        <span key={skill} className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 px-2.5 py-0.5 text-xs text-amber-900 dark:text-amber-300 font-normal">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-500 mt-2">
+                      Consider adding these to your{" "}
+                      <Link href="/resume" className="font-medium underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-300" onClick={() => track("missing_skills_resume_clicked", { job_id: jobId })}>
+                        resume
+                      </Link>
+                      {" "}to improve your match.
+                    </p>
+                  </div>
                 )}
                 {isSignedIn && resumeStatus === "success" && (!resume || !resume.skills || resume.skills.length === 0) && (
                   <div className="mt-4 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">

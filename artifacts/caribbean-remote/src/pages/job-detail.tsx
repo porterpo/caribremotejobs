@@ -127,6 +127,7 @@ function MailtoPreviewDialog({
   body: string;
 }) {
   const [copied, setCopied] = useState<"idle" | "done" | "error">("idle");
+  const [copiedSubject, setCopiedSubject] = useState<"idle" | "done">("idle");
 
   function handleCopy() {
     const text = `Subject: ${subject}\n\n${body}`;
@@ -139,8 +140,16 @@ function MailtoPreviewDialog({
     });
   }
 
+  function handleCopySubject() {
+    navigator.clipboard.writeText(subject).then(() => {
+      setCopiedSubject("done");
+      setTimeout(() => setCopiedSubject("idle"), 2000);
+    }).catch(() => {});
+  }
+
   function handleClose() {
     setCopied("idle");
+    setCopiedSubject("idle");
     onClose();
   }
 
@@ -156,9 +165,23 @@ function MailtoPreviewDialog({
 
         <div className="space-y-4 py-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Subject
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Subject
+              </p>
+              <button
+                type="button"
+                onClick={handleCopySubject}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Copy subject line"
+              >
+                {copiedSubject === "done" ? (
+                  <><Check className="h-3 w-3" /> Copied</>
+                ) : (
+                  <><Copy className="h-3 w-3" /> Copy</>
+                )}
+              </button>
+            </div>
             <p className="text-sm bg-muted rounded-md px-3 py-2">{subject}</p>
           </div>
 

@@ -17,6 +17,7 @@ import { computeSkillMatch } from "@/lib/skill-match";
 
 const BASE = import.meta.env.BASE_URL;
 const SORT_PREF_KEY = "cr_sort_preference";
+const FILTER_SEARCH_KEY = "cr_filter_search";
 const FILTER_CATEGORY_KEY = "cr_filter_category";
 const FILTER_JOB_TYPE_KEY = "cr_filter_job_type";
 const FILTER_ENTRY_LEVEL_KEY = "cr_filter_entry_level";
@@ -61,7 +62,14 @@ export default function Jobs() {
     urlFeatured !== null ||
     urlTags.length > 0;
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    if (hasUrlFilters) return "";
+    try {
+      return localStorage.getItem(FILTER_SEARCH_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
   const debouncedSearch = useDebounce(search, 500);
 
   const [category, setCategory] = useState(() => {
@@ -235,6 +243,17 @@ export default function Jobs() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, minMatch, onlyMatching, selectedTags, tagLogic]);
+
+  // Persist search term to localStorage
+  useEffect(() => {
+    try {
+      if (search) {
+        localStorage.setItem(FILTER_SEARCH_KEY, search);
+      } else {
+        localStorage.removeItem(FILTER_SEARCH_KEY);
+      }
+    } catch {}
+  }, [search]);
 
   // Persist sort preference to localStorage
   useEffect(() => {

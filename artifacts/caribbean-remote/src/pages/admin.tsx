@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter, Download } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter, Download, BarChart2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -172,6 +172,21 @@ export default function Admin() {
   const missingEmailCount = orders?.filter(
     (o) => o.status === "paid" && (!o.confirmationEmailSentAt || (o.jobId && !o.jobSubmissionEmailSentAt))
   ).length ?? 0;
+
+  interface AnalyticsSummary {
+    totalClicks: number;
+    clicksWithResume: number;
+    topJobs: { jobId: number | null; jobTitle: string | null; companyName: string | null; clicks: number }[];
+  }
+
+  const { data: analyticsSummary, isLoading: analyticsLoading } = useQuery<AnalyticsSummary>({
+    queryKey: ["admin-analytics-summary"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/summary`);
+      if (!res.ok) throw new Error("Failed to fetch analytics summary");
+      return res.json();
+    },
+  });
 
   const pricePerUnit = useMemo<Record<string, number>>(() => {
     if (!orderStats) return {};
@@ -448,6 +463,10 @@ export default function Admin() {
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
             <TabsTrigger value="companies" className="px-6 py-2">Companies</TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
+            <TabsTrigger value="analytics" className="px-6 py-2">
+              <BarChart2 className="h-4 w-4 mr-1.5" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending">
@@ -1110,6 +1129,89 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Nudge Clicks</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (analyticsSummary?.totalClicks ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">skills_nudge_clicked events</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Clicks With Resume</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (analyticsSummary?.clicksWithResume ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {analyticsSummary && analyticsSummary.totalClicks > 0
+                        ? `${Math.round((analyticsSummary.clicksWithResume / analyticsSummary.totalClicks) * 100)}% of total`
+                        : "no data yet"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Clicks Without Resume</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : ((analyticsSummary?.totalClicks ?? 0) - (analyticsSummary?.clicksWithResume ?? 0))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {analyticsSummary && analyticsSummary.totalClicks > 0
+                        ? `${Math.round(((analyticsSummary.totalClicks - analyticsSummary.clicksWithResume) / analyticsSummary.totalClicks) * 100)}% of total`
+                        : "no data yet"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Jobs by Nudge Clicks</CardTitle>
+                  <CardDescription>Jobs that have generated the most skills nudge activity.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Job</TableHead>
+                          <TableHead>Company</TableHead>
+                          <TableHead className="text-right">Clicks</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analyticsLoading ? (
+                          <TableRow><TableCell colSpan={3} className="text-center h-24">Loading...</TableCell></TableRow>
+                        ) : !analyticsSummary?.topJobs?.length ? (
+                          <TableRow><TableCell colSpan={3} className="text-center h-24 text-muted-foreground">No nudge click data yet.</TableCell></TableRow>
+                        ) : (
+                          analyticsSummary.topJobs.map((row) => (
+                            <TableRow key={row.jobId ?? "unknown"}>
+                              <TableCell className="font-medium">{row.jobTitle ?? <span className="text-muted-foreground italic">Unknown job</span>}</TableCell>
+                              <TableCell className="text-muted-foreground">{row.companyName ?? "—"}</TableCell>
+                              <TableCell className="text-right font-mono">{row.clicks}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

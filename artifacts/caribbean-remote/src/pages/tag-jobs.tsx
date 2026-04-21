@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Briefcase, Tag, ArrowLeft, Sparkles, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@clerk/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { computeSkillMatch } from "@/lib/skill-match";
-import { useListJobTags } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 
 const PAGE_SIZE = 10;
 const JOBS_STALE_TIME_MS = 60_000;
@@ -151,8 +151,14 @@ export default function TagJobs() {
     };
   }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, extraTags, page]);
 
-  const { data: tagCounts } = useListJobTags({
-    query: { staleTime: JOBS_STALE_TIME_MS },
+  const { data: tagCounts } = useQuery({
+    queryKey: ["job-tags"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/jobs/tags`);
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      return res.json() as Promise<Array<{ tag: string; count: number }>>;
+    },
+    staleTime: JOBS_STALE_TIME_MS,
   });
   const tagJobCount = useMemo(() => {
     if (!tag || !tagCounts) return null;

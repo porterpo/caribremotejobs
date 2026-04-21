@@ -1,5 +1,5 @@
 import { PageLayout } from "@/components/layout/PageLayout";
-import { useGetStats, useListFeaturedJobs, useListRecentJobs, useListCategories, useGetStatsByCategory, useListJobTags } from "@workspace/api-client-react";
+import { useGetStats, useListFeaturedJobs, useListRecentJobs, useListCategories, useGetStatsByCategory } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { JobCard } from "@/components/JobCard";
@@ -7,13 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Palmtree, ArrowRight, Briefcase, Globe, Search, ArrowUpRight, BellRing, Tag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
   const { data: stats, isLoading: statsLoading } = useGetStats();
   const { data: featuredJobs, isLoading: featuredLoading } = useListFeaturedJobs();
   const { data: recentJobs, isLoading: recentLoading } = useListRecentJobs();
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
-  const { data: tags, isLoading: tagsLoading } = useListJobTags();
+  const { data: tags, isLoading: tagsLoading } = useQuery({
+    queryKey: ["job-tags"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/jobs/tags`);
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      return res.json() as Promise<Array<{ tag: string; count: number }>>;
+    },
+    staleTime: 60_000,
+  });
 
   return (
     <PageLayout>

@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { useListJobTags } from "@workspace/api-client-react";
 import { Tag, ArrowLeft, ArrowDownAZ, TrendingDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
@@ -33,7 +33,15 @@ function scrollToLetter(letter: string) {
 }
 
 export default function TagsIndex() {
-  const { data: tags, isLoading } = useListJobTags({ query: { staleTime: 60_000 } });
+  const { data: tags, isLoading } = useQuery({
+    queryKey: ["job-tags"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/jobs/tags`);
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      return res.json() as Promise<Array<{ tag: string; count: number }>>;
+    },
+    staleTime: 60_000,
+  });
   const [sortOrder, setSortOrder] = useState<SortOrder>(readStoredSort);
 
   useEffect(() => {

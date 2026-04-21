@@ -1,18 +1,19 @@
 import { PageLayout } from "@/components/layout/PageLayout";
-import { useGetStats, useListFeaturedJobs, useListRecentJobs, useListCategories, useGetStatsByCategory } from "@workspace/api-client-react";
+import { useGetStats, useListFeaturedJobs, useListRecentJobs, useListCategories, useGetStatsByCategory, useListJobTags } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { JobCard } from "@/components/JobCard";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Palmtree, ArrowRight, Briefcase, Globe, Search, ArrowUpRight, BellRing } from "lucide-react";
+import { Palmtree, ArrowRight, Briefcase, Globe, Search, ArrowUpRight, BellRing, Tag } from "lucide-react";
 
 export default function Home() {
   const { data: stats, isLoading: statsLoading } = useGetStats();
   const { data: featuredJobs, isLoading: featuredLoading } = useListFeaturedJobs();
   const { data: recentJobs, isLoading: recentLoading } = useListRecentJobs();
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
+  const { data: tags, isLoading: tagsLoading } = useListJobTags();
 
   return (
     <PageLayout>
@@ -137,6 +138,54 @@ export default function Home() {
             ) : null}
           </div>
         </section>
+
+        {/* Popular Skills */}
+        {(tagsLoading || (tags && tags.length > 0)) && (
+          <section className="py-16 md:py-24 bg-muted/30 border-t">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight mb-2">Browse by Skill</h2>
+                  <p className="text-muted-foreground">Explore jobs by the most in-demand skills.</p>
+                </div>
+                <Button variant="ghost" className="hidden sm:flex" asChild>
+                  <Link href="/jobs/tags">
+                    See all tags <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+
+              {tagsLoading ? (
+                <div className="flex flex-wrap gap-3">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                    <div key={i} className="h-9 w-24 rounded-full bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {tags!.slice(0, 10).map(tag => (
+                    <Link key={tag.tag} href={`/jobs/tag/${encodeURIComponent(tag.tag)}`}>
+                      <Badge
+                        variant="secondary"
+                        className="px-4 py-2 text-sm font-medium cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors rounded-full border border-border/60"
+                      >
+                        <Tag className="h-3 w-3 mr-1.5 opacity-60" />
+                        {tag.tag}
+                        <span className="ml-1.5 opacity-60 text-xs">({tag.count})</span>
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 sm:hidden">
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/jobs/tags">See all tags</Link>
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Recent Jobs */}
         <section className="py-16 md:py-24 bg-muted/30 border-t">

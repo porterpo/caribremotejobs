@@ -11,7 +11,10 @@ import { Search, Briefcase, Filter } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
+
+const BASE = import.meta.env.BASE_URL;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -38,8 +41,21 @@ export default function Jobs() {
   const [featured, setFeatured] = useState(initialFeatured);
   const [page, setPage] = useState(1);
   
-  const queryClient = useQueryClient();
+  const { isSignedIn } = useUser();
   const { data: categories } = useListCategories();
+
+  useQuery({
+    queryKey: ["resume", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/resume/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch resume");
+      return res.json();
+    },
+    staleTime: 30_000,
+    retry: false,
+    enabled: !!isSignedIn,
+  });
 
   const queryParams = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),

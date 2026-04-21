@@ -3,7 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, MapPin, DollarSign, Clock, Palmtree } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
 import type { Job } from "@workspace/api-client-react";
+import { computeSkillMatch } from "@/lib/skill-match";
+import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 
 interface JobCardProps {
   job: Job;
@@ -12,6 +16,15 @@ interface JobCardProps {
 export function JobCard({ job }: JobCardProps) {
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
+  const { isSignedIn } = useUser();
+  const queryClient = useQueryClient();
+  const resume = isSignedIn
+    ? queryClient.getQueryData<{ skills?: string[] | null } | null>(["resume", "me"])
+    : null;
+  const skillMatch =
+    resume?.skills && resume.skills.length > 0
+      ? computeSkillMatch(resume.skills, job.tags ?? null)
+      : null;
 
   return (
     <Card className={`group relative transition-all duration-300 hover:shadow-md ${
@@ -94,6 +107,10 @@ export function JobCard({ job }: JobCardProps) {
               <Badge variant="outline" className="bg-background text-muted-foreground">
                 {job.category}
               </Badge>
+
+              {skillMatch && (
+                <SkillMatchBadge match={skillMatch} />
+              )}
               
               {job.locationRestrictions && job.locationRestrictions !== 'Anywhere' && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto bg-muted/50 px-2 py-1 rounded-md">

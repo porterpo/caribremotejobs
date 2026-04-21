@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight } from "lucide-react";
+import { computeSkillMatch } from "@/lib/skill-match";
+import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
@@ -277,7 +279,7 @@ export default function JobDetail() {
     },
     staleTime: 30_000,
     retry: false,
-    enabled: !!isSignedIn && isMailto,
+    enabled: !!isSignedIn,
   });
 
   const effectiveApplyUrl =
@@ -296,6 +298,11 @@ export default function JobDetail() {
   );
 
   const similarJobs = similarJobsResponse?.jobs.filter(j => j.id !== jobId) || [];
+
+  const skillMatch =
+    isSignedIn && resume?.skills && resume.skills.length > 0 && job?.tags
+      ? computeSkillMatch(resume.skills, job.tags)
+      : null;
 
   if (isLoading) {
     return (
@@ -448,14 +455,31 @@ export default function JobDetail() {
             
             {job.tags && (
               <div>
-                <h3 className="text-lg font-semibold mb-3">Skills & Requirements</h3>
-                <div className="flex flex-wrap gap-2">
-                  {job.tags.split(',').map(tag => (
-                    <Badge key={tag} variant="secondary" className="font-normal text-sm px-3 py-1">
-                      {tag.trim()}
-                    </Badge>
-                  ))}
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <h3 className="text-lg font-semibold">Skills & Requirements</h3>
+                  {skillMatch && (
+                    <SkillMatchBadge match={skillMatch} size="md" />
+                  )}
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {job.tags.split(',').map(tag => {
+                    const isMatched = skillMatch?.matchedSkills.includes(tag.trim());
+                    return (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className={`font-normal text-sm px-3 py-1 ${isMatched ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-200" : ""}`}
+                      >
+                        {tag.trim()}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                {skillMatch && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Highlighted skills match your resume.
+                  </p>
+                )}
               </div>
             )}
 

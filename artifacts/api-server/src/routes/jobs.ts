@@ -53,9 +53,12 @@ router.get("/jobs", async (req, res): Promise<void> => {
   if (params.entryLevel !== undefined) conditions.push(eq(jobsTable.entryLevel, params.entryLevel));
   if (params.featured !== undefined) conditions.push(eq(jobsTable.featured, params.featured));
   if (params.tag) {
-    const escapedTag = params.tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const tagPattern = `(^|,\\s*)${escapedTag}(\\s*,|$)`;
-    conditions.push(sql`${jobsTable.tags} ~* ${tagPattern}` as ReturnType<typeof eq>);
+    const tagList = Array.isArray(params.tag) ? params.tag : [params.tag];
+    for (const t of tagList) {
+      const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const tagPattern = `(^|,\\s*)${escapedTag}(\\s*,|$)`;
+      conditions.push(sql`${jobsTable.tags} ~* ${tagPattern}` as ReturnType<typeof eq>);
+    }
   }
   if (params.salaryMin !== undefined) {
     conditions.push(gte(jobsTable.salaryMin, params.salaryMin));

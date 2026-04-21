@@ -132,7 +132,11 @@ export const getListJobsUrl = (params?: ListJobsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      if (Array.isArray(value)) {
+        value.forEach((item) => normalizedParams.append(key, item === null ? "null" : String(item)));
+      } else {
+        normalizedParams.append(key, value === null ? "null" : value.toString());
+      }
     }
   });
 

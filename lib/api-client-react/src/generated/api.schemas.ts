@@ -249,7 +249,7 @@ export type ListJobsParams = {
   caribbeanFriendly?: boolean;
   entryLevel?: boolean;
   featured?: boolean;
-  tag?: string;
+  tag?: string[];
   page?: number;
   limit?: number;
 };

@@ -30,7 +30,7 @@ export const ListJobsQueryParams = zod.object({
   caribbeanFriendly: zod.coerce.boolean().optional(),
   entryLevel: zod.coerce.boolean().optional(),
   featured: zod.coerce.boolean().optional(),
-  tag: zod.coerce.string().optional(),
+  tag: zod.union([zod.array(zod.coerce.string()), zod.coerce.string()]).optional(),
   page: zod.coerce.number().default(listJobsQueryPageDefault),
   limit: zod.coerce.number().default(listJobsQueryLimitDefault),
 });

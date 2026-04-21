@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, Tag, ArrowLeft, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@clerk/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { computeSkillMatch } from "@/lib/skill-match";
 
 const PAGE_SIZE = 10;
 const JOBS_STALE_TIME_MS = 60_000;
+const BASE = import.meta.env.BASE_URL;
 
 export default function TagJobs() {
   const { tagname } = useParams<{ tagname: string }>();
@@ -21,55 +22,95 @@ export default function TagJobs() {
 
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
-  const resume = isSignedIn
-    ? queryClient.getQueryData<{ skills?: string[] | null } | null>(["resume", "me"])
-    : null;
-  const resumeSkills: string[] = resume?.skills ?? [];
+
+  const { data: resumeData, status: resumeStatus } = useQuery({
+    queryKey: ["resume", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/resume/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch resume");
+      return res.json();
+    },
+    staleTime: 30_000,
+    retry: false,
+    enabled: !!isSignedIn,
+  });
+
+  const resumeSkills: string[] = useMemo(() => {
+    const cached = queryClient.getQueryData<{ skills?: string[] | null } | null>(["resume", "me"]);
+    return cached?.skills ?? resumeData?.skills ?? [];
+  }, [resumeData, queryClient]);
+
   const hasSkills = !!isSignedIn && resumeSkills.length > 0;
+  const skillsResolved = !isSignedIn || resumeStatus === "success" || resumeStatus === "error";
 
   const [sortBy, setSortBy] = useState("newest");
+  const [minMatch, setMinMatch] = useState(0);
 
   const filterParams = tag ? { tag: [tag] } : {};
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
+  const needsAllJobs = hasSkills && (isBestMatch || minMatch > 0);
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
-    query: { enabled: !isBestMatch, staleTime: JOBS_STALE_TIME_MS },
+    query: { enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
-  const { data: allJobsResponse, isLoading: isLoadingBestMatch, isError: isBestMatchError } = useListJobs(allJobsQueryParams, {
-    query: { enabled: isBestMatch, staleTime: JOBS_STALE_TIME_MS },
+  const { data: allJobsResponse, isLoading: isLoadingAllJobs, isError: isAllJobsError } = useListJobs(allJobsQueryParams, {
+    query: { enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
-  const isLoading = isBestMatch
-    ? !isBestMatchError && (isLoadingBestMatch || allJobsResponse === undefined)
+  const isLoading = needsAllJobs
+    ? !isAllJobsError && (isLoadingAllJobs || allJobsResponse === undefined)
     : isLoadingNormal;
 
   useEffect(() => {
     setPage(1);
-  }, [tag, sortBy]);
+  }, [tag, sortBy, minMatch]);
+
+  useEffect(() => {
+    if (skillsResolved && !hasSkills) {
+      if (sortBy === "best-match") setSortBy("newest");
+      if (minMatch > 0) setMinMatch(0);
+    }
+  }, [skillsResolved, hasSkills, sortBy, minMatch]);
 
   const { displayedJobs, activeTotal, activeTotalPages } = useMemo(() => {
-    if (isBestMatch) {
+    if (needsAllJobs) {
       const allJobs = allJobsResponse?.jobs ?? [];
-      const serverTotal = allJobsResponse?.total ?? allJobs.length;
-      const sorted = [...allJobs].sort((a, b) => {
-        const matchA = computeSkillMatch(resumeSkills, a.tags ?? null);
-        const matchB = computeSkillMatch(resumeSkills, b.tags ?? null);
-        return (matchB?.percentage ?? 0) - (matchA?.percentage ?? 0);
+
+      const jobsWithScores = allJobs.map((job) => ({
+        job,
+        score: computeSkillMatch(resumeSkills, job.tags ?? null)?.percentage ?? 0,
+      }));
+
+      const filtered = jobsWithScores.filter(({ score }) => {
+        if (minMatch > 0 && score < minMatch) return false;
+        return true;
       });
-      const totalPages = Math.ceil(sorted.length / PAGE_SIZE) || 1;
-      const pageJobs = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-      return { displayedJobs: pageJobs, activeTotal: serverTotal, activeTotalPages: totalPages };
+
+      if (isBestMatch) {
+        filtered.sort((a, b) => {
+          const scoreDiff = b.score - a.score;
+          if (scoreDiff !== 0) return scoreDiff;
+          const dateA = a.job.createdAt ? new Date(a.job.createdAt).getTime() : 0;
+          const dateB = b.job.createdAt ? new Date(b.job.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+      }
+
+      const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+      const pageJobs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(({ job }) => job);
+      return { displayedJobs: pageJobs, activeTotal: filtered.length, activeTotalPages: totalPages };
     }
     return {
       displayedJobs: jobsResponse?.jobs ?? [],
       activeTotal: jobsResponse?.total ?? 0,
       activeTotalPages: jobsResponse?.totalPages ?? 1,
     };
-  }, [isBestMatch, allJobsResponse, jobsResponse, resumeSkills, page]);
+  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, page]);
 
   const pageTitle = tag ? `Remote ${tag} Jobs` : "Remote Jobs by Tag";
   const metaDescription = tag
@@ -147,27 +188,42 @@ export default function TagJobs() {
               : `${activeTotal} ${activeTotal === 1 ? "Job" : "Jobs"} Found`}
           </h2>
           {hasSkills && (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by</span>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="newest">Newest first</option>
-                <option value="best-match">Best match</option>
-              </select>
+            <div className="flex items-center gap-3 flex-wrap shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Min match</span>
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={String(minMatch)}
+                  onChange={(e) => setMinMatch(Number(e.target.value))}
+                >
+                  <option value="0">Any</option>
+                  <option value="25">25%+</option>
+                  <option value="50">50%+</option>
+                  <option value="75">75%+</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by</span>
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="best-match">Best match</option>
+                </select>
+              </div>
             </div>
           )}
         </div>
 
-        {isBestMatch && isBestMatchError ? (
+        {needsAllJobs && isAllJobsError ? (
           <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
             <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Couldn't load Best Match results</h3>
+            <h3 className="text-lg font-medium mb-2">Couldn't load results</h3>
             <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
-            <Button variant="outline" onClick={() => setSortBy("newest")}>
-              Switch to Newest first
+            <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); }}>
+              Reset filters
             </Button>
           </div>
         ) : isLoading ? (

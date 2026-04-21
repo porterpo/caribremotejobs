@@ -16,6 +16,8 @@ import { useUser } from "@clerk/react";
 import { computeSkillMatch } from "@/lib/skill-match";
 
 const BASE = import.meta.env.BASE_URL;
+const SORT_PREF_KEY = "cr_sort_preference";
+const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -42,7 +44,16 @@ export default function Jobs() {
   const [featured, setFeatured] = useState(initialFeatured);
   const [page, setPage] = useState(1);
   
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy, setSortBy] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SORT_PREF_KEY);
+      return ALLOWED_SORT_VALUES.includes(stored as typeof ALLOWED_SORT_VALUES[number])
+        ? (stored as string)
+        : "newest";
+    } catch {
+      return "newest";
+    }
+  });
 
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
@@ -84,7 +95,15 @@ export default function Jobs() {
     setPage(1);
   }, [debouncedSearch, category, jobType, entryLevel, featured]);
 
-  // Reset to newest when skills disappear
+  // Persist sort preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(SORT_PREF_KEY, sortBy);
+    } catch {
+    }
+  }, [sortBy]);
+
+  // Reset to newest when skills disappear (persistence effect will save "newest")
   useEffect(() => {
     if (!hasSkills && sortBy === "best-match") {
       setSortBy("newest");

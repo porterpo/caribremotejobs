@@ -146,11 +146,13 @@ export default function Jobs() {
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
-  const { data: allJobsResponse, isLoading: isLoadingBestMatch } = useListJobs(allJobsQueryParams, {
+  const { data: allJobsResponse, isLoading: isLoadingBestMatch, isError: isBestMatchError } = useListJobs(allJobsQueryParams, {
     query: { enabled: isBestMatch },
   });
 
-  const isLoading = isBestMatch ? isLoadingBestMatch : isLoadingNormal;
+  const isLoading = isBestMatch
+    ? !isBestMatchError && (isLoadingBestMatch || allJobsResponse === undefined)
+    : isLoadingNormal;
 
   useEffect(() => {
     setPage(1);
@@ -359,7 +361,11 @@ export default function Jobs() {
 
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
-              {isLoading ? "Loading jobs..." : `${activeTotal} Jobs Found`}
+              {isLoading
+                ? isBestMatch
+                  ? "Finding your best matches…"
+                  : "Loading jobs…"
+                : `${activeTotal} Jobs Found`}
             </h2>
             <div className="flex items-center gap-2 shrink-0">
               <Label htmlFor="sort-by" className="text-sm text-muted-foreground whitespace-nowrap">Sort by</Label>
@@ -377,7 +383,16 @@ export default function Jobs() {
             </div>
           </div>
 
-          {isLoading ? (
+          {isBestMatch && isBestMatchError ? (
+            <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
+              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Couldn't load Best Match results</h3>
+              <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
+              <Button variant="outline" onClick={() => setSortBy("newest")}>
+                Switch to Newest first
+              </Button>
+            </div>
+          ) : isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="border rounded-xl p-6 bg-card">

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Briefcase, Filter } from "lucide-react";
-import { useLocation } from "wouter";
+import { Search, Briefcase, Filter, Sparkles, X } from "lucide-react";
+import { useLocation, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import { computeSkillMatch } from "@/lib/skill-match";
 
 const BASE = import.meta.env.BASE_URL;
 const SORT_PREF_KEY = "cr_sort_preference";
+const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const PAGE_SIZE = 10;
 
@@ -58,9 +59,25 @@ export default function Jobs() {
 
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
+
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(SKILLS_NUDGE_DISMISSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  function dismissNudge() {
+    try {
+      localStorage.setItem(SKILLS_NUDGE_DISMISSED_KEY, "1");
+    } catch {}
+    setNudgeDismissed(true);
+  }
+
   const { data: categories } = useListCategories();
 
-  const { data: resumeData } = useQuery({
+  const { data: resumeData, status: resumeStatus } = useQuery({
     queryKey: ["resume", "me"],
     queryFn: async () => {
       const res = await fetch(`${BASE}api/resume/me`);
@@ -271,6 +288,25 @@ export default function Jobs() {
 
         {/* Job List */}
         <div className="flex-1 w-full min-w-0">
+          {isSignedIn && resumeStatus === "success" && !hasSkills && !nudgeDismissed && (
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <p className="flex-1 text-sm text-foreground">
+                <Link href="/resume" className="font-medium text-primary hover:underline">
+                  Add skills to your resume
+                </Link>{" "}
+                to unlock skill-match scores and sort jobs by best fit.
+              </p>
+              <button
+                onClick={dismissNudge}
+                aria-label="Dismiss"
+                className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
               {isLoading ? "Loading jobs..." : `${activeTotal} Jobs Found`}

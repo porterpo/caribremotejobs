@@ -826,7 +826,6 @@ export default function JobDetail() {
   }
 
   function handleDirectApply(resumeType: ResumeType = "none") {
-    if (!checkApplyGate()) return;
     track("application_started", { job_id: jobId, resume_type: resumeType });
     saveApplicationRecord(jobId, resumeType);
     setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
@@ -1015,7 +1014,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none")}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1246,7 +1245,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none")}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>

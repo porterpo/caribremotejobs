@@ -36,14 +36,11 @@ interface ResumeData {
   skills: string[] | null;
 }
 
-export function buildEnhancedMailto(
-  applyUrl: string,
+export function buildMailtoPreview(
   jobTitle: string,
   userName: string,
   resume: ResumeData | null,
-): string {
-  if (!applyUrl.startsWith("mailto:")) return applyUrl;
-
+): { subject: string; body: string } {
   const subject = `Application for ${jobTitle} — ${userName}`;
 
   const lines: string[] = [];
@@ -83,7 +80,18 @@ export function buildEnhancedMailto(
   lines.push(`Thank you for your consideration.`);
   lines.push(`${userName}`);
 
-  const body = lines.join("\n");
+  return { subject, body: lines.join("\n") };
+}
+
+export function buildEnhancedMailto(
+  applyUrl: string,
+  jobTitle: string,
+  userName: string,
+  resume: ResumeData | null,
+): string {
+  if (!applyUrl.startsWith("mailto:")) return applyUrl;
+
+  const { subject, body } = buildMailtoPreview(jobTitle, userName, resume);
 
   const qIdx = applyUrl.indexOf("?");
   const base = qIdx === -1 ? applyUrl : applyUrl.slice(0, qIdx);
@@ -92,6 +100,66 @@ export function buildEnhancedMailto(
   params.set("subject", subject);
   params.set("body", body);
   return base + "?" + params.toString();
+}
+
+function MailtoPreviewDialog({
+  open,
+  onClose,
+  applyUrl,
+  subject,
+  body,
+}: {
+  open: boolean;
+  onClose: () => void;
+  applyUrl: string;
+  subject: string;
+  body: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Email preview</DialogTitle>
+          <DialogDescription>
+            This is what will be pre-filled when your mail client opens. You can edit it before sending.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Subject
+            </p>
+            <p className="text-sm bg-muted rounded-md px-3 py-2">{subject}</p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Body
+            </p>
+            <pre className="text-sm bg-muted rounded-md px-3 py-2 whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
+              {body}
+            </pre>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Your mail client may reformat the text slightly.
+          </p>
+
+          <div className="pt-2 border-t flex gap-2">
+            <Button className="flex-1" asChild onClick={onClose}>
+              <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+                Open Mail Client <ExternalLink className="h-4 w-4 ml-2" />
+              </a>
+            </Button>
+            <Button variant="outline" asChild onClick={onClose}>
+              <Link href="/resume">Edit Resume</Link>
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function ApplyWithResumeDialog({
@@ -270,6 +338,7 @@ export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const { isSignedIn, user } = useUser();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
@@ -293,15 +362,19 @@ export default function JobDetail() {
 
   const isResumePending = isSignedIn && isMailto && resumeStatus === "pending";
 
+  const userName = user?.fullName || user?.firstName || "Applicant";
+
   const effectiveApplyUrl =
     isSignedIn && isMailto && job && resume
-      ? buildEnhancedMailto(
-          job.applyUrl,
-          job.title,
-          user?.fullName || user?.firstName || "Applicant",
-          resume,
-        )
+      ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume)
       : job?.applyUrl ?? "";
+
+  const showPreviewOnApply = isSignedIn && isMailto && !!resume;
+
+  const mailtoPreview =
+    showPreviewOnApply && job
+      ? buildMailtoPreview(job.title, userName, resume)
+      : null;
 
   const { data: similarJobsResponse } = useListJobs(
     { category: job?.category, limit: 3 },
@@ -365,6 +438,15 @@ export default function JobDetail() {
           onClose={() => setApplyDialogOpen(false)}
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
+        />
+      )}
+      {job && mailtoPreview && (
+        <MailtoPreviewDialog
+          open={previewDialogOpen}
+          onClose={() => setPreviewDialogOpen(false)}
+          applyUrl={effectiveApplyUrl}
+          subject={mailtoPreview.subject}
+          body={mailtoPreview.body}
         />
       )}
 
@@ -431,17 +513,27 @@ export default function JobDetail() {
             </div>
             
             <div className="flex flex-col gap-3 min-w-[200px] shrink-0 mt-4 md:mt-0">
-              <Button size="lg" className="w-full text-base h-12" disabled={isResumePending} asChild={!isResumePending}>
-                {isResumePending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
-                  </>
-                ) : (
-                  <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
-                    Apply Now <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
-                )}
-              </Button>
+              {showPreviewOnApply ? (
+                <Button
+                  size="lg"
+                  className="w-full text-base h-12"
+                  onClick={() => setPreviewDialogOpen(true)}
+                >
+                  Apply Now <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending} asChild={!isResumePending}>
+                  {isResumePending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
+                    </>
+                  ) : (
+                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                      Apply Now <ExternalLink className="ml-2 h-4 w-4" />
+                    </a>
+                  )}
+                </Button>
+              )}
               {isSignedIn && (
                 <Button
                   size="sm"
@@ -512,17 +604,27 @@ export default function JobDetail() {
             )}
 
             <div className="pt-8 border-t flex flex-wrap gap-3">
-              <Button size="lg" className="px-8" disabled={isResumePending} asChild={!isResumePending}>
-                {isResumePending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
-                  </>
-                ) : (
-                  <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
-                    Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
-                )}
-              </Button>
+              {showPreviewOnApply ? (
+                <Button
+                  size="lg"
+                  className="px-8"
+                  onClick={() => setPreviewDialogOpen(true)}
+                >
+                  Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button size="lg" className="px-8" disabled={isResumePending} asChild={!isResumePending}>
+                  {isResumePending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
+                    </>
+                  ) : (
+                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                      Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
+                    </a>
+                  )}
+                </Button>
+              )}
               {isSignedIn && (
                 <Button
                   size="lg"

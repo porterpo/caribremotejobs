@@ -742,16 +742,22 @@ export default function Jobs() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="newest">Newest first</SelectItem>
-                  {hasSkills && (
-                    <SelectItem value="best-match">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-primary" />
-                        Best match
-                      </span>
-                    </SelectItem>
-                  )}
+                  <SelectItem value="best-match" disabled={!hasSkills}>
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      Best match
+                    </span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {isSignedIn && !hasSkills && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <Link href="/resume" className="font-medium text-primary hover:underline">
+                    Add skills to your resume
+                  </Link>{" "}
+                  to enable Best match sorting.
+                </div>
+              )}
             </div>
           </div>
 

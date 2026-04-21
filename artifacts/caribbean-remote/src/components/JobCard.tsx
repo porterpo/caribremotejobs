@@ -1,6 +1,8 @@
 import { Link } from "wouter";
+import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Building2, MapPin, DollarSign, Clock, Palmtree } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,6 +10,50 @@ import { useUser } from "@clerk/react";
 import type { Job } from "@workspace/api-client-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
+
+const LONG_PRESS_MS = 500;
+
+function SkillBadgeTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearTimer() {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <span
+          className="inline-flex"
+          tabIndex={0}
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onTouchStart={() => {
+            clearTimer();
+            timerRef.current = setTimeout(() => setOpen(true), LONG_PRESS_MS);
+          }}
+          onTouchEnd={() => {
+            clearTimer();
+            setOpen(false);
+          }}
+          onTouchMove={() => {
+            clearTimer();
+            setOpen(false);
+          }}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface JobCardProps {
   job: Job;
@@ -109,30 +155,36 @@ export function JobCard({ job, isBestMatch = false, onTagClick }: JobCardProps) 
             </div>
 
             {visibleTags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 mb-3 relative z-20">
-                {visibleTags.map((tag, idx) => {
-                  const isMatched = matchedSet.has(tag.toLowerCase());
-                  return (
-                    <Badge
-                      key={`${tag}-${idx}`}
-                      variant="secondary"
-                      className={
-                        isMatched
-                          ? `bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-emerald-200 transition-colors" : ""}`
-                          : `bg-muted text-muted-foreground text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-muted/70 transition-colors" : ""}`
-                      }
-                      onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
-                    >
-                      {tag}
-                    </Badge>
-                  );
-                })}
-                {overflowCount > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    +{overflowCount} more
-                  </span>
-                )}
-              </div>
+              <TooltipProvider delayDuration={300}>
+                <div className="flex flex-wrap items-center gap-1.5 mb-3 relative z-20">
+                  {visibleTags.map((tag, idx) => {
+                    const isMatched = matchedSet.has(tag.toLowerCase());
+                    return (
+                      <SkillBadgeTooltip
+                        key={`${tag}-${idx}`}
+                        label={isMatched ? "Matches your resume" : "Required skill"}
+                      >
+                        <Badge
+                          variant="secondary"
+                          className={
+                            isMatched
+                              ? `bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-emerald-200 transition-colors" : ""}`
+                              : `bg-muted text-muted-foreground text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-muted/70 transition-colors" : ""}`
+                          }
+                          onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
+                        >
+                          {tag}
+                        </Badge>
+                      </SkillBadgeTooltip>
+                    );
+                  })}
+                  {overflowCount > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{overflowCount} more
+                    </span>
+                  )}
+                </div>
+              </TooltipProvider>
             )}
             
             <div className="flex flex-wrap items-center gap-2 relative z-20">

@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
+import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -591,6 +592,7 @@ export default function JobDetail() {
   }
 
   const { isSignedIn, user } = useUser();
+  const { toast } = useToast();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
     query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
@@ -637,7 +639,7 @@ export default function JobDetail() {
   const isResumePending = isSignedIn && isMailto && resumeStatus === "pending";
 
   interface SeekerSub { isPro: boolean; applicationCount: number; applicationLimit: number | null; }
-  const { data: seekerSub, isLoading: seekerSubLoading } = useQuery<SeekerSub>({
+  const { data: seekerSub, isLoading: seekerSubLoading, isError: seekerSubError } = useQuery<SeekerSub>({
     queryKey: ["seeker-subscription"],
     queryFn: async () => {
       const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
@@ -654,7 +656,10 @@ export default function JobDetail() {
   function checkApplyGate(): boolean {
     if (!isSignedIn) return true;
     if (seekerSubLoading) return false;
-    if (!seekerSub) return true;
+    if (seekerSubError || !seekerSub) {
+      toast({ title: "Could not verify subscription", description: "Please refresh and try again.", variant: "destructive" });
+      return false;
+    }
     if (seekerSub.isPro) return true;
     if (seekerSub.applicationLimit !== null && seekerSub.applicationCount >= seekerSub.applicationLimit) {
       setUpgradeGateOpen(true);

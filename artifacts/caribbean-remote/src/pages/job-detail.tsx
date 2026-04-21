@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from "@/lib/meta";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetJob, getGetJobQueryKey, useListJobs } from "@workspace/api-client-react";
@@ -448,6 +449,39 @@ export default function JobDetail() {
     skillMatch && job?.tags
       ? job.tags.split(',').map(t => t.trim()).filter(tag => tag && !skillMatch.matchedSkills.includes(tag))
       : [];
+
+  useEffect(() => {
+    if (!job) return;
+
+    const location = job.locationRestrictions || "Remote";
+    const pageTitle = `${job.title} at ${job.companyName} | CaribbeanRemote`;
+    const pageDescription = `${job.title} — ${job.companyName} · ${location}. Apply for this remote role on CaribbeanRemote.`;
+
+    const prevTitle = document.title;
+
+    function upsertMeta(key: "name" | "property", keyValue: string, content: string): HTMLMetaElement {
+      let el = document.querySelector(`meta[${key}="${keyValue}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(key, keyValue);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+      return el;
+    }
+
+    document.title = pageTitle;
+    const descEl = upsertMeta("name", "description", pageDescription);
+    const ogTitleEl = upsertMeta("property", "og:title", pageTitle);
+    const ogDescEl = upsertMeta("property", "og:description", pageDescription);
+
+    return () => {
+      document.title = prevTitle;
+      descEl.setAttribute("content", DEFAULT_DESCRIPTION);
+      ogTitleEl.setAttribute("content", DEFAULT_TITLE);
+      ogDescEl.setAttribute("content", DEFAULT_DESCRIPTION);
+    };
+  }, [job]);
 
   if (isLoading) {
     return (

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
+import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
-import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter, useLocation, useSearch } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -91,12 +92,21 @@ const clerkAppearance = {
 function SignInPage() {
   // To update login providers, app branding, or OAuth settings use the Auth
   // pane in the workspace toolbar. More information can be found in the Replit docs.
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const redirectPath = params.get("redirect");
+  const forceRedirectUrl =
+    redirectPath && redirectPath.startsWith("/")
+      ? `${basePath}${redirectPath}`
+      : undefined;
+
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-[hsl(190,50%,95%)] to-[hsl(40,33%,98%)] px-4">
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
         signUpUrl={`${basePath}/sign-up`}
+        forceRedirectUrl={forceRedirectUrl}
         fallbackRedirectUrl={`${basePath}/jobs`}
       />
     </div>
@@ -118,14 +128,15 @@ function SignUpPage() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component }: { component: ComponentType }) {
+  const [location] = useLocation();
   return (
     <>
       <Show when="signed-in">
         <Component />
       </Show>
       <Show when="signed-out">
-        <Redirect to="/sign-in" />
+        <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />
       </Show>
     </>
   );

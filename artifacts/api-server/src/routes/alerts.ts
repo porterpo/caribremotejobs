@@ -4,10 +4,11 @@ import { db, alertsTable } from "@workspace/db";
 import { CreateAlertBody, DeleteAlertParams, UnsubscribeAlertParams } from "@workspace/api-zod";
 import { sendAlertConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-router.post("/alerts", async (req, res): Promise<void> => {
+router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateAlertBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -52,7 +53,7 @@ router.get("/alerts", async (_req, res): Promise<void> => {
   res.json(alerts);
 });
 
-router.delete("/alerts/:id", async (req, res): Promise<void> => {
+router.delete("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = DeleteAlertParams.safeParse({ id: raw });
   if (!params.success) {

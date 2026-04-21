@@ -9,6 +9,7 @@ import adminRouter from "./admin";
 import stripeRouter from "./stripe";
 import submitRouter from "./submit";
 import storageRouter from "./storage";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(companiesRouter);
 router.use(categoriesRouter);
 router.use(alertsRouter);
 router.use(statsRouter);
+router.use("/admin", requireAuth);
 router.use(adminRouter);
 router.use(stripeRouter);
 router.use(storageRouter);

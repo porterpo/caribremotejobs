@@ -161,13 +161,24 @@ function MailtoPreviewDialog({
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Body
-            </p>
+            <div className="flex items-baseline justify-between mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Body
+              </p>
+              <span className={`text-xs tabular-nums ${body.length > 1800 ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                {body.length.toLocaleString()} chars
+              </span>
+            </div>
             <pre className="text-sm bg-muted rounded-md px-3 py-2 whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
               {body}
             </pre>
           </div>
+
+          {body.length > 1800 && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              Your email body is over 1,800 characters. Some mail clients may truncate long bodies — consider trimming your resume before sending.
+            </p>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Your mail client may reformat the text slightly.

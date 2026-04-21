@@ -15,12 +15,21 @@ const LS_KEY = "tagsSortOrder";
 
 type SortOrder = "count" | "alpha";
 
+const ALL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
 function readStoredSort(): SortOrder {
   try {
     const stored = localStorage.getItem(LS_KEY);
     if (stored === "alpha" || stored === "count") return stored;
   } catch {}
   return "count";
+}
+
+function scrollToLetter(letter: string) {
+  const el = document.getElementById(`tag-letter-${letter}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 export default function TagsIndex() {
@@ -64,6 +73,11 @@ export default function TagsIndex() {
       return a.localeCompare(b);
     });
   }, [sortOrder, sortedTags]);
+
+  const presentLetters = useMemo(() => {
+    if (!alphaGroups) return new Set<string>();
+    return new Set(alphaGroups.map(([letter]) => letter));
+  }, [alphaGroups]);
 
   return (
     <PageLayout>
@@ -115,6 +129,30 @@ export default function TagsIndex() {
           </div>
         )}
 
+        {sortOrder === "alpha" && !isLoading && alphaGroups && alphaGroups.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-8 p-3 bg-muted/40 rounded-lg border">
+            {ALL_LETTERS.map((letter) => {
+              const active = presentLetters.has(letter);
+              return (
+                <button
+                  key={letter}
+                  onClick={() => active && scrollToLetter(letter)}
+                  disabled={!active}
+                  aria-label={active ? `Jump to letter ${letter}` : `No tags for letter ${letter}`}
+                  className={[
+                    "w-7 h-7 rounded text-sm font-medium transition-colors",
+                    active
+                      ? "hover:bg-primary hover:text-primary-foreground cursor-pointer text-foreground"
+                      : "text-muted-foreground/40 cursor-default",
+                  ].join(" ")}
+                >
+                  {letter}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-wrap gap-3">
             {Array.from({ length: 30 }).map((_, i) => (
@@ -125,7 +163,7 @@ export default function TagsIndex() {
           sortOrder === "alpha" && alphaGroups ? (
             <div className="space-y-8">
               {alphaGroups.map(([letter, items]) => (
-                <div key={letter}>
+                <div key={letter} id={`tag-letter-${letter}`}>
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-lg font-bold text-primary w-7 shrink-0">{letter}</span>
                     <div className="h-px flex-1 bg-border" />

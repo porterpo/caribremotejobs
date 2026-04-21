@@ -45,7 +45,7 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(alert);
 });
 
-router.get("/alerts", async (_req, res): Promise<void> => {
+router.get("/alerts", requireAuth, async (_req, res): Promise<void> => {
   const alerts = await db
     .select()
     .from(alertsTable)

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Building2, MapPin, DollarSign, Clock, Palmtree, ShieldCheck, X } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Palmtree, ShieldCheck, X, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
@@ -101,6 +101,14 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
   const activeSet = new Set(
     selectedTags ? selectedTags.map((s) => s.toLowerCase()) : []
   );
+  const appliedRecord = (() => {
+    try {
+      const records = JSON.parse(localStorage.getItem("cr_applied_jobs") ?? "{}") as Record<string, { resumeType?: "built" | "pdf" | "none"; appliedAt?: string }>;
+      return records[String(job.id)] ?? null;
+    } catch {
+      return null;
+    }
+  })();
 
   // Promote any active filter tags that would be hidden in overflow
   const activeOverflowTags = allTags.slice(MAX_TAGS).filter((t) => activeSet.has(t.toLowerCase()));
@@ -333,6 +341,12 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
             )}
             
             <div className="flex flex-wrap items-center gap-2 relative z-20">
+              {appliedRecord && (
+                <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 gap-1 px-2.5">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Applied
+                </Badge>
+              )}
               {isVerifiedEmployer && (
                 <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200 gap-1 px-2.5">
                   <ShieldCheck className="h-3 w-3" />

@@ -69,6 +69,66 @@ function SkillTag({ skill, onRemove }: { skill: string; onRemove: () => void }) 
   );
 }
 
+type AppliedJobRecord = {
+  resumeType?: "built" | "pdf" | "none";
+  appliedAt?: string;
+};
+
+function getAppliedJobRecords(): Record<string, AppliedJobRecord> {
+  try {
+    return JSON.parse(localStorage.getItem("cr_applied_jobs") ?? "{}") as Record<string, AppliedJobRecord>;
+  } catch {
+    return {};
+  }
+}
+
+function getResumeTypeLabel(resumeType?: "built" | "pdf" | "none") {
+  if (resumeType === "pdf") return "PDF Resume";
+  if (resumeType === "built") return "Built Resume";
+  return "Resume";
+}
+
+function ApplicationsHistorySection() {
+  const [records, setRecords] = useState<Record<string, AppliedJobRecord>>({});
+
+  useEffect(() => {
+    setRecords(getAppliedJobRecords());
+  }, []);
+
+  const entries = Object.entries(records)
+    .map(([jobId, record]) => ({ jobId, ...record }))
+    .filter((entry) => entry.appliedAt)
+    .sort((a, b) => new Date(b.appliedAt!).getTime() - new Date(a.appliedAt!).getTime());
+
+  if (entries.length === 0) return null;
+
+  return (
+    <section className="border rounded-xl p-6 bg-card space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">Recent applications</h2>
+          <p className="text-sm text-muted-foreground">Saved on this device.</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {entries.map((entry) => (
+          <div key={entry.jobId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3">
+            <div>
+              <p className="font-medium">Job #{entry.jobId}</p>
+              <p className="text-xs text-muted-foreground">
+                Applied {new Date(entry.appliedAt!).toLocaleString()}
+              </p>
+            </div>
+            <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+              {getResumeTypeLabel(entry.resumeType)}
+            </Badge>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ExperienceSection({
   entries,
   onChange,
@@ -343,6 +403,16 @@ function UploadResumeTab({
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const applicationHistory = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("cr_applied_jobs") ?? "{}") as Record<
+        string,
+        { resumeType?: "built" | "pdf" | "none"; appliedAt?: string }
+      >;
+    } catch {
+      return {};
+    }
+  })();
 
   const objectId = uploadedResumePath ? uploadedResumePath.split("/").pop() : null;
   const previewUrl = objectId ? `${BASE}api/resume/pdf/${objectId}` : null;
@@ -647,6 +717,11 @@ function UploadResumeTab({
         Your PDF is stored securely and only you can access it. When you apply for a job, a download
         link will be included in the application email so employers can view your resume.
       </p>
+      {Object.keys(applicationHistory).length > 0 && (
+        <div className="text-xs text-muted-foreground">
+          Your recent applications are saved on this device.
+        </div>
+      )}
     </div>
   );
 }

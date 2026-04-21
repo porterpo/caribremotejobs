@@ -363,6 +363,7 @@ export default function ResumePage() {
       return res.json() as Promise<ResumeData>;
     },
     onSuccess: (saved) => {
+      track("resume_saved");
       const hadSkillsBefore = (resume?.skills ?? []).length > 0;
       const hasSkillsNow = (saved.skills ?? []).length > 0;
       if (hasSkillsNow && !hadSkillsBefore) {

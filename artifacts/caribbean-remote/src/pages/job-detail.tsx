@@ -574,7 +574,7 @@ export default function JobDetail() {
                 <Button
                   size="lg"
                   className="w-full text-base h-12"
-                  onClick={() => setPreviewDialogOpen(true)}
+                  onClick={() => { track("application_started", { job_id: jobId }); setPreviewDialogOpen(true); }}
                 >
                   Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
@@ -585,7 +585,7 @@ export default function JobDetail() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
                     </>
                   ) : (
-                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("application_started", { job_id: jobId })}>
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}
@@ -596,7 +596,7 @@ export default function JobDetail() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => setApplyDialogOpen(true)}
+                  onClick={() => { track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume
@@ -688,7 +688,7 @@ export default function JobDetail() {
                 <Button
                   size="lg"
                   className="px-8"
-                  onClick={() => setPreviewDialogOpen(true)}
+                  onClick={() => { track("application_started", { job_id: jobId }); setPreviewDialogOpen(true); }}
                 >
                   Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
@@ -699,7 +699,7 @@ export default function JobDetail() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
                     </>
                   ) : (
-                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("application_started", { job_id: jobId })}>
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}
@@ -710,7 +710,7 @@ export default function JobDetail() {
                   size="lg"
                   variant="outline"
                   className="px-8"
-                  onClick={() => setApplyDialogOpen(true)}
+                  onClick={() => { track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume

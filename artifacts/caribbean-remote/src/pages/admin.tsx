@@ -177,6 +177,10 @@ export default function Admin() {
     totalClicks: number;
     clicksWithResume: number;
     skillsAdded: number;
+    applicationStarted: number;
+    resumeSaved: number;
+    skillsUpdated: number;
+    eventBreakdown: { event: string; count: number }[];
     topJobs: { jobId: number | null; jobTitle: string | null; companyName: string | null; clicks: number }[];
   }
 
@@ -1137,6 +1141,28 @@ export default function Admin() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Applications Started</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (analyticsSummary?.applicationStarted ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">application_started events</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Resumes Saved</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (analyticsSummary?.resumeSaved ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">resume_saved events</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total Nudge Clicks</CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1146,37 +1172,42 @@ export default function Admin() {
                     <p className="text-xs text-muted-foreground mt-1">skills_nudge_clicked events</p>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Clicks With Resume</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">
-                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (analyticsSummary?.clicksWithResume ?? 0)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {analyticsSummary && analyticsSummary.totalClicks > 0
-                        ? `${Math.round((analyticsSummary.clicksWithResume / analyticsSummary.totalClicks) * 100)}% of total`
-                        : "no data yet"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Clicks Without Resume</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">
-                      {analyticsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : ((analyticsSummary?.totalClicks ?? 0) - (analyticsSummary?.clicksWithResume ?? 0))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {analyticsSummary && analyticsSummary.totalClicks > 0
-                        ? `${Math.round(((analyticsSummary.totalClicks - analyticsSummary.clicksWithResume) / analyticsSummary.totalClicks) * 100)}% of total`
-                        : "no data yet"}
-                    </p>
-                  </CardContent>
-                </Card>
               </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Event Types</CardTitle>
+                  <CardDescription>Total counts for every tracked event type across all users.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center h-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                  ) : (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead className="text-right">Total events</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {!analyticsSummary?.eventBreakdown?.length ? (
+                            <TableRow><TableCell colSpan={2} className="text-center h-24 text-muted-foreground">No events recorded yet.</TableCell></TableRow>
+                          ) : (
+                            analyticsSummary.eventBreakdown.map((row) => (
+                              <TableRow key={row.event}>
+                                <TableCell className="font-mono text-sm">{row.event}</TableCell>
+                                <TableCell className="text-right font-mono">{row.count}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader>
@@ -1193,7 +1224,7 @@ export default function Admin() {
                           <TableRow>
                             <TableHead>Event</TableHead>
                             <TableHead className="text-right">Total events</TableHead>
-                            <TableHead className="text-right">Event conversion</TableHead>
+                            <TableHead className="text-right">Conversion</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1218,6 +1249,11 @@ export default function Admin() {
                                 <span className="text-muted-foreground text-sm">no data yet</span>
                               )}
                             </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Skills updated</TableCell>
+                            <TableCell className="text-right font-mono">{analyticsSummary?.skillsUpdated ?? 0}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">—</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>

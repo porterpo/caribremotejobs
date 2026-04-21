@@ -31,6 +31,9 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
 router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> => {
   const EVENT_NAME = "skills_nudge_clicked";
   const SKILLS_ADDED_EVENT = "skills_added";
+  const SKILLS_UPDATED_EVENT = "skills_updated";
+  const APPLICATION_STARTED_EVENT = "application_started";
+  const RESUME_SAVED_EVENT = "resume_saved";
 
   const [totalRow] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -48,6 +51,25 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
     .select({ count: sql<number>`count(*)::int` })
     .from(analyticsEventsTable)
     .where(eq(analyticsEventsTable.event, SKILLS_ADDED_EVENT));
+
+  const eventBreakdownRows = await db
+    .select({
+      event: analyticsEventsTable.event,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(analyticsEventsTable)
+    .groupBy(analyticsEventsTable.event)
+    .orderBy(desc(sql`count(*)`));
+
+  const countMap: Record<string, number> = {};
+  for (const row of eventBreakdownRows) {
+    countMap[row.event] = row.count;
+  }
+
+  const eventBreakdown = eventBreakdownRows.map((row) => ({
+    event: row.event,
+    count: row.count,
+  }));
 
   const perJob = await db
     .select({
@@ -69,6 +91,10 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
     totalClicks: totalRow?.count ?? 0,
     clicksWithResume: resumeRow?.count ?? 0,
     skillsAdded: skillsAddedRow?.count ?? 0,
+    applicationStarted: countMap[APPLICATION_STARTED_EVENT] ?? 0,
+    resumeSaved: countMap[RESUME_SAVED_EVENT] ?? 0,
+    skillsUpdated: countMap[SKILLS_UPDATED_EVENT] ?? 0,
+    eventBreakdown,
     topJobs: perJob,
   });
 });

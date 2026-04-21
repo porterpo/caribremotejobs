@@ -636,14 +636,14 @@ export default function JobDetail() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <TooltipProvider>
-                    {job.tags.split(',').map(tag => {
-                      const isMatched = skillMatch?.matchedSkills.includes(tag.trim());
+                    {job.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => {
+                      const isMatched = skillMatch?.matchedSkills.includes(tag);
                       const tooltipText = isMatched ? "Matches your resume" : "Required skill";
                       return (
                         <Tooltip key={tag}>
                           <TooltipTrigger asChild>
                             <Link
-                              href={`/jobs/tag/${encodeURIComponent(tag.trim())}`}
+                              href={`/jobs/tag/${encodeURIComponent(tag)}`}
                               className="no-underline"
                             >
                               <Badge

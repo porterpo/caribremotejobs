@@ -245,7 +245,7 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                 {job.category}
               </Badge>
 
-              {isBestMatch && skillMatch && (
+              {skillMatch && skillMatch.percentage > 0 && (
                 <SkillMatchBadge match={skillMatch} />
               )}
               

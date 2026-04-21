@@ -40,6 +40,7 @@ export interface Job {
   postedAt: string;
   createdAt: string;
   updatedAt: string;
+  verifiedEmployer: boolean;
 }
 
 export interface JobListResponse {
@@ -111,6 +112,7 @@ export interface Company {
   /** @nullable */
   description?: string | null;
   caribbeanFriendly: boolean;
+  verifiedEmployer: boolean;
   hiresBahamas: boolean;
   hiresCaribbean: boolean;
   /** @nullable */

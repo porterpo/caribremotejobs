@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, gte, lte, ilike, desc, count, sql } from "drizzle-orm";
-import { db, jobsTable } from "@workspace/db";
+import { db, jobsTable, companiesTable } from "@workspace/db";
 import {
   ListJobsQueryParams,
   CreateJobBody,
@@ -164,7 +164,38 @@ router.get("/jobs", async (req, res): Promise<void> => {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  let baseQuery = db.select().from(jobsTable).$dynamic();
+  const jobCols = {
+    id: jobsTable.id,
+    title: jobsTable.title,
+    companyId: jobsTable.companyId,
+    companyName: jobsTable.companyName,
+    companyLogo: jobsTable.companyLogo,
+    caribbeanFriendly: jobsTable.caribbeanFriendly,
+    entryLevel: jobsTable.entryLevel,
+    category: jobsTable.category,
+    jobType: jobsTable.jobType,
+    salaryMin: jobsTable.salaryMin,
+    salaryMax: jobsTable.salaryMax,
+    salaryCurrency: jobsTable.salaryCurrency,
+    description: jobsTable.description,
+    applyUrl: jobsTable.applyUrl,
+    source: jobsTable.source,
+    sourceJobId: jobsTable.sourceJobId,
+    locationRestrictions: jobsTable.locationRestrictions,
+    tags: jobsTable.tags,
+    featured: jobsTable.featured,
+    approved: jobsTable.approved,
+    postedAt: jobsTable.postedAt,
+    createdAt: jobsTable.createdAt,
+    updatedAt: jobsTable.updatedAt,
+    verifiedEmployer: sql<boolean>`COALESCE(${companiesTable.verifiedEmployer}, false)`,
+  };
+
+  let baseQuery = db
+    .select(jobCols)
+    .from(jobsTable)
+    .leftJoin(companiesTable, eq(jobsTable.companyId, companiesTable.id))
+    .$dynamic();
   let countQuery = db.select({ count: count() }).from(jobsTable).$dynamic();
 
   if (where) {
@@ -227,8 +258,34 @@ router.get("/jobs/:id", async (req, res): Promise<void> => {
   }
 
   const [job] = await db
-    .select()
+    .select({
+      id: jobsTable.id,
+      title: jobsTable.title,
+      companyId: jobsTable.companyId,
+      companyName: jobsTable.companyName,
+      companyLogo: jobsTable.companyLogo,
+      caribbeanFriendly: jobsTable.caribbeanFriendly,
+      entryLevel: jobsTable.entryLevel,
+      category: jobsTable.category,
+      jobType: jobsTable.jobType,
+      salaryMin: jobsTable.salaryMin,
+      salaryMax: jobsTable.salaryMax,
+      salaryCurrency: jobsTable.salaryCurrency,
+      description: jobsTable.description,
+      applyUrl: jobsTable.applyUrl,
+      source: jobsTable.source,
+      sourceJobId: jobsTable.sourceJobId,
+      locationRestrictions: jobsTable.locationRestrictions,
+      tags: jobsTable.tags,
+      featured: jobsTable.featured,
+      approved: jobsTable.approved,
+      postedAt: jobsTable.postedAt,
+      createdAt: jobsTable.createdAt,
+      updatedAt: jobsTable.updatedAt,
+      verifiedEmployer: sql<boolean>`COALESCE(${companiesTable.verifiedEmployer}, false)`,
+    })
     .from(jobsTable)
+    .leftJoin(companiesTable, eq(jobsTable.companyId, companiesTable.id))
     .where(eq(jobsTable.id, params.data.id));
 
   if (!job) {

@@ -4,6 +4,7 @@ import { db, jobsTable, companiesTable, jobOrdersTable } from "@workspace/db";
 import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
 import { sendOrderConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
+import { getEmployerEligibility } from "../lib/employerEligibility";
 
 const router: IRouter = Router();
 
@@ -226,6 +227,78 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   }
 
   res.json(job);
+});
+
+router.get("/admin/companies", async (_req, res): Promise<void> => {
+  const companies = await db
+    .select({
+      id: companiesTable.id,
+      name: companiesTable.name,
+      logo: companiesTable.logo,
+      website: companiesTable.website,
+      description: companiesTable.description,
+      verifiedEmployer: companiesTable.verifiedEmployer,
+      caribbeanFriendly: companiesTable.caribbeanFriendly,
+      hiresBahamas: companiesTable.hiresBahamas,
+      hiresCaribbean: companiesTable.hiresCaribbean,
+      country: companiesTable.country,
+      createdAt: companiesTable.createdAt,
+    })
+    .from(companiesTable)
+    .orderBy(companiesTable.name);
+
+  const results = await Promise.all(
+    companies.map(async (company) => {
+      const eligibility = await getEmployerEligibility(company.id);
+      return { ...company, eligibility };
+    }),
+  );
+
+  res.json(results);
+});
+
+router.post("/admin/companies/:id/verify", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Invalid company id" });
+    return;
+  }
+
+  const [company] = await db
+    .update(companiesTable)
+    .set({ verifiedEmployer: true })
+    .where(eq(companiesTable.id, id))
+    .returning();
+
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+
+  logger.info({ companyId: id, companyName: company.name }, "Verified Employer badge granted by admin");
+  res.json(company);
+});
+
+router.post("/admin/companies/:id/unverify", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Invalid company id" });
+    return;
+  }
+
+  const [company] = await db
+    .update(companiesTable)
+    .set({ verifiedEmployer: false })
+    .where(eq(companiesTable.id, id))
+    .returning();
+
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+
+  logger.info({ companyId: id, companyName: company.name }, "Verified Employer badge revoked by admin");
+  res.json(company);
 });
 
 router.get("/admin/order-stats", async (_req, res): Promise<void> => {

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, XCircle, Mail, MailX, Filter, Download, BarChart2 } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, RefreshCw, Star, Building2, Palmtree, ShieldCheck, XCircle, Mail, MailX, Filter, Download, BarChart2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,28 @@ const ANALYTICS_PREF_KEY_FROM = "admin_analyticsDateFrom";
 const ANALYTICS_PREF_KEY_TO = "admin_analyticsDateTo";
 const ANALYTICS_PREF_KEY_TREND_EVENT = "admin_trendEventFilter";
 const ANALYTICS_PREF_KEY_GRANULARITY = "admin_trendGranularity";
+
+interface EligibilityCriteria {
+  approvedDirectListings: number;
+  profileComplete: boolean;
+  noViolations: boolean;
+  accountAgeDays: number;
+}
+
+interface AdminCompany {
+  id: number;
+  name: string;
+  logo: string | null;
+  website: string | null;
+  description: string | null;
+  verifiedEmployer: boolean;
+  caribbeanFriendly: boolean;
+  createdAt: string;
+  eligibility: {
+    eligible: boolean;
+    criteria: EligibilityCriteria;
+  };
+}
 
 interface JobOrder {
   id: number;
@@ -153,6 +175,44 @@ export default function Admin() {
   
   // Sync
   const syncJobs = useSyncJobs();
+
+  // Verified Employers
+  const { data: adminCompanies, isLoading: adminCompaniesLoading, refetch: refetchAdminCompanies } = useQuery<AdminCompany[]>({
+    queryKey: ["admin-companies"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies`);
+      if (!res.ok) throw new Error("Failed to fetch admin companies");
+      return res.json();
+    },
+  });
+
+  const grantVerified = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/verify`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to grant verification");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Verified Employer badge granted" });
+      refetchAdminCompanies();
+    },
+    onError: () => toast({ title: "Failed to grant badge", variant: "destructive" }),
+  });
+
+  const revokeVerified = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/unverify`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to revoke verification");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Verified Employer badge revoked" });
+      refetchAdminCompanies();
+    },
+    onError: () => toast({ title: "Failed to revoke badge", variant: "destructive" }),
+  });
+
+  const pendingVerificationCount = adminCompanies?.filter(c => c.eligibility.eligible && !c.verifiedEmployer).length ?? 0;
 
   // Orders
   const { data: orders, isLoading: ordersLoading } = useQuery<JobOrder[]>({
@@ -624,6 +684,13 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
             <TabsTrigger value="companies" className="px-6 py-2">Companies</TabsTrigger>
+            <TabsTrigger value="verified-employers" className="px-6 py-2">
+              <ShieldCheck className="h-4 w-4 mr-1.5" />
+              Verified Employers
+              {pendingVerificationCount > 0 && (
+                <Badge className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0">{pendingVerificationCount}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
             <TabsTrigger value="analytics" className="px-6 py-2">
               <BarChart2 className="h-4 w-4 mr-1.5" />
@@ -1094,6 +1161,137 @@ export default function Admin() {
             </Card>
           </TabsContent>
           
+          <TabsContent value="verified-employers">
+            <Card>
+              <CardHeader>
+                <CardTitle>Verified Employer Management</CardTitle>
+                <CardDescription>
+                  Grant or revoke the Verified Employer badge. Eligibility requires ≥2 approved direct listings, a complete company profile (logo, description, website), and account age of 30+ days.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Company</TableHead>
+                        <TableHead className="text-center">Direct Listings</TableHead>
+                        <TableHead className="text-center">Profile Complete</TableHead>
+                        <TableHead className="text-center">Account Age</TableHead>
+                        <TableHead className="text-center">No Violations</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-center">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adminCompaniesLoading ? (
+                        <TableRow><TableCell colSpan={7} className="text-center h-24">Loading...</TableCell></TableRow>
+                      ) : adminCompanies?.length === 0 ? (
+                        <TableRow><TableCell colSpan={7} className="text-center h-24">No companies found.</TableCell></TableRow>
+                      ) : (
+                        adminCompanies?.map((company) => {
+                          const { criteria, eligible } = company.eligibility;
+                          const isMutating = grantVerified.isPending || revokeVerified.isPending;
+                          return (
+                            <TableRow key={company.id} className={company.verifiedEmployer ? "bg-blue-50/40" : ""}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {company.logo ? (
+                                    <img src={company.logo} className="h-6 w-6 object-contain" alt="" />
+                                  ) : (
+                                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                                  )}
+                                  <span className="font-medium">{company.name}</span>
+                                  {company.verifiedEmployer && (
+                                    <ShieldCheck className="h-4 w-4 text-blue-600" />
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {criteria.approvedDirectListings >= 2 ? (
+                                  <div className="flex items-center justify-center gap-1 text-green-700">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    <span>{criteria.approvedDirectListings}</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1 text-red-600">
+                                    <XCircle className="h-4 w-4" />
+                                    <span>{criteria.approvedDirectListings}</span>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {criteria.profileComplete ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-red-600 mx-auto" />
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {criteria.accountAgeDays >= 30 ? (
+                                  <div className="flex items-center justify-center gap-1 text-green-700">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    <span>{criteria.accountAgeDays}d</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center gap-1 text-red-600">
+                                    <XCircle className="h-4 w-4" />
+                                    <span>{criteria.accountAgeDays}d</span>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {criteria.noViolations ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-red-600 mx-auto" />
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {company.verifiedEmployer ? (
+                                  <Badge className="bg-blue-100 text-blue-800 border-blue-200 gap-1">
+                                    <ShieldCheck className="h-3 w-3" />
+                                    Verified
+                                  </Badge>
+                                ) : eligible ? (
+                                  <Badge variant="outline" className="text-green-700 border-green-400">Eligible</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground">Not Eligible</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {company.verifiedEmployer ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
+                                    disabled={isMutating}
+                                    onClick={() => revokeVerified.mutate(company.id)}
+                                  >
+                                    Revoke
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    disabled={isMutating || !eligible}
+                                    onClick={() => grantVerified.mutate(company.id)}
+                                  >
+                                    Grant
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="alerts">
             <Card>
               <CardHeader>

@@ -4,7 +4,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetCompany, getGetCompanyQueryKey, useListJobs } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MapPin, Globe, ArrowLeft, Palmtree, Briefcase } from "lucide-react";
+import { Building2, MapPin, Globe, ArrowLeft, Palmtree, ShieldCheck, Briefcase } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
 
@@ -86,6 +86,12 @@ export default function CompanyDetail() {
             
             <div className="flex-1">
               <div className="flex flex-wrap gap-2 mb-3">
+                {company.verifiedEmployer && (
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200 gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Verified Employer
+                  </Badge>
+                )}
                 {company.caribbeanFriendly && (
                   <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
                     <Palmtree className="h-3.5 w-3.5" />

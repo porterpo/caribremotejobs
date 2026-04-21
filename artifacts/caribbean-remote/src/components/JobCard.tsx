@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Building2, MapPin, DollarSign, Clock, Palmtree, X } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Palmtree, ShieldCheck, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
@@ -80,6 +80,7 @@ interface JobCardProps {
 export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: JobCardProps) {
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
+  const isVerifiedEmployer = job.verifiedEmployer;
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
   const resume = isSignedIn
@@ -332,6 +333,12 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
             )}
             
             <div className="flex flex-wrap items-center gap-2 relative z-20">
+              {isVerifiedEmployer && (
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200 gap-1 px-2.5">
+                  <ShieldCheck className="h-3 w-3" />
+                  Verified Employer
+                </Badge>
+              )}
               {isCaribbeanFriendly && (
                 <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200 gap-1 px-2.5">
                   <Palmtree className="h-3 w-3" />

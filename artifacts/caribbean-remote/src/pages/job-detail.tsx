@@ -439,12 +439,14 @@ export default function JobDetail() {
     const url = getJobUrl();
     const title = job?.title ? `${job.title} at ${job.companyName}` : "Check out this remote job";
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`;
+    track("job_shared", { platform: "x", job_id: jobId });
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }
 
   function handleShareLinkedIn() {
     const url = getJobUrl();
     const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+    track("job_shared", { platform: "linkedin", job_id: jobId });
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }
 
@@ -452,6 +454,7 @@ export default function JobDetail() {
     const url = getJobUrl();
     const title = job?.title ? `${job.title} at ${job.companyName}` : "Check out this remote job";
     const shareUrl = `https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`;
+    track("job_shared", { platform: "whatsapp", job_id: jobId });
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }
 

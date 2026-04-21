@@ -138,6 +138,7 @@ export const GetJobResponse = zod.object({
   postedAt: zod.coerce.date(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+  verifiedEmployer: zod.boolean(),
 });
 
 /**

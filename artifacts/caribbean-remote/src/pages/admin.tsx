@@ -198,14 +198,17 @@ export default function Admin() {
   const grantVerified = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/verify`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to grant verification");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? "Failed to grant verification");
+      }
       return res.json();
     },
     onSuccess: () => {
       toast({ title: "Verified Employer badge granted" });
       refetchAdminCompanies();
     },
-    onError: () => toast({ title: "Failed to grant badge", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Failed to grant badge", variant: "destructive" }),
   });
 
   const revokeVerified = useMutation({

@@ -291,6 +291,19 @@ router.post("/admin/companies/:id/verify", requireAdmin, async (req, res): Promi
     return;
   }
 
+  const force = req.query.force === "true";
+  if (!force) {
+    const eligibility = await getEmployerEligibility(id);
+    if (!eligibility.eligible) {
+      res.status(422).json({
+        error: "Company does not meet eligibility criteria",
+        criteria: eligibility.criteria,
+        hint: "Pass ?force=true to override eligibility check",
+      });
+      return;
+    }
+  }
+
   const [company] = await db
     .update(companiesTable)
     .set({ verifiedEmployer: true })
@@ -302,7 +315,7 @@ router.post("/admin/companies/:id/verify", requireAdmin, async (req, res): Promi
     return;
   }
 
-  logger.info({ companyId: id, companyName: company.name }, "Verified Employer badge granted by admin");
+  logger.info({ companyId: id, companyName: company.name, forced: force }, "Verified Employer badge granted by admin");
   res.json(company);
 });
 

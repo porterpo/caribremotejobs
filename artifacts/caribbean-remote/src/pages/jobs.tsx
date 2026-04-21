@@ -25,6 +25,7 @@ const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const PAGE_SIZE = 10;
 const JOBS_STALE_TIME_MS = 60_000;
+const BEST_MATCH_FETCH_LIMIT = 9999;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -156,7 +157,7 @@ export default function Jobs() {
     query: { enabled: !isBestMatch, staleTime: JOBS_STALE_TIME_MS },
   });
 
-  const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
+  const allJobsQueryParams = { ...filterParams, page: 1, limit: BEST_MATCH_FETCH_LIMIT };
   const { data: allJobsResponse, isLoading: isLoadingBestMatch, isError: isBestMatchError } = useListJobs(allJobsQueryParams, {
     query: { enabled: isBestMatch, staleTime: JOBS_STALE_TIME_MS },
   });

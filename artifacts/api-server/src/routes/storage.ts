@@ -5,6 +5,7 @@ import {
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -16,6 +17,8 @@ const ALLOWED_IMAGE_TYPES = [
   "image/webp",
   "image/svg+xml",
 ];
+
+const ALLOWED_RESUME_TYPES = ["application/pdf"];
 
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
@@ -44,6 +47,42 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
     );
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+router.post("/storage/resume-uploads/request-url", requireAuth, async (req: Request, res: Response) => {
+  const parsed = RequestUploadUrlBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Missing or invalid required fields" });
+    return;
+  }
+
+  const { name, size, contentType } = parsed.data;
+
+  if (!ALLOWED_RESUME_TYPES.includes(contentType)) {
+    res.status(400).json({ error: "Only PDF files are allowed for resume uploads" });
+    return;
+  }
+
+  if (size > 5 * 1024 * 1024) {
+    res.status(400).json({ error: "PDF must be smaller than 5MB" });
+    return;
+  }
+
+  try {
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+
+    res.json(
+      RequestUploadUrlResponse.parse({
+        uploadURL,
+        objectPath,
+        metadata: { name, size, contentType },
+      }),
+    );
+  } catch (error) {
+    req.log.error({ err: error }, "Error generating resume upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });

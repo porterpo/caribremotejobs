@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, Download, FileText } from "lucide-react";
+import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -40,6 +39,7 @@ interface ResumeData {
   experience: ExperienceEntry[] | null;
   education: EducationEntry[] | null;
   skills: string[] | null;
+  uploadedResumePath: string | null;
   updatedAt: string;
 }
 
@@ -318,9 +318,186 @@ function ResumePreview({ form, displayName }: { form: FormState; displayName: st
   );
 }
 
+function UploadResumeTab({
+  uploadedResumePath,
+  resumeExists,
+  onUploaded,
+  onRemoved,
+}: {
+  uploadedResumePath: string | null;
+  resumeExists: boolean;
+  onUploaded: (path: string, savedResume: ResumeData) => void;
+  onRemoved: () => void;
+}) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const objectId = uploadedResumePath ? uploadedResumePath.split("/").pop() : null;
+  const previewUrl = objectId ? `${BASE}api/resume/pdf/${objectId}` : null;
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      toast({ title: "Invalid file type", description: "Please upload a PDF file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "PDF must be smaller than 5MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const metaRes = await fetch(`${BASE}api/storage/resume-uploads/request-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!metaRes.ok) {
+        const err = await metaRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Could not start upload");
+      }
+      const { uploadURL, objectPath } = await metaRes.json() as { uploadURL: string; objectPath: string };
+
+      const uploadRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" },
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+
+      const saveMethod = resumeExists ? "PATCH" : "POST";
+      const saveRes = await fetch(`${BASE}api/resume`, {
+        method: saveMethod,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploadedResumePath: objectPath }),
+      });
+      if (!saveRes.ok) {
+        const errBody = await saveRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(errBody.error ?? "Failed to save upload path");
+      }
+      const savedResume = await saveRes.json();
+
+      onUploaded(objectPath, savedResume);
+      toast({ title: "Resume uploaded", description: "Your PDF resume has been saved." });
+    } catch (err) {
+      toast({
+        title: "Upload failed",
+        description: err instanceof Error ? err.message : "Could not upload PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemove = async () => {
+    try {
+      const res = await fetch(`${BASE}api/resume/upload`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove");
+      onRemoved();
+      toast({ title: "Resume removed", description: "Your uploaded PDF has been removed." });
+    } catch {
+      toast({ title: "Remove failed", description: "Could not remove the PDF.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {uploadedResumePath && objectId ? (
+        <div className="border rounded-xl p-6 bg-card space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+              <FileText className="h-6 w-6 text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                <p className="font-semibold text-sm">PDF resume uploaded</p>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                Object ID: {objectId}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href={previewUrl!} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-1.5" /> Preview PDF
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <RefreshCw className="h-4 w-4 mr-1.5" /> Replace
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={handleRemove}
+              disabled={uploading}
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" /> Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="border-2 border-dashed rounded-xl p-10 text-center space-y-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+          onClick={() => !uploading && fileInputRef.current?.click()}
+        >
+          <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            {uploading ? (
+              <Loader2 className="h-7 w-7 text-primary animate-spin" />
+            ) : (
+              <Upload className="h-7 w-7 text-primary" />
+            )}
+          </div>
+          <div>
+            <p className="font-semibold text-base">
+              {uploading ? "Uploading…" : "Upload your PDF resume"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              PDF only · max 5 MB
+            </p>
+          </div>
+          {!uploading && (
+            <Button type="button" variant="outline" size="sm">
+              Choose file
+            </Button>
+          )}
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={uploading}
+      />
+
+      <p className="text-xs text-muted-foreground">
+        Your PDF is stored securely and only you can access it. When you apply for a job, a download
+        link will be included in the application email so employers can view your resume.
+      </p>
+    </div>
+  );
+}
+
 export default function ResumePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"build" | "upload">("build");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [skillInput, setSkillInput] = useState("");
   const skillInputRef = useRef<HTMLInputElement>(null);
@@ -403,7 +580,18 @@ export default function ResumePage() {
     window.print();
   };
 
+  const handleUploadedPath = (_path: string, savedResume: ResumeData) => {
+    queryClient.setQueryData(["resume", "me"], savedResume);
+  };
+
+  const handleRemovedUpload = () => {
+    queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
+      old ? { ...old, uploadedResumePath: null } : old
+    );
+  };
+
   const isLoading = status === "pending";
+  const uploadedResumePath = resume?.uploadedResumePath ?? null;
 
   const displayName =
     (queryClient.getQueryData(["profile", "me"]) as { displayName?: string } | null)
@@ -431,18 +619,51 @@ export default function ResumePage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-1">My Resume</h1>
               <p className="text-muted-foreground">
-                Build a structured resume that you can attach when applying to jobs.
+                Build a structured resume or upload a PDF — use either when applying for jobs.
               </p>
             </div>
-            <Button
+            {activeTab === "build" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDownloadPdf}
+                className="shrink-0"
+                disabled={!form.summary && form.experience.length === 0 && form.education.length === 0 && form.skills.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
+            )}
+          </div>
+
+          {/* Tab toggle */}
+          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-8 w-fit">
+            <button
               type="button"
-              variant="outline"
-              onClick={handleDownloadPdf}
-              className="shrink-0"
-              disabled={!form.summary && form.experience.length === 0 && form.education.length === 0 && form.skills.length === 0}
+              onClick={() => setActiveTab("build")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "build"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <Download className="h-4 w-4 mr-2" /> Download PDF
-            </Button>
+              <FileText className="h-4 w-4" />
+              Build Resume
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("upload")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "upload"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Upload className="h-4 w-4" />
+              Upload Resume
+              {uploadedResumePath && (
+                <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+              )}
+            </button>
           </div>
 
           {isLoading ? (
@@ -451,6 +672,13 @@ export default function ResumePage() {
                 <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
               ))}
             </div>
+          ) : activeTab === "upload" ? (
+            <UploadResumeTab
+              uploadedResumePath={uploadedResumePath}
+              resumeExists={resume !== null && resume !== undefined}
+              onUploaded={handleUploadedPath}
+              onRemoved={handleRemovedUpload}
+            />
           ) : (
             <form onSubmit={handleSubmit} className="space-y-10">
               {/* Professional Summary */}
@@ -531,8 +759,8 @@ export default function ResumePage() {
             </form>
           )}
 
-          {/* Live Preview */}
-          {!isLoading && (form.summary || form.experience.length > 0 || form.education.length > 0 || form.skills.length > 0) && (
+          {/* Live Preview (build tab only) */}
+          {!isLoading && activeTab === "build" && (form.summary || form.experience.length > 0 || form.education.length > 0 || form.skills.length > 0) && (
             <div className="mt-12 pt-8 border-t">
               <h2 className="text-xl font-semibold mb-4">Preview</h2>
               <ResumePreview form={form} displayName={displayName} />

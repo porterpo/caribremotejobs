@@ -8,7 +8,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -37,12 +37,14 @@ interface ResumeData {
     graduationYear: string;
   }> | null;
   skills: string[] | null;
+  uploadedResumePath: string | null;
 }
 
 function buildMailtoPreview(
   jobTitle: string,
   userName: string,
   resume: ResumeData | null,
+  pdfDownloadUrl?: string | null,
 ): { subject: string; body: string } {
   const subject = `Application for ${jobTitle} — ${userName}`;
 
@@ -54,39 +56,46 @@ function buildMailtoPreview(
     `I'm writing to apply for the ${jobTitle} position. Please find a brief summary of my background below.`,
   );
 
-  if (resume?.summary) {
+  if (pdfDownloadUrl) {
     lines.push(``);
-    lines.push(`About me:`);
-    lines.push(resume.summary);
+    lines.push(`My resume (PDF):`);
+    lines.push(pdfDownloadUrl);
+  } else {
+    if (resume?.summary) {
+      lines.push(``);
+      lines.push(`About me:`);
+      lines.push(resume.summary);
+    }
+
+    if (resume?.skills && resume.skills.length > 0) {
+      lines.push(``);
+      lines.push(`Top skills:`);
+      lines.push(resume.skills.slice(0, 10).join(", "));
+    }
+
+    if (resume?.experience && resume.experience.length > 0) {
+      lines.push(``);
+      lines.push(`Recent experience:`);
+      resume.experience.slice(0, 3).forEach((exp) => {
+        const end = exp.endDate ?? "Present";
+        lines.push(`• ${exp.title} at ${exp.company} (${exp.startDate} – ${end})`);
+      });
+    }
+
+    if (resume?.education && resume.education.length > 0) {
+      lines.push(``);
+      lines.push(`Education:`);
+      resume.education.slice(0, 2).forEach((edu) => {
+        lines.push(`• ${edu.degree}, ${edu.institution} (${edu.graduationYear})`);
+      });
+    }
+
+    const profileUrl =
+      window.location.origin + BASE.replace(/\/$/, "") + "/resume";
+    lines.push(``);
+    lines.push(`You can view my full profile here: ${profileUrl}`);
   }
 
-  if (resume?.skills && resume.skills.length > 0) {
-    lines.push(``);
-    lines.push(`Top skills:`);
-    lines.push(resume.skills.slice(0, 10).join(", "));
-  }
-
-  if (resume?.experience && resume.experience.length > 0) {
-    lines.push(``);
-    lines.push(`Recent experience:`);
-    resume.experience.slice(0, 3).forEach((exp) => {
-      const end = exp.endDate ?? "Present";
-      lines.push(`• ${exp.title} at ${exp.company} (${exp.startDate} – ${end})`);
-    });
-  }
-
-  if (resume?.education && resume.education.length > 0) {
-    lines.push(``);
-    lines.push(`Education:`);
-    resume.education.slice(0, 2).forEach((edu) => {
-      lines.push(`• ${edu.degree}, ${edu.institution} (${edu.graduationYear})`);
-    });
-  }
-
-  const profileUrl =
-    window.location.origin + BASE.replace(/\/$/, "") + "/resume";
-  lines.push(``);
-  lines.push(`You can view my full profile here: ${profileUrl}`);
   lines.push(``);
   lines.push(`Thank you for your consideration.`);
   lines.push(`${userName}`);
@@ -99,10 +108,11 @@ function buildEnhancedMailto(
   jobTitle: string,
   userName: string,
   resume: ResumeData | null,
+  pdfDownloadUrl?: string | null,
 ): string {
   if (!applyUrl.startsWith("mailto:")) return applyUrl;
 
-  const { subject, body } = buildMailtoPreview(jobTitle, userName, resume);
+  const { subject, body } = buildMailtoPreview(jobTitle, userName, resume, pdfDownloadUrl);
 
   const qIdx = applyUrl.indexOf("?");
   const base = qIdx === -1 ? applyUrl : applyUrl.slice(0, qIdx);
@@ -245,7 +255,7 @@ function ApplyWithResumeDialog({
   onClose: () => void;
   applyUrl: string;
   jobTitle: string;
-  onShowPreview?: () => void;
+  onShowPreview?: (pdfDownloadUrl: string | null) => void;
 }) {
   const { data: resume, status } = useQuery<ResumeData | null>({
     queryKey: ["resume", "me"],
@@ -259,10 +269,43 @@ function ApplyWithResumeDialog({
     retry: false,
   });
 
+  const hasBuiltResume =
+    status === "success" &&
+    resume !== null &&
+    !!(resume.summary || (resume.experience?.length ?? 0) > 0 || (resume.education?.length ?? 0) > 0 || (resume.skills?.length ?? 0) > 0);
+  const hasPdfResume = status === "success" && resume !== null && !!resume.uploadedResumePath;
+  const hasBoth = hasBuiltResume && hasPdfResume;
+
+  const [selectedType, setSelectedType] = useState<"built" | "pdf">("built");
+  const [fetchingPdfLink, setFetchingPdfLink] = useState(false);
+
+  useEffect(() => {
+    if (hasPdfResume && !hasBuiltResume) setSelectedType("pdf");
+    else setSelectedType("built");
+  }, [hasPdfResume, hasBuiltResume]);
+
   const isLoading = status === "pending";
-  const hasResume = status === "success" && resume !== null;
-  const noResume = status === "success" && resume === null;
+  const hasResume = status === "success" && resume !== null && (hasBuiltResume || hasPdfResume);
+  const noResume = status === "success" && !hasResume;
   const hasError = status === "error";
+
+  const handleApplyNow = async () => {
+    if (selectedType === "pdf" && hasPdfResume && onShowPreview) {
+      setFetchingPdfLink(true);
+      try {
+        const res = await fetch(`${BASE}api/resume/pdf-link`);
+        if (!res.ok) throw new Error("Failed to get PDF link");
+        const { url } = await res.json() as { url: string };
+        onShowPreview(url);
+      } catch {
+        onShowPreview(null);
+      } finally {
+        setFetchingPdfLink(false);
+      }
+    } else if (onShowPreview) {
+      onShowPreview(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -305,12 +348,12 @@ function ApplyWithResumeDialog({
             <div>
               <p className="font-semibold mb-1">No resume yet</p>
               <p className="text-sm text-muted-foreground">
-                Build your CaribbeanRemote resume once and attach it to every application.
+                Build your CaribbeanRemote resume or upload a PDF — then attach it to every application.
               </p>
             </div>
             <div className="flex flex-col gap-2">
               <Button asChild onClick={onClose}>
-                <Link href="/resume">Build my Resume <ChevronRight className="h-4 w-4 ml-1" /></Link>
+                <Link href="/resume">Build or Upload Resume <ChevronRight className="h-4 w-4 ml-1" /></Link>
               </Button>
               <Button variant="ghost" asChild onClick={onClose}>
                 <a href={applyUrl} target="_blank" rel="noopener noreferrer">
@@ -323,78 +366,129 @@ function ApplyWithResumeDialog({
 
         {hasResume && resume && (
           <div className="space-y-5 py-2">
-            {resume.summary && (
-              <section>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                  Summary
-                </h4>
-                <p className="text-sm leading-relaxed">{resume.summary}</p>
-              </section>
+            {hasBoth && (
+              <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSelectedType("built")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedType === "built"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  Built Resume
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedType("pdf")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedType === "pdf"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Upload className="h-4 w-4" />
+                  Uploaded PDF
+                </button>
+              </div>
             )}
 
-            {resume.experience && resume.experience.length > 0 && (
-              <section>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Experience
-                </h4>
-                <div className="space-y-3">
-                  {resume.experience.map((exp) => (
-                    <div key={exp.id} className="text-sm">
-                      <div className="flex justify-between gap-2">
-                        <span className="font-medium">{exp.title}</span>
-                        <span className="text-muted-foreground text-xs shrink-0">
-                          {exp.startDate} – {exp.endDate ?? "Present"}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground">{exp.company}</p>
+            {selectedType === "pdf" && hasPdfResume ? (
+              <div className="rounded-lg border bg-card p-5 space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Your uploaded PDF resume</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      A download link will be included in the application email.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {resume.summary && (
+                  <section>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                      Summary
+                    </h4>
+                    <p className="text-sm leading-relaxed">{resume.summary}</p>
+                  </section>
+                )}
+
+                {resume.experience && resume.experience.length > 0 && (
+                  <section>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Experience
+                    </h4>
+                    <div className="space-y-3">
+                      {resume.experience.map((exp) => (
+                        <div key={exp.id} className="text-sm">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium">{exp.title}</span>
+                            <span className="text-muted-foreground text-xs shrink-0">
+                              {exp.startDate} – {exp.endDate ?? "Present"}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground">{exp.company}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </section>
+                )}
 
-            {resume.education && resume.education.length > 0 && (
-              <section>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Education
-                </h4>
-                <div className="space-y-2">
-                  {resume.education.map((edu) => (
-                    <div key={edu.id} className="text-sm flex justify-between gap-2">
-                      <div>
-                        <span className="font-medium">{edu.degree}</span>
-                        <span className="text-muted-foreground"> · {edu.institution}</span>
-                      </div>
-                      {edu.graduationYear && (
-                        <span className="text-muted-foreground text-xs shrink-0">
-                          {edu.graduationYear}
-                        </span>
-                      )}
+                {resume.education && resume.education.length > 0 && (
+                  <section>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Education
+                    </h4>
+                    <div className="space-y-2">
+                      {resume.education.map((edu) => (
+                        <div key={edu.id} className="text-sm flex justify-between gap-2">
+                          <div>
+                            <span className="font-medium">{edu.degree}</span>
+                            <span className="text-muted-foreground"> · {edu.institution}</span>
+                          </div>
+                          {edu.graduationYear && (
+                            <span className="text-muted-foreground text-xs shrink-0">
+                              {edu.graduationYear}
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </section>
+                )}
 
-            {resume.skills && resume.skills.length > 0 && (
-              <section>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Skills
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {resume.skills.map((s) => (
-                    <Badge key={s} variant="secondary" className="text-xs font-normal">
-                      {s}
-                    </Badge>
-                  ))}
-                </div>
-              </section>
+                {resume.skills && resume.skills.length > 0 && (
+                  <section>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Skills
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {resume.skills.map((s) => (
+                        <Badge key={s} variant="secondary" className="text-xs font-normal">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
             )}
 
             <div className="pt-3 border-t flex gap-2">
               {onShowPreview ? (
-                <Button className="flex-1" onClick={onShowPreview}>
-                  Apply Now <ExternalLink className="h-4 w-4 ml-2" />
+                <Button className="flex-1" onClick={handleApplyNow} disabled={fetchingPdfLink}>
+                  {fetchingPdfLink ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Preparing…</>
+                  ) : (
+                    <>Apply Now <ExternalLink className="h-4 w-4 ml-2" /></>
+                  )}
                 </Button>
               ) : (
                 <Button className="flex-1" asChild onClick={onClose}>
@@ -419,6 +513,8 @@ export default function JobDetail() {
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [pendingPdfUrl, setPendingPdfUrl] = useState<string | null>(null);
+  const [isPrimaryFetchingPdf, setIsPrimaryFetchingPdf] = useState(false);
   const [linkCopied, setLinkCopied] = useState<"idle" | "done" | "error">("idle");
 
   function getJobUrl() {
@@ -485,14 +581,20 @@ export default function JobDetail() {
 
   const effectiveApplyUrl =
     isSignedIn && isMailto && job && resume
-      ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume)
+      ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume, pendingPdfUrl)
       : job?.applyUrl ?? "";
 
-  const showPreviewOnApply = isSignedIn && isMailto && !!resume;
+  const showPreviewOnApply = isSignedIn && isMailto && !!resume && !!(
+    resume.summary ||
+    (resume.experience?.length ?? 0) > 0 ||
+    (resume.education?.length ?? 0) > 0 ||
+    (resume.skills?.length ?? 0) > 0 ||
+    resume.uploadedResumePath
+  );
 
   const mailtoPreview =
     showPreviewOnApply && job
-      ? buildMailtoPreview(job.title, userName, resume)
+      ? buildMailtoPreview(job.title, userName, resume, pendingPdfUrl)
       : null;
 
   const { data: similarJobsResponse } = useListJobs(
@@ -587,6 +689,32 @@ export default function JobDetail() {
     );
   }
 
+  const hasPdfOnly =
+    !!resume?.uploadedResumePath &&
+    !resume.summary &&
+    !(resume.experience?.length) &&
+    !(resume.education?.length) &&
+    !(resume.skills?.length);
+
+  async function handlePrimaryApply() {
+    track("application_started", { job_id: jobId });
+    if (hasPdfOnly && showPreviewOnApply) {
+      setIsPrimaryFetchingPdf(true);
+      try {
+        const res = await fetch(`${BASE}api/resume/pdf-link`);
+        if (res.ok) {
+          const { url } = await res.json() as { url: string };
+          setPendingPdfUrl(url);
+        }
+      } catch {
+        // proceed without PDF URL
+      } finally {
+        setIsPrimaryFetchingPdf(false);
+      }
+    }
+    setPreviewDialogOpen(true);
+  }
+
   return (
     <PageLayout>
       {isSignedIn && job && (
@@ -595,16 +723,20 @@ export default function JobDetail() {
           onClose={() => setApplyDialogOpen(false)}
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
-          onShowPreview={showPreviewOnApply ? () => { setApplyDialogOpen(false); setPreviewDialogOpen(true); } : undefined}
+          onShowPreview={showPreviewOnApply ? (pdfUrl) => {
+            setPendingPdfUrl(pdfUrl);
+            setApplyDialogOpen(false);
+            setPreviewDialogOpen(true);
+          } : undefined}
         />
       )}
       {isSignedIn && job && mailtoPreview && (
         <MailtoPreviewDialog
           open={previewDialogOpen}
-          onClose={() => setPreviewDialogOpen(false)}
-          applyUrl={effectiveApplyUrl}
-          subject={mailtoPreview.subject}
-          body={mailtoPreview.body}
+          onClose={() => { setPreviewDialogOpen(false); setPendingPdfUrl(null); }}
+          applyUrl={buildEnhancedMailto(job.applyUrl, job.title, userName, resume ?? null, pendingPdfUrl)}
+          subject={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl).subject}
+          body={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl).body}
         />
       )}
 
@@ -680,9 +812,13 @@ export default function JobDetail() {
                 <Button
                   size="lg"
                   className="w-full text-base h-12"
-                  onClick={() => { track("application_started", { job_id: jobId }); setPreviewDialogOpen(true); }}
+                  onClick={() => void handlePrimaryApply()}
+                  disabled={isPrimaryFetchingPdf}
                 >
-                  Apply Now <ExternalLink className="ml-2 h-4 w-4" />
+                  {isPrimaryFetchingPdf
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now</>
+                    : <>Apply Now <ExternalLink className="ml-2 h-4 w-4" /></>
+                  }
                 </Button>
               ) : (
                 <Button size="lg" className="w-full text-base h-12" disabled={isResumePending} asChild={!isResumePending}>
@@ -883,9 +1019,13 @@ export default function JobDetail() {
                 <Button
                   size="lg"
                   className="px-8"
-                  onClick={() => { track("application_started", { job_id: jobId }); setPreviewDialogOpen(true); }}
+                  onClick={() => void handlePrimaryApply()}
+                  disabled={isPrimaryFetchingPdf}
                 >
-                  Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
+                  {isPrimaryFetchingPdf
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing...</>
+                    : <>Apply for this position <ExternalLink className="ml-2 h-4 w-4" /></>
+                  }
                 </Button>
               ) : (
                 <Button size="lg" className="px-8" disabled={isResumePending} asChild={!isResumePending}>
@@ -975,30 +1115,34 @@ export default function JobDetail() {
                 </p>
               </div>
             )}
-            <div className="border rounded-xl p-6 bg-primary/5 border-primary/20 text-center">
-              <BellRing className="h-8 w-8 text-primary mx-auto mb-3" />
-              <h3 className="font-semibold mb-2">Get alerts for similar jobs</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                We'll email you when jobs like this are posted.
-              </p>
-              <Button variant="outline" className="w-full bg-background" asChild>
-                <Link href={`/alerts?category=${job.category}`}>Subscribe</Link>
-              </Button>
-            </div>
+
+            {isSignedIn && job?.category && (
+              <div className="border rounded-xl p-6 bg-card shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <BellRing className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Get job alerts</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Be the first to know when new {job.category.replace(/-/g, ' ')} jobs are posted.
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/alerts">Create alert</Link>
+                </Button>
+              </div>
+            )}
+
+            {similarJobs.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-lg mb-4">Similar Remote Jobs</h3>
+                <div className="space-y-3">
+                  {similarJobs.map((j) => (
+                    <JobCard key={j.id} job={j} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Similar Jobs */}
-        {similarJobs.length > 0 && (
-          <div className="mt-16 pt-12 border-t">
-            <h2 className="text-2xl font-bold tracking-tight mb-6">Similar Remote Jobs</h2>
-            <div className="grid gap-4">
-              {similarJobs.map(similarJob => (
-                <JobCard key={similarJob.id} job={similarJob} />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </PageLayout>
   );

@@ -27,6 +27,7 @@ export const resumesTable = pgTable("resumes", {
   experience: jsonb("experience").$type<ExperienceEntry[]>().default([]),
   education: jsonb("education").$type<EducationEntry[]>().default([]),
   skills: text("skills").array().default([]),
+  uploadedResumePath: text("uploaded_resume_path"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
@@ -35,6 +36,7 @@ export const ResumeUpsertSchema = z.object({
   experience: z.array(ExperienceEntrySchema).optional(),
   education: z.array(EducationEntrySchema).optional(),
   skills: z.array(z.string()).optional(),
+  uploadedResumePath: z.string().nullable().optional(),
 });
 
 export type ResumeUpsert = z.infer<typeof ResumeUpsertSchema>;

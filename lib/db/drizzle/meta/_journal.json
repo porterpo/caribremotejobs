@@ -50,6 +50,13 @@
       "when": 1745525020000,
       "tag": "0006_add_analytics_events",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1745611420000,
+      "tag": "0007_add_uploaded_resume_path",
+      "breakpoints": true
     }
   ]
 }

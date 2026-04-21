@@ -751,6 +751,26 @@ export default function Admin() {
                   </div>
                 )}
                 <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                  <div className="flex flex-wrap gap-2 w-full">
+                    {ANALYTICS_PRESETS.map(({ label, getRange }) => {
+                      const range = getRange();
+                      const isActive = certDateFrom === range.from && certDateTo === range.to;
+                      return (
+                        <Button
+                          key={label}
+                          variant={isActive ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7 px-3"
+                          onClick={() => {
+                            setCertDateFrom(range.from);
+                            setCertDateTo(range.to);
+                          }}
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs text-muted-foreground">From</Label>
                     <Input
@@ -887,6 +907,26 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
+                  <div className="flex flex-wrap gap-2 w-full">
+                    {ANALYTICS_PRESETS.map(({ label, getRange }) => {
+                      const range = getRange();
+                      const isActive = orderDateFrom === range.from && orderDateTo === range.to;
+                      return (
+                        <Button
+                          key={label}
+                          variant={isActive ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7 px-3"
+                          onClick={() => {
+                            setOrderDateFrom(range.from);
+                            setOrderDateTo(range.to);
+                          }}
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
                   <Filter className="h-4 w-4 text-muted-foreground mt-1 shrink-0 self-center" />
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs text-muted-foreground">Product type</Label>

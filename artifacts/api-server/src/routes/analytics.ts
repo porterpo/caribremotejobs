@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db, analyticsEventsTable, jobsTable } from "@workspace/db";
-import { eq, sql, desc } from "drizzle-orm";
+import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router = Router();
@@ -28,29 +28,56 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
   res.status(204).end();
 });
 
-router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> => {
+router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> => {
   const EVENT_NAME = "skills_nudge_clicked";
   const SKILLS_ADDED_EVENT = "skills_added";
   const SKILLS_UPDATED_EVENT = "skills_updated";
   const APPLICATION_STARTED_EVENT = "application_started";
   const RESUME_SAVED_EVENT = "resume_saved";
 
+  const { dateFrom, dateTo } = req.query as { dateFrom?: string; dateTo?: string };
+
+  const dateConditions = [];
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (!isNaN(from.getTime())) {
+      dateConditions.push(gte(analyticsEventsTable.occurredAt, from));
+    }
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (!isNaN(to.getTime())) {
+      to.setUTCHours(23, 59, 59, 999);
+      dateConditions.push(lte(analyticsEventsTable.occurredAt, to));
+    }
+  }
+
+  function withDate(condition: ReturnType<typeof eq>) {
+    if (dateConditions.length === 0) return condition;
+    return and(condition, ...dateConditions)!;
+  }
+
   const [totalRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(analyticsEventsTable)
-    .where(eq(analyticsEventsTable.event, EVENT_NAME));
+    .where(withDate(eq(analyticsEventsTable.event, EVENT_NAME)));
 
   const [resumeRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(analyticsEventsTable)
     .where(
-      sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.hasResume} = true`
+      dateConditions.length > 0
+        ? and(
+            sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.hasResume} = true`,
+            ...dateConditions
+          )
+        : sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.hasResume} = true`
     );
 
   const [skillsAddedRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(analyticsEventsTable)
-    .where(eq(analyticsEventsTable.event, SKILLS_ADDED_EVENT));
+    .where(withDate(eq(analyticsEventsTable.event, SKILLS_ADDED_EVENT)));
 
   const eventBreakdownRows = await db
     .select({
@@ -58,6 +85,7 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
       count: sql<number>`count(*)::int`,
     })
     .from(analyticsEventsTable)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
     .groupBy(analyticsEventsTable.event)
     .orderBy(desc(sql`count(*)`));
 
@@ -81,7 +109,12 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
     .from(analyticsEventsTable)
     .leftJoin(jobsTable, eq(analyticsEventsTable.jobId, jobsTable.id))
     .where(
-      sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.jobId} is not null`
+      dateConditions.length > 0
+        ? and(
+            sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.jobId} is not null`,
+            ...dateConditions
+          )
+        : sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.jobId} is not null`
     )
     .groupBy(analyticsEventsTable.jobId, jobsTable.title, jobsTable.companyName)
     .orderBy(desc(sql`count(*)`))

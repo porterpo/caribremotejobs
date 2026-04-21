@@ -184,10 +184,17 @@ export default function Admin() {
     topJobs: { jobId: number | null; jobTitle: string | null; companyName: string | null; clicks: number }[];
   }
 
+  const [analyticsDateFrom, setAnalyticsDateFrom] = useState("");
+  const [analyticsDateTo, setAnalyticsDateTo] = useState("");
+
   const { data: analyticsSummary, isLoading: analyticsLoading } = useQuery<AnalyticsSummary>({
-    queryKey: ["admin-analytics-summary"],
+    queryKey: ["admin-analytics-summary", analyticsDateFrom, analyticsDateTo],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/summary`);
+      const params = new URLSearchParams();
+      if (analyticsDateFrom) params.set("dateFrom", analyticsDateFrom);
+      if (analyticsDateTo) params.set("dateTo", analyticsDateTo);
+      const qs = params.toString();
+      const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/summary${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch analytics summary");
       return res.json();
     },
@@ -1138,6 +1145,54 @@ export default function Admin() {
 
           <TabsContent value="analytics">
             <div className="space-y-6">
+              <Card>
+                <CardContent className="pt-4">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="analytics-date-from" className="text-xs text-muted-foreground">From</Label>
+                      <Input
+                        id="analytics-date-from"
+                        type="date"
+                        value={analyticsDateFrom}
+                        onChange={(e) => setAnalyticsDateFrom(e.target.value)}
+                        className="w-40"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="analytics-date-to" className="text-xs text-muted-foreground">To</Label>
+                      <Input
+                        id="analytics-date-to"
+                        type="date"
+                        value={analyticsDateTo}
+                        onChange={(e) => setAnalyticsDateTo(e.target.value)}
+                        className="w-40"
+                      />
+                    </div>
+                    {(analyticsDateFrom || analyticsDateTo) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setAnalyticsDateFrom(""); setAnalyticsDateTo(""); }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                    {!analyticsDateFrom && !analyticsDateTo && (
+                      <p className="text-xs text-muted-foreground self-end pb-2">Showing all-time data</p>
+                    )}
+                    {(analyticsDateFrom || analyticsDateTo) && (
+                      <p className="text-xs text-muted-foreground self-end pb-2">
+                        {analyticsDateFrom && analyticsDateTo
+                          ? `${analyticsDateFrom} to ${analyticsDateTo}`
+                          : analyticsDateFrom
+                          ? `From ${analyticsDateFrom}`
+                          : `Up to ${analyticsDateTo}`}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="pb-2">

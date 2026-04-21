@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
@@ -18,6 +18,21 @@ interface SeekerSubscription {
   currentPeriodEnd: string | null;
   applicationCount: number;
   applicationLimit: number | null;
+}
+
+interface StripeProductPrice {
+  id: string;
+  unit_amount: number;
+  currency: string;
+  recurring: { interval: string } | null;
+}
+
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  metadata: Record<string, string> | null;
+  prices: StripeProductPrice[];
 }
 
 const BENEFITS = [
@@ -53,6 +68,12 @@ export default function SeekerPro() {
   const isSuccess = searchParams.get("success") === "1";
   const isCanceled = searchParams.get("canceled") === "1";
 
+  useEffect(() => {
+    if (isSuccess) {
+      void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
+    }
+  }, [isSuccess, queryClient]);
+
   const { data: sub, isLoading: subLoading } = useQuery<SeekerSubscription>({
     queryKey: ["seeker-subscription"],
     queryFn: async () => {
@@ -63,6 +84,24 @@ export default function SeekerPro() {
     enabled: isLoaded && !!isSignedIn,
     staleTime: isSuccess ? 0 : 30_000,
   });
+
+  const { data: productsData } = useQuery<{ products: StripeProduct[] }>({
+    queryKey: ["stripe-products"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/stripe/products`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const seekerProProduct = productsData?.products?.find(
+    (p) => p.metadata?.type === "seeker_pro"
+  );
+  const seekerProPrice = seekerProProduct?.prices?.[0];
+  const displayPrice = seekerProPrice
+    ? `$${Math.floor(seekerProPrice.unit_amount / 100)}`
+    : "$19";
 
   const checkout = useMutation({
     mutationFn: async () => {
@@ -162,7 +201,7 @@ export default function SeekerPro() {
                   <Badge className="bg-primary/10 text-primary border-primary/20">Monthly</Badge>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold">$19</span>
+                  <span className="text-4xl font-extrabold">{displayPrice}</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               </CardHeader>
@@ -223,7 +262,7 @@ export default function SeekerPro() {
                       {checkout.isPending ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Redirecting…</>
                       ) : (
-                        "Subscribe — $19/month"
+                        `Subscribe — ${displayPrice}/month`
                       )}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">

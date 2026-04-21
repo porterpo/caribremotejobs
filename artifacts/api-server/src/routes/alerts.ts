@@ -8,7 +8,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
+router.post("/alerts", async (req, res): Promise<void> => {
   const parsed = CreateAlertBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

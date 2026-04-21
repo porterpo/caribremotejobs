@@ -786,7 +786,6 @@ export default function JobDetail() {
 
   async function handlePrimaryApply() {
     if (!checkApplyGate()) return;
-    track("application_started", { job_id: jobId });
     const resumeType: ResumeType = hasPdfOnly ? "pdf" : (resume ? "built" : "none");
     setPendingResumeType(resumeType);
     if (hasPdfOnly && showPreviewOnApply) {

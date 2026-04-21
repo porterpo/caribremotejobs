@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check } from "lucide-react";
+import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check, AlertTriangle } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -324,6 +324,7 @@ function UploadResumeTab({
   shareToken,
   shareTokenGeneratedAt,
   resumeExists,
+  updatedAt,
   onUploaded,
   onRemoved,
   onShareTokenChange,
@@ -332,6 +333,7 @@ function UploadResumeTab({
   shareToken: string | null;
   shareTokenGeneratedAt: string | null;
   resumeExists: boolean;
+  updatedAt: string | null;
   onUploaded: (path: string, savedResume: ResumeData) => void;
   onRemoved: () => void;
   onShareTokenChange: (token: string | null, generatedAt?: string | null) => void;
@@ -344,6 +346,12 @@ function UploadResumeTab({
 
   const objectId = uploadedResumePath ? uploadedResumePath.split("/").pop() : null;
   const previewUrl = objectId ? `${BASE}api/resume/pdf/${objectId}` : null;
+
+  const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+  const isPdfStale =
+    !!uploadedResumePath &&
+    !!updatedAt &&
+    new Date(updatedAt).getTime() < Date.now() - SIX_MONTHS_MS;
 
   const shareUrl = shareToken
     ? `${window.location.origin}${BASE}api/resume/shared/${shareToken}`
@@ -512,6 +520,17 @@ function UploadResumeTab({
               <Trash2 className="h-4 w-4 mr-1.5" /> Remove
             </Button>
           </div>
+          {isPdfStale && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+              <div>
+                <p className="font-medium">Your PDF may be out of date</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  This resume was last updated over 6 months ago. Consider replacing it with a current version so employers see your latest experience.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div
@@ -823,6 +842,7 @@ export default function ResumePage() {
               shareToken={shareToken}
               shareTokenGeneratedAt={resume?.updatedAt ?? null}
               resumeExists={resume !== null && resume !== undefined}
+              updatedAt={resume?.updatedAt ?? null}
               onUploaded={handleUploadedPath}
               onRemoved={handleRemovedUpload}
               onShareTokenChange={handleShareTokenChange}

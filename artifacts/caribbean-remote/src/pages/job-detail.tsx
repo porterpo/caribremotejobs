@@ -8,7 +8,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload, CheckCircle2 } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -38,13 +38,48 @@ interface ResumeData {
   }> | null;
   skills: string[] | null;
   uploadedResumePath: string | null;
+  shareToken: string | null;
 }
+
+// ─── Application history (localStorage) ────────────────────────────────────
+
+type ResumeType = "built" | "pdf" | "none";
+
+interface ApplicationRecord {
+  resumeType: ResumeType;
+  appliedAt: string;
+}
+
+function loadApplicationRecords(): Record<string, ApplicationRecord> {
+  try {
+    return JSON.parse(localStorage.getItem("cr_applied_jobs") ?? "{}") as Record<string, ApplicationRecord>;
+  } catch {
+    return {};
+  }
+}
+
+function saveApplicationRecord(jobId: number, resumeType: ResumeType) {
+  try {
+    const records = loadApplicationRecords();
+    records[String(jobId)] = { resumeType, appliedAt: new Date().toISOString() };
+    localStorage.setItem("cr_applied_jobs", JSON.stringify(records));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getApplicationRecord(jobId: number): ApplicationRecord | null {
+  return loadApplicationRecords()[String(jobId)] ?? null;
+}
+
+// ─── Email builders ─────────────────────────────────────────────────────────
 
 function buildMailtoPreview(
   jobTitle: string,
   userName: string,
   resume: ResumeData | null,
   pdfDownloadUrl?: string | null,
+  shareUrl?: string | null,
 ): { subject: string; body: string } {
   const subject = `Application for ${jobTitle} — ${userName}`;
 
@@ -60,6 +95,11 @@ function buildMailtoPreview(
     lines.push(``);
     lines.push(`My resume (PDF):`);
     lines.push(pdfDownloadUrl);
+    if (shareUrl) {
+      lines.push(``);
+      lines.push(`Permanent resume link (no expiry):`);
+      lines.push(shareUrl);
+    }
   } else {
     if (resume?.summary) {
       lines.push(``);
@@ -94,6 +134,12 @@ function buildMailtoPreview(
       window.location.origin + BASE.replace(/\/$/, "") + "/resume";
     lines.push(``);
     lines.push(`You can view my full profile here: ${profileUrl}`);
+
+    if (shareUrl) {
+      lines.push(``);
+      lines.push(`My resume PDF (permanent link):`);
+      lines.push(shareUrl);
+    }
   }
 
   lines.push(``);
@@ -109,10 +155,11 @@ function buildEnhancedMailto(
   userName: string,
   resume: ResumeData | null,
   pdfDownloadUrl?: string | null,
+  shareUrl?: string | null,
 ): string {
   if (!applyUrl.startsWith("mailto:")) return applyUrl;
 
-  const { subject, body } = buildMailtoPreview(jobTitle, userName, resume, pdfDownloadUrl);
+  const { subject, body } = buildMailtoPreview(jobTitle, userName, resume, pdfDownloadUrl, shareUrl);
 
   const qIdx = applyUrl.indexOf("?");
   const base = qIdx === -1 ? applyUrl : applyUrl.slice(0, qIdx);
@@ -123,18 +170,22 @@ function buildEnhancedMailto(
   return base + "?" + params.toString();
 }
 
+// ─── Dialogs ─────────────────────────────────────────────────────────────────
+
 function MailtoPreviewDialog({
   open,
   onClose,
   applyUrl,
   subject,
   body,
+  onMailClientOpened,
 }: {
   open: boolean;
   onClose: () => void;
   applyUrl: string;
   subject: string;
   body: string;
+  onMailClientOpened?: () => void;
 }) {
   const [copied, setCopied] = useState<"idle" | "done" | "error">("idle");
   const [copiedSubject, setCopiedSubject] = useState<"idle" | "done">("idle");
@@ -220,7 +271,7 @@ function MailtoPreviewDialog({
           </p>
 
           <div className="pt-2 border-t flex gap-2 flex-wrap">
-            <Button className="flex-1" asChild onClick={handleClose}>
+            <Button className="flex-1" asChild onClick={() => { onMailClientOpened?.(); handleClose(); }}>
               <a href={applyUrl} target="_blank" rel="noopener noreferrer">
                 Open Mail Client <ExternalLink className="h-4 w-4 ml-2" />
               </a>
@@ -405,6 +456,7 @@ function ApplyWithResumeDialog({
                     <p className="font-medium text-sm">Your uploaded PDF resume</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       A download link will be included in the application email.
+                      {resume.shareToken && " Your permanent share link will also be included."}
                     </p>
                   </div>
                 </div>
@@ -514,8 +566,14 @@ export default function JobDetail() {
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [pendingPdfUrl, setPendingPdfUrl] = useState<string | null>(null);
+  const [pendingResumeType, setPendingResumeType] = useState<ResumeType>("none");
   const [isPrimaryFetchingPdf, setIsPrimaryFetchingPdf] = useState(false);
   const [linkCopied, setLinkCopied] = useState<"idle" | "done" | "error">("idle");
+
+  // Track last application record from localStorage
+  const [appliedRecord, setAppliedRecord] = useState<ApplicationRecord | null>(
+    () => (jobId ? getApplicationRecord(jobId) : null)
+  );
 
   function getJobUrl() {
     return window.location.origin + BASE.replace(/\/$/, "") + `/jobs/${jobId}`;
@@ -530,6 +588,12 @@ export default function JobDetail() {
       setTimeout(() => setLinkCopied("idle"), 2500);
     });
   }
+
+  const { isSignedIn, user } = useUser();
+
+  const { data: job, isLoading, error } = useGetJob(jobId, {
+    query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
+  });
 
   function handleShareTwitter() {
     const url = getJobUrl();
@@ -554,12 +618,6 @@ export default function JobDetail() {
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }
 
-  const { isSignedIn, user } = useUser();
-
-  const { data: job, isLoading, error } = useGetJob(jobId, {
-    query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
-  });
-
   const isMailto = !!job?.applyUrl?.startsWith("mailto:");
 
   const { data: resume, status: resumeStatus } = useQuery<ResumeData | null>({
@@ -579,9 +637,14 @@ export default function JobDetail() {
 
   const userName = user?.fullName || user?.firstName || "Applicant";
 
+  // Permanent share URL derived from resume shareToken
+  const resumeShareUrl = resume?.shareToken
+    ? `${window.location.origin}${BASE}api/resume/shared/${resume.shareToken}`
+    : null;
+
   const effectiveApplyUrl =
     isSignedIn && isMailto && job && resume
-      ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume, pendingPdfUrl)
+      ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume, pendingPdfUrl, resumeShareUrl)
       : job?.applyUrl ?? "";
 
   const showPreviewOnApply = isSignedIn && isMailto && !!resume && !!(
@@ -594,7 +657,7 @@ export default function JobDetail() {
 
   const mailtoPreview =
     showPreviewOnApply && job
-      ? buildMailtoPreview(job.title, userName, resume, pendingPdfUrl)
+      ? buildMailtoPreview(job.title, userName, resume, pendingPdfUrl, resumeShareUrl)
       : null;
 
   const { data: similarJobsResponse } = useListJobs(
@@ -698,6 +761,8 @@ export default function JobDetail() {
 
   async function handlePrimaryApply() {
     track("application_started", { job_id: jobId });
+    const resumeType: ResumeType = hasPdfOnly ? "pdf" : (resume ? "built" : "none");
+    setPendingResumeType(resumeType);
     if (hasPdfOnly && showPreviewOnApply) {
       setIsPrimaryFetchingPdf(true);
       try {
@@ -715,6 +780,24 @@ export default function JobDetail() {
     setPreviewDialogOpen(true);
   }
 
+  function handleMailClientOpened() {
+    saveApplicationRecord(jobId, pendingResumeType);
+    track("application_started", { job_id: jobId, resume_type: pendingResumeType });
+    setAppliedRecord({ resumeType: pendingResumeType, appliedAt: new Date().toISOString() });
+  }
+
+  function handleDirectApply(resumeType: ResumeType = "none") {
+    track("application_started", { job_id: jobId, resume_type: resumeType });
+    saveApplicationRecord(jobId, resumeType);
+    setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
+  }
+
+  const resumeTypeLabel: Record<ResumeType, string> = {
+    built: "Built Resume",
+    pdf: "PDF Resume",
+    none: "Resume",
+  };
+
   return (
     <PageLayout>
       {isSignedIn && job && (
@@ -724,7 +807,9 @@ export default function JobDetail() {
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
           onShowPreview={showPreviewOnApply ? (pdfUrl) => {
+            const rt: ResumeType = pdfUrl !== null ? "pdf" : "built";
             setPendingPdfUrl(pdfUrl);
+            setPendingResumeType(rt);
             setApplyDialogOpen(false);
             setPreviewDialogOpen(true);
           } : undefined}
@@ -734,9 +819,10 @@ export default function JobDetail() {
         <MailtoPreviewDialog
           open={previewDialogOpen}
           onClose={() => { setPreviewDialogOpen(false); setPendingPdfUrl(null); }}
-          applyUrl={buildEnhancedMailto(job.applyUrl, job.title, userName, resume ?? null, pendingPdfUrl)}
-          subject={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl).subject}
-          body={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl).body}
+          applyUrl={buildEnhancedMailto(job.applyUrl, job.title, userName, resume ?? null, pendingPdfUrl, resumeShareUrl)}
+          subject={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl, resumeShareUrl).subject}
+          body={buildMailtoPreview(job.title, userName, resume ?? null, pendingPdfUrl, resumeShareUrl).body}
+          onMailClientOpened={handleMailClientOpened}
         />
       )}
 
@@ -808,6 +894,16 @@ export default function JobDetail() {
                   <SkillMatchBadge match={skillMatch} size="md" />
                 </div>
               )}
+              {/* Previously applied indicator */}
+              {appliedRecord && (
+                <div className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Applied {formatDistanceToNow(new Date(appliedRecord.appliedAt), { addSuffix: true })}
+                    {appliedRecord.resumeType !== "none" && ` · ${resumeTypeLabel[appliedRecord.resumeType]}`}
+                  </span>
+                </div>
+              )}
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
@@ -827,7 +923,12 @@ export default function JobDetail() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
                     </>
                   ) : (
-                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("application_started", { job_id: jobId })}>
+                    <a
+                      href={effectiveApplyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none")}
+                    >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}
@@ -1015,6 +1116,16 @@ export default function JobDetail() {
             )}
 
             <div className="pt-8 border-t flex flex-wrap gap-3">
+              {/* Previously applied indicator (bottom) */}
+              {appliedRecord && (
+                <div className="w-full flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    You applied {formatDistanceToNow(new Date(appliedRecord.appliedAt), { addSuffix: true })}
+                    {appliedRecord.resumeType !== "none" && ` using your ${resumeTypeLabel[appliedRecord.resumeType]}`}
+                  </span>
+                </div>
+              )}
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
@@ -1034,7 +1145,12 @@ export default function JobDetail() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
                     </>
                   ) : (
-                    <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("application_started", { job_id: jobId })}>
+                    <a
+                      href={effectiveApplyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none")}
+                    >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}

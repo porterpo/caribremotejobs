@@ -80,14 +80,36 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
     ? job.tags.split(",").map((t) => t.trim()).filter(Boolean)
     : [];
   const MAX_TAGS = 4;
-  const visibleTags = allTags.slice(0, MAX_TAGS);
-  const overflowCount = allTags.length - visibleTags.length;
   const matchedSet = new Set(
     skillMatch ? skillMatch.matchedSkills.map((s) => s.toLowerCase()) : []
   );
   const activeSet = new Set(
     selectedTags ? selectedTags.map((s) => s.toLowerCase()) : []
   );
+
+  // Promote any active filter tags that would be hidden in overflow
+  const activeOverflowTags = allTags.slice(MAX_TAGS).filter((t) => activeSet.has(t.toLowerCase()));
+  let visibleTags: string[];
+  if (activeOverflowTags.length === 0) {
+    visibleTags = allTags.slice(0, MAX_TAGS);
+  } else {
+    const promoted = allTags.slice(0, MAX_TAGS);
+    let slotIdx = promoted.length - 1;
+    for (const activeTag of activeOverflowTags) {
+      // Find the last non-active visible tag to displace
+      while (slotIdx >= 0 && activeSet.has(promoted[slotIdx].toLowerCase())) {
+        slotIdx--;
+      }
+      if (slotIdx >= 0) {
+        promoted[slotIdx] = activeTag;
+        slotIdx--;
+      } else {
+        break;
+      }
+    }
+    visibleTags = promoted;
+  }
+  const overflowCount = allTags.length - visibleTags.length;
 
   return (
     <Card className={`group relative transition-all duration-300 hover:shadow-md ${

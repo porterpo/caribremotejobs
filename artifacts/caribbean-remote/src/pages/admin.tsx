@@ -418,10 +418,11 @@ export default function Admin() {
 
   const trendData = useMemo(() => {
     const raw = analyticsTrend?.trend ?? [];
-    if (!raw.length || "event" in raw[0]) return raw as any;
+    const first = raw[0];
+    if (!raw.length || (first && "event" in first)) return raw as any;
     if (!analyticsDateFrom || !analyticsDateTo) return raw;
     const countByDate: Record<string, number> = {};
-    for (const row of raw) countByDate[row.date] = row.count;
+    for (const row of raw as { date: string; count: number }[]) countByDate[row.date] = row.count;
     const result: { date: string; count: number }[] = [];
     if (effectiveGranularity === "week") {
       const cursor = new Date(analyticsDateFrom + "T00:00:00Z");

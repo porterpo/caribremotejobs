@@ -6,3 +6,4 @@ export * from "./profiles";
 export * from "./resumes";
 export * from "./analytics-events";
 export * from "./admin-preferences";
+export * from "./seeker-subscriptions";

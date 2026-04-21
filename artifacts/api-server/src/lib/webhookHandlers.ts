@@ -1,5 +1,5 @@
 import { getStripeSync } from "./stripeClient";
-import { db, jobOrdersTable } from "@workspace/db";
+import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
 import { sendOrderConfirmation } from "./resend";
 import { logger } from "./logger";
@@ -36,8 +36,34 @@ export class WebhookHandlers {
 
     if (eventType === "checkout.session.completed") {
       const sessionId = eventObj?.id as string | undefined;
+      const sessionMetadata = (eventObj?.metadata ?? {}) as Record<string, string>;
+      const productType = sessionMetadata?.productType as string | undefined;
 
-      if (sessionId) {
+      if (sessionId && productType === "seeker_pro") {
+        const clerkUserId = sessionMetadata?.clerkUserId;
+        const customerId = eventObj?.customer as string | undefined;
+        const subscriptionId = eventObj?.subscription as string | undefined;
+        if (clerkUserId) {
+          await db
+            .insert(seekerSubscriptionsTable)
+            .values({
+              clerkUserId,
+              stripeCustomerId: customerId ?? null,
+              stripeSubscriptionId: subscriptionId ?? null,
+              status: "active",
+            })
+            .onConflictDoUpdate({
+              target: seekerSubscriptionsTable.clerkUserId,
+              set: {
+                stripeCustomerId: customerId ?? null,
+                stripeSubscriptionId: subscriptionId ?? null,
+                status: "active",
+                updatedAt: new Date(),
+              },
+            });
+          logger.info({ clerkUserId }, "Seeker Pro subscription activated via checkout");
+        }
+      } else if (sessionId) {
         const [updatedOrder] = await db
           .update(jobOrdersTable)
           .set({ status: "paid" })
@@ -73,6 +99,55 @@ export class WebhookHandlers {
             }
           }
         }
+      }
+    }
+
+    if (
+      eventType === "customer.subscription.updated" ||
+      eventType === "customer.subscription.created"
+    ) {
+      const subMetadata = ((eventObj?.metadata ?? {}) as Record<string, string>);
+      const clerkUserId = subMetadata?.clerkUserId;
+      if (clerkUserId) {
+        const status = (eventObj?.status as string) ?? "none";
+        const currentPeriodEnd = eventObj?.current_period_end
+          ? new Date((eventObj.current_period_end as number) * 1000)
+          : null;
+        const customerId = eventObj?.customer as string | undefined;
+        const subscriptionId = eventObj?.id as string | undefined;
+
+        await db
+          .insert(seekerSubscriptionsTable)
+          .values({
+            clerkUserId,
+            stripeCustomerId: customerId ?? null,
+            stripeSubscriptionId: subscriptionId ?? null,
+            status,
+            currentPeriodEnd,
+          })
+          .onConflictDoUpdate({
+            target: seekerSubscriptionsTable.clerkUserId,
+            set: {
+              status,
+              currentPeriodEnd,
+              stripeCustomerId: customerId ?? null,
+              stripeSubscriptionId: subscriptionId ?? null,
+              updatedAt: new Date(),
+            },
+          });
+        logger.info({ clerkUserId, status }, "Seeker subscription updated");
+      }
+    }
+
+    if (eventType === "customer.subscription.deleted") {
+      const subMetadata = ((eventObj?.metadata ?? {}) as Record<string, string>);
+      const clerkUserId = subMetadata?.clerkUserId;
+      if (clerkUserId) {
+        await db
+          .update(seekerSubscriptionsTable)
+          .set({ status: "cancelled", updatedAt: new Date() })
+          .where(eq(seekerSubscriptionsTable.clerkUserId, clerkUserId));
+        logger.info({ clerkUserId }, "Seeker subscription cancelled");
       }
     }
   }

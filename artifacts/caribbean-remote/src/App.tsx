@@ -23,6 +23,7 @@ import Profile from "@/pages/profile";
 import Resume from "@/pages/resume";
 import TagJobs from "@/pages/tag-jobs";
 import TagsIndex from "@/pages/tags-index";
+import SeekerPro from "@/pages/seeker-pro";
 
 const queryClient = new QueryClient();
 
@@ -257,9 +258,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/companies/:id">
               {() => <ProtectedRoute component={CompanyDetail} />}
             </Route>
-            <Route path="/alerts">
-              {() => <ProtectedRoute component={Alerts} />}
-            </Route>
+            <Route path="/alerts" component={Alerts} />
+            <Route path="/seeker-pro" component={SeekerPro} />
             <Route path="/admin">
               {() => <ProtectedRoute component={Admin} />}
             </Route>

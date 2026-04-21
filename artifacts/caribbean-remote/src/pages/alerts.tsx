@@ -15,10 +15,30 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { BellRing, Palmtree, CheckCircle2 } from "lucide-react";
+import { BellRing, Palmtree, CheckCircle2, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
+
+const BASE = import.meta.env.BASE_URL;
+
+interface SeekerSub { isPro: boolean; }
+function useSeekerSub() {
+  const { isSignedIn, isLoaded } = useUser();
+  return useQuery<SeekerSub>({
+    queryKey: ["seeker-subscription"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json() as Promise<SeekerSub>;
+    },
+    staleTime: 30_000,
+    retry: false,
+    enabled: isLoaded && !!isSignedIn,
+  });
+}
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -32,6 +52,9 @@ export default function Alerts() {
   const [isSuccess, setIsSuccess] = useState(false);
   const { data: categories } = useListCategories();
   const createAlert = useCreateAlert();
+  const { data: sub, isLoading: subLoading } = useSeekerSub();
+  const { isSignedIn, isLoaded } = useUser();
+  const isPro = sub?.isPro ?? false;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -94,7 +117,36 @@ export default function Alerts() {
             <div className="md:col-span-2">
               <Card className="border-0 shadow-md">
                 <CardContent className="p-6 md:p-8">
-                  {isSuccess ? (
+                  {isLoaded && isSignedIn && !subLoading && !isPro ? (
+                    <div className="text-center py-8 space-y-5">
+                      <div className="mx-auto w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                        <Zap className="h-7 w-7" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold mb-1">Job alerts require Seeker Pro</h2>
+                        <p className="text-muted-foreground text-sm">
+                          Upgrade to get personalized job alerts delivered to your inbox.
+                        </p>
+                      </div>
+                      <ul className="text-sm text-left space-y-2 max-w-xs mx-auto">
+                        {[
+                          "Email alerts when matching jobs are posted",
+                          "Unlimited job applications",
+                          "Application history across devices",
+                        ].map((b) => (
+                          <li key={b} className="flex items-center gap-2 text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
+                      <a href={`${BASE}seeker-pro`}>
+                        <Button className="h-12 px-8 font-semibold">
+                          Upgrade to Seeker Pro — $19/month
+                        </Button>
+                      </a>
+                    </div>
+                  ) : isSuccess ? (
                     <div className="text-center py-12">
                       <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
                         <CheckCircle2 className="h-8 w-8" />

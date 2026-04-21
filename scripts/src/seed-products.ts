@@ -29,6 +29,13 @@ const PRODUCTS = [
     price: 9900,
     recurring: false,
   },
+  {
+    name: "Seeker Pro",
+    description: "Unlimited job applications and email alerts every month. Designed for active Caribbean job seekers.",
+    metadata: { type: "seeker_pro" },
+    price: 1900,
+    recurring: true,
+  },
 ];
 
 async function seedProducts() {

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag, Zap } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -13,9 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const BASE = import.meta.env.BASE_URL;
+
 interface ProfileData {
   displayName: string | null;
 }
+
+interface SeekerSub { isPro: boolean; }
 
 function UserMenu() {
   const { user, isLoaded } = useUser();
@@ -24,7 +29,7 @@ function UserMenu() {
   const { data: profile } = useQuery<ProfileData | null>({
     queryKey: ["profile", "me"],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/profile/me`);
+      const res = await fetch(`${BASE}api/profile/me`);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch profile");
       return res.json() as Promise<ProfileData>;
@@ -33,6 +38,19 @@ function UserMenu() {
     staleTime: 30_000,
     retry: false,
   });
+
+  const { data: seekerSub } = useQuery<SeekerSub>({
+    queryKey: ["seeker-subscription"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json() as Promise<SeekerSub>;
+    },
+    staleTime: 60_000,
+    retry: false,
+    enabled: isLoaded && !!user,
+  });
+  const isPro = seekerSub?.isPro ?? false;
 
   if (!isLoaded || !user) return null;
 
@@ -63,12 +81,24 @@ function UserMenu() {
             </div>
           )}
           <span className="hidden sm:block max-w-[120px] truncate">{displayName}</span>
+          {isPro && (
+            <Badge className="hidden sm:flex h-4 px-1.5 text-[10px] font-bold bg-primary text-primary-foreground border-0 shrink-0">
+              PRO
+            </Badge>
+          )}
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-52">
         <div className="px-3 py-2">
-          <p className="text-sm font-medium truncate">{displayName}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            {isPro && (
+              <Badge className="h-4 px-1.5 text-[10px] font-bold bg-primary text-primary-foreground border-0 shrink-0">
+                PRO
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">
             {user.emailAddresses[0]?.emailAddress}
           </p>
@@ -86,6 +116,17 @@ function UserMenu() {
             My Resume
           </Link>
         </DropdownMenuItem>
+        {!isPro && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/seeker-pro" className="flex items-center gap-2 cursor-pointer text-primary">
+                <Zap className="h-4 w-4" />
+                Upgrade to Pro
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
@@ -206,6 +247,14 @@ export function Navbar() {
                     >
                       <FileText className="h-4 w-4" />
                       My Resume
+                    </Link>
+                    <Link
+                      href="/seeker-pro"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium p-2 rounded-md hover:bg-muted text-primary hover:text-primary/80"
+                    >
+                      <Zap className="h-4 w-4" />
+                      Seeker Pro
                     </Link>
                     <Link
                       href="/admin"

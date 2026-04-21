@@ -24,7 +24,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - The Clerk proxy middleware is at `artifacts/api-server/src/middlewares/clerkProxyMiddleware.ts`, mounted at `/api/__clerk`
 - `clerkMiddleware()` from `@clerk/express` runs after body parsers in `app.ts`
 - `requireAuth` middleware is at `artifacts/api-server/src/middlewares/requireAuth.ts` — use it on protected API routes
-- Frontend: `ClerkProvider` wraps the entire app; home page (`/`) is always public; `/unsubscribe/:token` is public (email token flow); all other routes require auth including `/pricing`, `/post-job`, `/certify`, `/certify/success`, `/success`, `/jobs`, `/companies`, `/alerts`, `/admin`, `/certified`, `/profile`
+- Frontend: `ClerkProvider` wraps the entire app; home page (`/`) is always public; `/unsubscribe/:token` and `/alerts` and `/seeker-pro` are public (email token flow, open alerts form for non-signed-in, and seeker pricing page); all other routes require auth including `/pricing`, `/post-job`, `/success`, `/jobs`, `/companies`, `/admin`, `/profile`
 - Signed-in users at `/` are redirected to `/jobs`; signed-out users see the landing page
 - The Navbar shows a user avatar dropdown with profile link and sign-out for authenticated users, and a Sign In button otherwise
 - `ProfileOnboardingRedirect` in `App.tsx` fetches `/api/profile/me` on first load; if no profile exists, redirects to `/profile?onboarding=true`
@@ -49,6 +49,23 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - API routes in `artifacts/api-server/src/routes/profile.ts`: GET/POST/PATCH `/api/profile` — all require auth
 - Profile page: `artifacts/caribbean-remote/src/pages/profile.tsx` — form with onboarding vs edit mode; saves via POST (create) or PATCH (update)
 - React Query key for profile: `["profile", "me"]` — shared between Navbar and profile page for display name sync
+
+## Seeker Pro Subscription
+
+- DB table: `seeker_subscriptions` — fields: clerkUserId (PK), stripeCustomerId, stripeSubscriptionId, status (none/pending/active/trialing/past_due/cancelled), currentPeriodEnd, createdAt, updatedAt
+- Schema: `lib/db/src/schema/seeker-subscriptions.ts`; exported from `lib/db/src/schema/index.ts`
+- Stripe product: "Seeker Pro" at $19/month with `metadata.type = "seeker_pro"` — created via `pnpm --filter @workspace/scripts run seed-products`
+- API routes (all require auth):
+  - `GET /api/seeker/subscription` → returns `{ status, isPro, currentPeriodEnd, applicationCount, applicationLimit }`
+  - `POST /api/stripe/seeker-checkout` → creates Stripe Checkout Session (subscription mode) → returns `{ url }`
+  - `POST /api/stripe/seeker-portal` → creates Stripe Billing Portal session → returns `{ url }`
+- Webhook: `customer.subscription.created/updated/deleted` events in `webhookHandlers.ts` upsert seeker_subscriptions by `clerkUserId` from subscription metadata
+- Free limit: 3 applications per week (from `analytics_events` where event=`application_started` and userId=clerkUserId in past 7 days); Pro = unlimited
+- Gate: job-detail apply buttons call `checkApplyGate()` before proceeding — shows `upgradeGateOpen` dialog with upgrade CTA if limit reached
+- Alerts page: signed-in non-Pro users see upgrade CTA instead of the form; signed-out users see the email subscription form
+- Pricing page: `/seeker-pro` (public route) — shows benefits + subscribe card; handles `?success=1` and `?canceled=1` query params
+- Navbar UserMenu: shows "PRO" badge next to name for Pro members; shows "Upgrade to Pro" link in dropdown for non-Pro; mobile nav includes "Seeker Pro" link
+- React Query key: `["seeker-subscription"]` — shared across Navbar, seeker-pro page, job-detail, and alerts
 
 ## Key Commands
 

@@ -8,7 +8,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload, CheckCircle2 } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload, CheckCircle2, Zap } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -565,6 +565,7 @@ export default function JobDetail() {
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [upgradeGateOpen, setUpgradeGateOpen] = useState(false);
   const [pendingPdfUrl, setPendingPdfUrl] = useState<string | null>(null);
   const [pendingResumeType, setPendingResumeType] = useState<ResumeType>("none");
   const [isPrimaryFetchingPdf, setIsPrimaryFetchingPdf] = useState(false);
@@ -634,6 +635,30 @@ export default function JobDetail() {
   });
 
   const isResumePending = isSignedIn && isMailto && resumeStatus === "pending";
+
+  interface SeekerSub { isPro: boolean; applicationCount: number; applicationLimit: number | null; }
+  const { data: seekerSub } = useQuery<SeekerSub>({
+    queryKey: ["seeker-subscription"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json() as Promise<SeekerSub>;
+    },
+    staleTime: 30_000,
+    retry: false,
+    enabled: !!isSignedIn,
+  });
+
+  function checkApplyGate(): boolean {
+    if (!isSignedIn) return true;
+    if (!seekerSub) return true;
+    if (seekerSub.isPro) return true;
+    if (seekerSub.applicationLimit !== null && seekerSub.applicationCount >= seekerSub.applicationLimit) {
+      setUpgradeGateOpen(true);
+      return false;
+    }
+    return true;
+  }
 
   const userName = user?.fullName || user?.firstName || "Applicant";
 
@@ -760,6 +785,7 @@ export default function JobDetail() {
     !(resume.skills?.length);
 
   async function handlePrimaryApply() {
+    if (!checkApplyGate()) return;
     track("application_started", { job_id: jobId });
     const resumeType: ResumeType = hasPdfOnly ? "pdf" : (resume ? "built" : "none");
     setPendingResumeType(resumeType);
@@ -787,6 +813,7 @@ export default function JobDetail() {
   }
 
   function handleDirectApply(resumeType: ResumeType = "none") {
+    if (!checkApplyGate()) return;
     track("application_started", { job_id: jobId, resume_type: resumeType });
     saveApplicationRecord(jobId, resumeType);
     setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
@@ -825,6 +852,45 @@ export default function JobDetail() {
           onMailClientOpened={handleMailClientOpened}
         />
       )}
+      <Dialog open={upgradeGateOpen} onOpenChange={setUpgradeGateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Weekly limit reached
+            </DialogTitle>
+            <DialogDescription>
+              Free accounts can apply to {seekerSub?.applicationLimit ?? 3} jobs per week. Upgrade to Seeker Pro for unlimited applications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="rounded-lg bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+              You've used <strong>{seekerSub?.applicationCount ?? 0}/{seekerSub?.applicationLimit ?? 3}</strong> applications this week. Your limit resets in 7 days.
+            </div>
+            <ul className="space-y-2 text-sm">
+              {[
+                "Unlimited job applications",
+                "Email job alerts for your skills",
+                "Application history across devices",
+              ].map((b) => (
+                <li key={b} className="flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <a href={`${import.meta.env.BASE_URL}seeker-pro`} className="block">
+              <Button className="w-full h-11 font-semibold">
+                <Zap className="mr-2 h-4 w-4" />
+                Upgrade to Seeker Pro — $19/month
+              </Button>
+            </a>
+            <Button variant="ghost" className="w-full" onClick={() => setUpgradeGateOpen(false)}>
+              Not now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-8 md:py-12">
@@ -939,7 +1005,7 @@ export default function JobDetail() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume
@@ -1161,7 +1227,7 @@ export default function JobDetail() {
                   size="lg"
                   variant="outline"
                   className="px-8"
-                  onClick={() => { track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume

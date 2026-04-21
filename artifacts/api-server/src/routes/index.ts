@@ -12,6 +12,7 @@ import storageRouter from "./storage";
 import profileRouter from "./profile";
 import resumeRouter from "./resume";
 import analyticsRouter from "./analytics";
+import seekerRouter from "./seeker";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
@@ -30,5 +31,6 @@ router.use(storageRouter);
 router.use(profileRouter);
 router.use(resumeRouter);
 router.use(analyticsRouter);
+router.use(seekerRouter);
 
 export default router;

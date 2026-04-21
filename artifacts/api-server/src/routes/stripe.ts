@@ -24,6 +24,7 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
       FROM stripe.products p
       LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
       WHERE p.active = true
+        AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured')
       ORDER BY pr.unit_amount ASC
     `);
 

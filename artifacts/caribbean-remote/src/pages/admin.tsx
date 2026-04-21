@@ -1229,21 +1229,24 @@ export default function Admin() {
               <Card>
                 <CardContent className="pt-4">
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {ANALYTICS_PRESETS.map(({ label, getRange }) => (
-                      <Button
-                        key={label}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7 px-3"
-                        onClick={() => {
-                          const { from, to } = getRange();
-                          setAnalyticsDateFrom(from);
-                          setAnalyticsDateTo(to);
-                        }}
-                      >
-                        {label}
-                      </Button>
-                    ))}
+                    {ANALYTICS_PRESETS.map(({ label, getRange }) => {
+                      const range = getRange();
+                      const isActive = analyticsDateFrom === range.from && analyticsDateTo === range.to;
+                      return (
+                        <Button
+                          key={label}
+                          variant={isActive ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7 px-3"
+                          onClick={() => {
+                            setAnalyticsDateFrom(range.from);
+                            setAnalyticsDateTo(range.to);
+                          }}
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
                   </div>
                   <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col gap-1">

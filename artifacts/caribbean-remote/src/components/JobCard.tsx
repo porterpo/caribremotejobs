@@ -120,6 +120,7 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
     }
   }
   const hiddenTags = allTags.filter((_, i) => hiddenTagIndices.has(i));
+  const hiddenMatchedCount = hiddenTags.filter((tag) => matchedSet.has(tag.toLowerCase())).length;
 
   return (
     <Card className={`group relative transition-all duration-300 hover:shadow-md ${
@@ -273,8 +274,18 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                         </div>
                       }
                     >
-                      <span className="text-xs text-muted-foreground cursor-default select-none">
+                      <span
+                        className={[
+                          "text-xs cursor-default select-none",
+                          hiddenMatchedCount > 0 ? "text-emerald-700 font-medium" : "text-muted-foreground",
+                        ].join(" ")}
+                      >
                         +{overflowCount} more
+                        {hiddenMatchedCount > 0 && (
+                          <span className="ml-1">
+                            ({hiddenMatchedCount} match{hiddenMatchedCount === 1 ? "" : "es"})
+                          </span>
+                        )}
                       </span>
                     </SkillBadgeTooltip>
                   )}

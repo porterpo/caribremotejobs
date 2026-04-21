@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
 } from "recharts";
 
 const ANALYTICS_PREF_KEY_FROM = "admin_analyticsDateFrom";
@@ -1192,8 +1193,9 @@ export default function Admin() {
                         adminCompanies?.map((company) => {
                           const { criteria, eligible } = company.eligibility;
                           const isMutating = grantVerified.isPending || revokeVerified.isPending;
+                          const isIneligible = !eligible && !company.verifiedEmployer;
                           return (
-                            <TableRow key={company.id} className={company.verifiedEmployer ? "bg-blue-50/40" : ""}>
+                            <TableRow key={company.id} className={company.verifiedEmployer ? "bg-blue-50/40" : isIneligible ? "opacity-50" : ""}>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   {company.logo ? (
@@ -1208,44 +1210,88 @@ export default function Admin() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">
-                                {criteria.approvedDirectListings >= 2 ? (
-                                  <div className="flex items-center justify-center gap-1 text-green-700">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    <span>{criteria.approvedDirectListings}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-center gap-1 text-red-600">
-                                    <XCircle className="h-4 w-4" />
-                                    <span>{criteria.approvedDirectListings}</span>
-                                  </div>
-                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      {criteria.approvedDirectListings >= 2 ? (
+                                        <div className="flex items-center justify-center gap-1 text-green-700 cursor-default">
+                                          <CheckCircle2 className="h-4 w-4" />
+                                          <span>{criteria.approvedDirectListings}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-center gap-1 text-red-600 cursor-default">
+                                          <XCircle className="h-4 w-4" />
+                                          <span>{criteria.approvedDirectListings}</span>
+                                        </div>
+                                      )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {criteria.approvedDirectListings >= 2
+                                        ? `${criteria.approvedDirectListings} approved direct listings ✓`
+                                        : `Needs ≥2 approved direct listings (has ${criteria.approvedDirectListings})`}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
-                                {criteria.profileComplete ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-red-600 mx-auto" />
-                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      {criteria.profileComplete ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto cursor-default" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4 text-red-600 mx-auto cursor-default" />
+                                      )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {criteria.profileComplete
+                                        ? "Profile complete (logo, description, website) ✓"
+                                        : "Missing: logo, description, or website URL"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
-                                {criteria.accountAgeDays >= 30 ? (
-                                  <div className="flex items-center justify-center gap-1 text-green-700">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    <span>{criteria.accountAgeDays}d</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-center gap-1 text-red-600">
-                                    <XCircle className="h-4 w-4" />
-                                    <span>{criteria.accountAgeDays}d</span>
-                                  </div>
-                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      {criteria.accountAgeDays >= 30 ? (
+                                        <div className="flex items-center justify-center gap-1 text-green-700 cursor-default">
+                                          <CheckCircle2 className="h-4 w-4" />
+                                          <span>{criteria.accountAgeDays}d</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-center gap-1 text-red-600 cursor-default">
+                                          <XCircle className="h-4 w-4" />
+                                          <span>{criteria.accountAgeDays}d</span>
+                                        </div>
+                                      )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {criteria.accountAgeDays >= 30
+                                        ? `Account is ${criteria.accountAgeDays} days old ✓`
+                                        : `Needs 30+ days old (${criteria.accountAgeDays} days so far)`}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
-                                {criteria.noViolations ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-red-600 mx-auto" />
-                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      {criteria.noViolations ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto cursor-default" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4 text-red-600 mx-auto cursor-default" />
+                                      )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {criteria.noViolations
+                                        ? "No policy violations detected ✓"
+                                        : "Has listings not approved after 72h (possible policy violation)"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
                                 {company.verifiedEmployer ? (
@@ -1515,7 +1561,7 @@ export default function Admin() {
                           interval="preserveStartEnd"
                         />
                         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                        <Tooltip
+                        <RechartsTooltip
                           content={({ active, payload, label }) => {
                             if (!active || !payload?.length) return null;
                             const delta = effectiveGranularity === "week" ? weekDeltaMap[label as string] : undefined;

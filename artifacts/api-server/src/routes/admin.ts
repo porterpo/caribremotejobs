@@ -5,6 +5,7 @@ import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
 import { sendOrderConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { getEmployerEligibility } from "../lib/employerEligibility";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -257,7 +258,7 @@ router.get("/admin/companies", async (_req, res): Promise<void> => {
   res.json(results);
 });
 
-router.post("/admin/companies/:id/verify", async (req, res): Promise<void> => {
+router.post("/admin/companies/:id/verify", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid company id" });
@@ -279,7 +280,7 @@ router.post("/admin/companies/:id/verify", async (req, res): Promise<void> => {
   res.json(company);
 });
 
-router.post("/admin/companies/:id/unverify", async (req, res): Promise<void> => {
+router.post("/admin/companies/:id/unverify", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid company id" });

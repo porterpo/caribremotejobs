@@ -1,5 +1,5 @@
 import { db, jobsTable, companiesTable } from "@workspace/db";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, and, count, sql, lt } from "drizzle-orm";
 
 export interface EligibilityCriteria {
   approvedDirectListings: number;
@@ -36,18 +36,34 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
     };
   }
 
-  const [directListingsResult] = await db
-    .select({ count: count() })
-    .from(jobsTable)
-    .where(
-      and(
-        eq(jobsTable.companyId, companyId),
-        eq(jobsTable.approved, true),
-        sql`${jobsTable.source} IN ('manual', 'employer')`,
+  const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+  const [directListingsResult, pendingOldResult] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(jobsTable)
+      .where(
+        and(
+          eq(jobsTable.companyId, companyId),
+          eq(jobsTable.approved, true),
+          sql`${jobsTable.source} IN ('manual', 'employer')`,
+        ),
       ),
-    );
+    db
+      .select({ count: count() })
+      .from(jobsTable)
+      .where(
+        and(
+          eq(jobsTable.companyId, companyId),
+          eq(jobsTable.approved, false),
+          sql`${jobsTable.source} IN ('manual', 'employer')`,
+          lt(jobsTable.createdAt, cutoff),
+        ),
+      ),
+  ]);
 
   const approvedDirectListings = directListingsResult?.count ?? 0;
+  const staleUnapprovedCount = pendingOldResult?.count ?? 0;
 
   const profileComplete =
     !!company.logo?.trim() &&
@@ -58,17 +74,20 @@ export async function getEmployerEligibility(companyId: number): Promise<Eligibi
     (Date.now() - new Date(company.createdAt).getTime()) / (1000 * 60 * 60 * 24),
   );
 
+  const noViolations = staleUnapprovedCount === 0;
+
   const eligible =
     approvedDirectListings >= 2 &&
     profileComplete &&
-    accountAgeDays >= 30;
+    accountAgeDays >= 30 &&
+    noViolations;
 
   return {
     eligible,
     criteria: {
       approvedDirectListings,
       profileComplete,
-      noViolations: true,
+      noViolations,
       accountAgeDays,
     },
   };

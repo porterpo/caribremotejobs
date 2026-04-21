@@ -28,7 +28,10 @@ router.get("/jobs/recent", async (req, res): Promise<void> => {
     .select()
     .from(jobsTable)
     .where(and(eq(jobsTable.approved, true), gte(jobsTable.postedAt, sevenDaysAgo)))
-    .orderBy(desc(jobsTable.postedAt))
+    .orderBy(
+      desc(sql<number>`CASE WHEN ${jobsTable.source} IN ('manual','employer') THEN 1 ELSE 0 END`),
+      desc(jobsTable.postedAt)
+    )
     .limit(10);
   res.json(jobs);
 });
@@ -176,7 +179,11 @@ router.get("/jobs", async (req, res): Promise<void> => {
   }
 
   const [jobs, countResult] = await Promise.all([
-    baseQuery.orderBy(desc(jobsTable.featured), desc(jobsTable.postedAt)).limit(limit).offset(offset),
+    baseQuery.orderBy(
+      desc(jobsTable.featured),
+      desc(sql<number>`CASE WHEN ${jobsTable.source} IN ('manual','employer') THEN 1 ELSE 0 END`),
+      desc(jobsTable.postedAt)
+    ).limit(limit).offset(offset),
     countQuery,
   ]);
 

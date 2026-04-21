@@ -13,6 +13,8 @@ function badgeColor(percentage: number): string {
 }
 
 export function SkillMatchBadge({ match, size = "sm" }: SkillMatchBadgeProps) {
+  if (match.percentage === 0) return null;
+
   const colorClass = badgeColor(match.percentage);
   const label =
     size === "md"

@@ -11,9 +11,10 @@ import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 
 interface JobCardProps {
   job: Job;
+  isBestMatch?: boolean;
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, isBestMatch = false }: JobCardProps) {
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
   const { isSignedIn } = useUser();
@@ -144,7 +145,7 @@ export function JobCard({ job }: JobCardProps) {
                 {job.category}
               </Badge>
 
-              {skillMatch && (
+              {isBestMatch && skillMatch && (
                 <SkillMatchBadge match={skillMatch} />
               )}
               

@@ -22,6 +22,7 @@ const FILTER_JOB_TYPE_KEY = "cr_filter_job_type";
 const FILTER_ENTRY_LEVEL_KEY = "cr_filter_entry_level";
 const FILTER_FEATURED_KEY = "cr_filter_featured";
 const FILTER_TAGS_KEY = "cr_filter_tags";
+const FILTER_TAG_LOGIC_KEY = "cr_filter_tag_logic";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const PAGE_SIZE = 10;
@@ -91,6 +92,15 @@ export default function Jobs() {
     }
   });
 
+  const [tagLogic, setTagLogic] = useState<"and" | "or">(() => {
+    try {
+      const stored = localStorage.getItem(FILTER_TAG_LOGIC_KEY);
+      return stored === "or" ? "or" : "and";
+    } catch {
+      return "and";
+    }
+  });
+
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -157,6 +167,7 @@ export default function Jobs() {
     ...(entryLevel ? { entryLevel: true } : {}),
     ...(featured ? { featured: true } : {}),
     ...(selectedTags.length > 0 ? { tag: selectedTags } : {}),
+    ...(selectedTags.length >= 2 ? { tagLogic } : {}),
   };
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
@@ -177,7 +188,7 @@ export default function Jobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, selectedTags]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, selectedTags, tagLogic]);
 
   // Persist sort preference to localStorage
   useEffect(() => {
@@ -207,6 +218,10 @@ export default function Jobs() {
   useEffect(() => {
     try { localStorage.setItem(FILTER_TAGS_KEY, JSON.stringify(selectedTags)); } catch {}
   }, [selectedTags]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_TAG_LOGIC_KEY, tagLogic); } catch {}
+  }, [tagLogic]);
 
   // Reset to newest when skills disappear (persistence effect will save "newest")
   useEffect(() => {
@@ -309,6 +324,7 @@ export default function Jobs() {
           setEntryLevel(false);
           setFeatured(false);
           setSelectedTags([]);
+          setTagLogic("and");
         }}
       >
         Clear Filters
@@ -401,6 +417,24 @@ export default function Jobs() {
                   </button>
                 </span>
               ))}
+              {selectedTags.length >= 2 && (
+                <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden">
+                  <button
+                    onClick={() => setTagLogic("and")}
+                    className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    aria-pressed={tagLogic === "and"}
+                  >
+                    Match ALL
+                  </button>
+                  <button
+                    onClick={() => setTagLogic("or")}
+                    className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    aria-pressed={tagLogic === "or"}
+                  >
+                    Match ANY
+                  </button>
+                </div>
+              )}
               {selectedTags.length > 1 && (
                 <button
                   onClick={() => setSelectedTags([])}
@@ -506,6 +540,7 @@ export default function Jobs() {
                   setEntryLevel(false);
                   setFeatured(false);
                   setSelectedTags([]);
+                  setTagLogic("and");
                 }}
               >
                 Clear all filters

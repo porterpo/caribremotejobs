@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, ilike, desc, count, sql } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, desc, count, sql } from "drizzle-orm";
 import { db, jobsTable } from "@workspace/db";
 import {
   ListJobsQueryParams,
@@ -54,10 +54,19 @@ router.get("/jobs", async (req, res): Promise<void> => {
   if (params.featured !== undefined) conditions.push(eq(jobsTable.featured, params.featured));
   if (params.tag) {
     const tagList = Array.isArray(params.tag) ? params.tag : [params.tag];
-    for (const t of tagList) {
-      const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const tagPattern = `(^|,\\s*)${escapedTag}(\\s*,|$)`;
-      conditions.push(sql`${jobsTable.tags} ~* ${tagPattern}` as ReturnType<typeof eq>);
+    if (params.tagLogic === "or") {
+      const orConditions = tagList.map((t) => {
+        const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const tagPattern = `(^|,\\s*)${escapedTag}(\\s*,|$)`;
+        return sql`${jobsTable.tags} ~* ${tagPattern}`;
+      });
+      conditions.push(or(...orConditions) as ReturnType<typeof eq>);
+    } else {
+      for (const t of tagList) {
+        const escapedTag = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const tagPattern = `(^|,\\s*)${escapedTag}(\\s*,|$)`;
+        conditions.push(sql`${jobsTable.tags} ~* ${tagPattern}` as ReturnType<typeof eq>);
+      }
     }
   }
   if (params.salaryMin !== undefined) {

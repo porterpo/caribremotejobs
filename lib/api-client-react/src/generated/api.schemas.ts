@@ -250,6 +250,7 @@ export type ListJobsParams = {
   entryLevel?: boolean;
   featured?: boolean;
   tag?: string[];
+  tagLogic?: 'and' | 'or';
   page?: number;
   limit?: number;
 };

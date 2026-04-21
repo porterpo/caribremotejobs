@@ -31,6 +31,7 @@ export const ListJobsQueryParams = zod.object({
   entryLevel: zod.coerce.boolean().optional(),
   featured: zod.coerce.boolean().optional(),
   tag: zod.union([zod.array(zod.coerce.string()), zod.coerce.string()]).optional(),
+  tagLogic: zod.enum(["and", "or"]).default("and"),
   page: zod.coerce.number().default(listJobsQueryPageDefault),
   limit: zod.coerce.number().default(listJobsQueryLimitDefault),
 });

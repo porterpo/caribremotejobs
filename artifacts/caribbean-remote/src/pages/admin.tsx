@@ -73,6 +73,48 @@ interface OrderStats {
   };
 }
 
+function fmtLocalDate(d: Date): string {
+  return format(d, "yyyy-MM-dd");
+}
+
+const ANALYTICS_PRESETS: { label: string; getRange: () => { from: string; to: string } }[] = [
+  {
+    label: "Last 7 days",
+    getRange: () => {
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(today.getDate() - 6);
+      return { from: fmtLocalDate(from), to: fmtLocalDate(today) };
+    },
+  },
+  {
+    label: "Last 30 days",
+    getRange: () => {
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(today.getDate() - 29);
+      return { from: fmtLocalDate(from), to: fmtLocalDate(today) };
+    },
+  },
+  {
+    label: "This month",
+    getRange: () => {
+      const today = new Date();
+      const from = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: fmtLocalDate(from), to: fmtLocalDate(today) };
+    },
+  },
+  {
+    label: "Last month",
+    getRange: () => {
+      const today = new Date();
+      const from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const to = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { from: fmtLocalDate(from), to: fmtLocalDate(to) };
+    },
+  },
+];
+
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1147,6 +1189,23 @@ export default function Admin() {
             <div className="space-y-6">
               <Card>
                 <CardContent className="pt-4">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {ANALYTICS_PRESETS.map(({ label, getRange }) => (
+                      <Button
+                        key={label}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 px-3"
+                        onClick={() => {
+                          const { from, to } = getRange();
+                          setAnalyticsDateFrom(from);
+                          setAnalyticsDateTo(to);
+                        }}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
                   <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col gap-1">
                       <Label htmlFor="analytics-date-from" className="text-xs text-muted-foreground">From</Label>

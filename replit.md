@@ -15,6 +15,18 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Auth**: Clerk (`@clerk/react` frontend, `@clerk/express` backend, proxy via `http-proxy-middleware`)
+
+## Authentication (Clerk)
+
+- Clerk is provisioned and keys are stored as secrets (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`)
+- `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PROXY_URL` are injected into the Vite build via `define` in `vite.config.ts`
+- The Clerk proxy middleware is at `artifacts/api-server/src/middlewares/clerkProxyMiddleware.ts`, mounted at `/api/__clerk`
+- `clerkMiddleware()` from `@clerk/express` runs after body parsers in `app.ts`
+- `requireAuth` middleware is at `artifacts/api-server/src/middlewares/requireAuth.ts` — use it on protected API routes
+- Frontend: `ClerkProvider` wraps the entire app; home page (`/`) is public, other job-seeker routes (`/jobs`, `/companies`, etc.) require auth; employer routes (`/pricing`, `/post-job`, `/certify`) are public
+- Signed-in users at `/` are redirected to `/jobs`; signed-out users see the landing page
+- The Navbar shows a user avatar dropdown with sign-out for authenticated users, and a Sign In button otherwise
 
 ## Key Commands
 

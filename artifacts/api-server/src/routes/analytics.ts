@@ -1,10 +1,54 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { db, analyticsEventsTable, jobsTable } from "@workspace/db";
+import { db, analyticsEventsTable, jobsTable, adminPreferencesTable } from "@workspace/db";
 import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router = Router();
+
+router.get("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId;
+  const [preference] = await db
+    .select({
+      analyticsDateFrom: adminPreferencesTable.analyticsDateFrom,
+      analyticsDateTo: adminPreferencesTable.analyticsDateTo,
+    })
+    .from(adminPreferencesTable)
+    .where(eq(adminPreferencesTable.clerkUserId, userId));
+
+  res.json({
+    analyticsDateFrom: preference?.analyticsDateFrom ?? null,
+    analyticsDateTo: preference?.analyticsDateTo ?? null,
+  });
+});
+
+router.put("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId;
+  const body = req.body as { analyticsDateFrom?: string | null; analyticsDateTo?: string | null };
+  const analyticsDateFrom = typeof body.analyticsDateFrom === "string" && body.analyticsDateFrom ? body.analyticsDateFrom : null;
+  const analyticsDateTo = typeof body.analyticsDateTo === "string" && body.analyticsDateTo ? body.analyticsDateTo : null;
+
+  const [saved] = await db
+    .insert(adminPreferencesTable)
+    .values({ clerkUserId: userId, analyticsDateFrom, analyticsDateTo })
+    .onConflictDoUpdate({
+      target: adminPreferencesTable.clerkUserId,
+      set: {
+        analyticsDateFrom,
+        analyticsDateTo,
+        updatedAt: new Date(),
+      },
+    })
+    .returning({
+      analyticsDateFrom: adminPreferencesTable.analyticsDateFrom,
+      analyticsDateTo: adminPreferencesTable.analyticsDateTo,
+    });
+
+  res.json({
+    analyticsDateFrom: saved?.analyticsDateFrom ?? null,
+    analyticsDateTo: saved?.analyticsDateTo ?? null,
+  });
+});
 
 router.post("/analytics/track", async (req, res): Promise<void> => {
   const { event, job_id, has_resume } = req.body ?? {};

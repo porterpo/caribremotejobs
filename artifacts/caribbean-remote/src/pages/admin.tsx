@@ -32,6 +32,9 @@ import {
   Tooltip,
 } from "recharts";
 
+const ANALYTICS_PREF_KEY_FROM = "admin_analyticsDateFrom";
+const ANALYTICS_PREF_KEY_TO = "admin_analyticsDateTo";
+
 interface CertificationOrder {
   id: number;
   email: string;
@@ -243,19 +246,57 @@ export default function Admin() {
   );
   const [trendEventFilter, setTrendEventFilter] = useState("");
   const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">("auto");
+  const [analyticsPreferenceLoaded, setAnalyticsPreferenceLoaded] = useState(false);
+
+  const { data: analyticsPreference } = useQuery<{
+    analyticsDateFrom: string | null;
+    analyticsDateTo: string | null;
+  }>({
+    queryKey: ["admin-analytics-preference"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/preferences/analytics-date-range`);
+      if (!res.ok) throw new Error("Failed to load analytics preference");
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
+    if (analyticsPreferenceLoaded) return;
+    const from = analyticsPreference?.analyticsDateFrom;
+    const to = analyticsPreference?.analyticsDateTo;
+    if (from !== undefined || to !== undefined) {
+      setAnalyticsDateFrom(from ?? localStorage.getItem(ANALYTICS_PREF_KEY_FROM) ?? "");
+      setAnalyticsDateTo(to ?? localStorage.getItem(ANALYTICS_PREF_KEY_TO) ?? "");
+      setAnalyticsPreferenceLoaded(true);
+    }
+  }, [analyticsPreference, analyticsPreferenceLoaded]);
+
+  useEffect(() => {
+    if (!analyticsPreferenceLoaded) return;
     if (analyticsDateFrom) {
-      localStorage.setItem("admin_analyticsDateFrom", analyticsDateFrom);
+      localStorage.setItem(ANALYTICS_PREF_KEY_FROM, analyticsDateFrom);
     } else {
-      localStorage.removeItem("admin_analyticsDateFrom");
+      localStorage.removeItem(ANALYTICS_PREF_KEY_FROM);
     }
     if (analyticsDateTo) {
-      localStorage.setItem("admin_analyticsDateTo", analyticsDateTo);
+      localStorage.setItem(ANALYTICS_PREF_KEY_TO, analyticsDateTo);
     } else {
-      localStorage.removeItem("admin_analyticsDateTo");
+      localStorage.removeItem(ANALYTICS_PREF_KEY_TO);
     }
-  }, [analyticsDateFrom, analyticsDateTo]);
+  }, [analyticsDateFrom, analyticsDateTo, analyticsPreferenceLoaded]);
+
+  const saveAnalyticsPreference = useMutation({
+    mutationFn: async (next: { analyticsDateFrom: string | null; analyticsDateTo: string | null }) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/preferences/analytics-date-range`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) throw new Error("Failed to save analytics preference");
+      return res.json() as Promise<{ analyticsDateFrom: string | null; analyticsDateTo: string | null }>;
+    },
+  });
 
   const { data: analyticsSummary, isLoading: analyticsLoading } = useQuery<AnalyticsSummary>({
     queryKey: ["admin-analytics-summary", analyticsDateFrom, analyticsDateTo],
@@ -1292,6 +1333,7 @@ export default function Admin() {
                           onClick={() => {
                             setAnalyticsDateFrom(range.from);
                             setAnalyticsDateTo(range.to);
+                            saveAnalyticsPreference.mutate({ analyticsDateFrom: range.from, analyticsDateTo: range.to });
                           }}
                         >
                           {label}
@@ -1306,7 +1348,11 @@ export default function Admin() {
                         id="analytics-date-from"
                         type="date"
                         value={analyticsDateFrom}
-                        onChange={(e) => setAnalyticsDateFrom(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setAnalyticsDateFrom(next);
+                          saveAnalyticsPreference.mutate({ analyticsDateFrom: next || null, analyticsDateTo: analyticsDateTo || null });
+                        }}
                         className="w-40"
                       />
                     </div>
@@ -1316,7 +1362,11 @@ export default function Admin() {
                         id="analytics-date-to"
                         type="date"
                         value={analyticsDateTo}
-                        onChange={(e) => setAnalyticsDateTo(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setAnalyticsDateTo(next);
+                          saveAnalyticsPreference.mutate({ analyticsDateFrom: analyticsDateFrom || null, analyticsDateTo: next || null });
+                        }}
                         className="w-40"
                       />
                     </div>
@@ -1324,7 +1374,11 @@ export default function Admin() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setAnalyticsDateFrom(""); setAnalyticsDateTo(""); }}
+                        onClick={() => {
+                          setAnalyticsDateFrom("");
+                          setAnalyticsDateTo("");
+                          saveAnalyticsPreference.mutate({ analyticsDateFrom: null, analyticsDateTo: null });
+                        }}
                       >
                         Clear
                       </Button>

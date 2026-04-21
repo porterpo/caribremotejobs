@@ -3,6 +3,7 @@ import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetJob, getGetJobQueryKey, useListJobs } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -209,6 +210,7 @@ export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const { isSignedIn } = useUser();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
     query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
@@ -342,15 +344,17 @@ export default function JobDetail() {
                   Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full"
-                onClick={() => setApplyDialogOpen(true)}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Apply with Resume
-              </Button>
+              {isSignedIn && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setApplyDialogOpen(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Apply with Resume
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -387,15 +391,17 @@ export default function JobDetail() {
                   Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-8"
-                onClick={() => setApplyDialogOpen(true)}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Apply with Resume
-              </Button>
+              {isSignedIn && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-8"
+                  onClick={() => setApplyDialogOpen(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Apply with Resume
+                </Button>
+              )}
             </div>
           </div>
 

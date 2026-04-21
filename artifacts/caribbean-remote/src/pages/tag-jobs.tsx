@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { computeSkillMatch } from "@/lib/skill-match";
+import { useListJobTags } from "@workspace/api-client-react";
 
 const PAGE_SIZE = 10;
 const JOBS_STALE_TIME_MS = 60_000;
@@ -150,6 +151,17 @@ export default function TagJobs() {
     };
   }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, extraTags, page]);
 
+  const { data: tagCounts } = useListJobTags({
+    query: { staleTime: JOBS_STALE_TIME_MS },
+  });
+  const tagJobCount = useMemo(() => {
+    if (!tag || !tagCounts) return null;
+    return tagCounts.reduce(
+      (sum, tc) => (tc.tag.toLowerCase() === tag.toLowerCase() ? sum + tc.count : sum),
+      0,
+    );
+  }, [tag, tagCounts]);
+
   const pageTitle = tag ? `Remote ${tag} Jobs` : "Remote Jobs by Tag";
   const metaDescription = tag
     ? `Browse ${activeTotal || "all"} remote ${tag} jobs. Find the best remote opportunities requiring ${tag} skills, available to candidates worldwide.`
@@ -207,6 +219,11 @@ export default function TagJobs() {
               <Tag className="h-5 w-5 text-primary" />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{pageTitle}</h1>
+            {tagJobCount !== null && (
+              <Badge variant="secondary" className="text-sm px-2.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
+                {tagJobCount} {tagJobCount === 1 ? "job" : "jobs"}
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground text-lg max-w-2xl">
             {isLoading

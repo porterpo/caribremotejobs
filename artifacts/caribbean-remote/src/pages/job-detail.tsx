@@ -34,6 +34,55 @@ interface ResumeData {
   skills: string[] | null;
 }
 
+export function buildEnhancedMailto(
+  applyUrl: string,
+  jobTitle: string,
+  userName: string,
+  resume: ResumeData | null,
+): string {
+  if (!applyUrl.startsWith("mailto:")) return applyUrl;
+
+  const subject = `Application for ${jobTitle} — ${userName}`;
+
+  const lines: string[] = [];
+
+  lines.push(`Hi,`);
+  lines.push(``);
+  lines.push(
+    `I'm writing to apply for the ${jobTitle} position. Please find a brief summary of my background below.`,
+  );
+
+  if (resume?.summary) {
+    lines.push(``);
+    lines.push(`About me:`);
+    lines.push(resume.summary);
+  }
+
+  if (resume?.skills && resume.skills.length > 0) {
+    lines.push(``);
+    lines.push(`Top skills:`);
+    lines.push(resume.skills.slice(0, 10).join(", "));
+  }
+
+  const profileUrl =
+    window.location.origin + BASE.replace(/\/$/, "") + "/resume";
+  lines.push(``);
+  lines.push(`You can view my full profile here: ${profileUrl}`);
+  lines.push(``);
+  lines.push(`Thank you for your consideration.`);
+  lines.push(`${userName}`);
+
+  const body = lines.join("\n");
+
+  const qIdx = applyUrl.indexOf("?");
+  const base = qIdx === -1 ? applyUrl : applyUrl.slice(0, qIdx);
+  const existing = qIdx === -1 ? "" : applyUrl.slice(qIdx + 1);
+  const params = new URLSearchParams(existing);
+  params.set("subject", subject);
+  params.set("body", body);
+  return base + "?" + params.toString();
+}
+
 function ApplyWithResumeDialog({
   open,
   onClose,
@@ -210,11 +259,36 @@ export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
     query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
   });
+
+  const isMailto = !!job?.applyUrl?.startsWith("mailto:");
+
+  const { data: resume } = useQuery<ResumeData | null>({
+    queryKey: ["resume", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/resume/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch resume");
+      return res.json() as Promise<ResumeData>;
+    },
+    staleTime: 30_000,
+    retry: false,
+    enabled: !!isSignedIn && isMailto,
+  });
+
+  const effectiveApplyUrl =
+    isSignedIn && isMailto && job
+      ? buildEnhancedMailto(
+          job.applyUrl,
+          job.title,
+          user?.fullName || user?.firstName || "Applicant",
+          resume ?? null,
+        )
+      : job?.applyUrl ?? "";
 
   const { data: similarJobsResponse } = useListJobs(
     { category: job?.category, limit: 3 },
@@ -271,7 +345,7 @@ export default function JobDetail() {
         <ApplyWithResumeDialog
           open={applyDialogOpen}
           onClose={() => setApplyDialogOpen(false)}
-          applyUrl={job.applyUrl}
+          applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
         />
       )}
@@ -340,7 +414,7 @@ export default function JobDetail() {
             
             <div className="flex flex-col gap-3 min-w-[200px] shrink-0 mt-4 md:mt-0">
               <Button size="lg" className="w-full text-base h-12" asChild>
-                <a href={job.applyUrl} target="_blank" rel="noopener noreferrer">
+                <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
                   Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
@@ -387,7 +461,7 @@ export default function JobDetail() {
 
             <div className="pt-8 border-t flex flex-wrap gap-3">
               <Button size="lg" className="px-8" asChild>
-                <a href={job.applyUrl} target="_blank" rel="noopener noreferrer">
+                <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
                   Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>

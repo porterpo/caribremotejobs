@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { useListJobs, getListJobsQueryKey, useListCategories } from "@workspace/api-client-react";
+import { useListJobs, getListJobsQueryKey, useListCategories, useListJobTags } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -149,7 +149,10 @@ export default function Jobs() {
     setNudgeDismissed(true);
   }
 
+  const [tagInput, setTagInput] = useState("");
+
   const { data: categories } = useListCategories();
+  const { data: allTags } = useListJobTags();
 
   const { data: resumeData, status: resumeStatus } = useQuery({
     queryKey: ["resume", "me"],
@@ -356,6 +359,61 @@ export default function Jobs() {
         </div>
       )}
       
+      <div className="space-y-3">
+        <Label htmlFor="tag-search">Skills / Tags</Label>
+        <div className="relative">
+          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            id="tag-search"
+            placeholder="Type to search tags…"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            className="pl-9 h-9 text-sm"
+          />
+        </div>
+        {(() => {
+          const trimmed = tagInput.trim().toLowerCase();
+          const suggestions = (allTags ?? []).filter(
+            ({ tag }) =>
+              tag.toLowerCase().includes(trimmed) &&
+              !selectedTags.includes(tag)
+          );
+          if (!trimmed && selectedTags.length === 0) return null;
+          return (
+            <div className="space-y-1.5">
+              {selectedTags.map((tag) => (
+                <div
+                  key={tag}
+                  className="flex items-center justify-between rounded-md bg-primary/10 border border-primary/20 px-2.5 py-1.5 text-sm font-medium text-primary"
+                >
+                  <span className="truncate">{tag}</span>
+                  <button
+                    onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
+                    aria-label={`Remove ${tag} filter`}
+                    className="ml-2 shrink-0 hover:text-primary/70 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {trimmed && suggestions.slice(0, 8).map(({ tag }) => (
+                <button
+                  key={tag}
+                  onClick={() => { toggleTag(tag); setTagInput(""); }}
+                  className="flex items-center gap-2 w-full rounded-md px-2.5 py-1.5 text-sm text-foreground hover:bg-muted transition-colors text-left"
+                >
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{tag}</span>
+                </button>
+              ))}
+              {trimmed && suggestions.length === 0 && (
+                <p className="text-xs text-muted-foreground px-1">No matching tags found.</p>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
       <Button 
         variant="outline" 
         className="w-full"
@@ -368,6 +426,7 @@ export default function Jobs() {
           setSelectedTags([]);
           setTagLogic("and");
           setMinMatch(0);
+          setTagInput("");
         }}
       >
         Clear Filters
@@ -587,6 +646,7 @@ export default function Jobs() {
                   setSelectedTags([]);
                   setTagLogic("and");
                   setMinMatch(0);
+                  setTagInput("");
                 }}
               >
                 Clear all filters

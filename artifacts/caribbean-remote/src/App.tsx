@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation, useSearch } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -22,6 +22,7 @@ import PostJob from "@/pages/post-job";
 import Certify from "@/pages/certify";
 import CertifySuccess from "@/pages/certify-success";
 import Certified from "@/pages/certified";
+import Profile from "@/pages/profile";
 
 const queryClient = new QueryClient();
 
@@ -177,6 +178,32 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function ProfileOnboardingRedirect() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const [location, navigate] = useLocation();
+
+  const { data, status } = useQuery<{ id: number } | null>({
+    queryKey: ["profile", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${basePath ? basePath + "/" : ""}api/profile/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json() as Promise<{ id: number }>;
+    },
+    enabled: isLoaded && isSignedIn === true,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (status === "success" && data === null && location !== "/profile") {
+      navigate("/profile?onboarding=true", { replace: true });
+    }
+  }, [status, data, location, navigate]);
+
+  return null;
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -205,6 +232,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
+          <ProfileOnboardingRedirect />
           <Switch>
             <Route path="/" component={HomeRoute} />
             <Route path="/sign-in/*?" component={SignInPage} />
@@ -246,6 +274,10 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/certify/success">
               {() => <ProtectedRoute component={CertifySuccess} />}
+            </Route>
+
+            <Route path="/profile">
+              {() => <ProtectedRoute component={Profile} />}
             </Route>
 
             {/* Email token route — stays public; accessed from email links without Clerk session */}

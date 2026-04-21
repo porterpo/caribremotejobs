@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, Palmtree, LogOut, ChevronDown } from "lucide-react";
+import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, Palmtree, LogOut, ChevronDown, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,17 +13,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface ProfileData {
+  displayName: string | null;
+}
+
 function UserMenu() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
 
+  const { data: profile } = useQuery<ProfileData | null>({
+    queryKey: ["profile", "me"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/profile/me`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json() as Promise<ProfileData>;
+    },
+    enabled: isLoaded && !!user,
+    staleTime: 30_000,
+    retry: false,
+  });
+
   if (!isLoaded || !user) return null;
 
-  const displayName =
+  const clerkFallback =
     user.firstName ||
     user.username ||
     user.emailAddresses[0]?.emailAddress?.split("@")[0] ||
     "Account";
+  const displayName = profile?.displayName || clerkFallback;
   const initials =
     ((user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "")) ||
     displayName[0]?.toUpperCase() ||
@@ -54,6 +73,13 @@ function UserMenu() {
             {user.emailAddresses[0]?.emailAddress}
           </p>
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+            <User className="h-4 w-4" />
+            My Profile
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
@@ -160,6 +186,14 @@ export function Navbar() {
                   ))}
                   <div className="my-2 border-t" />
                   <Show when="signed-in">
+                    <Link
+                      href="/profile"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      <User className="h-4 w-4" />
+                      My Profile
+                    </Link>
                     <Link
                       href="/admin"
                       onClick={() => setOpen(false)}

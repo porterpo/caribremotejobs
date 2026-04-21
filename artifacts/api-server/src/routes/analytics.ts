@@ -133,7 +133,10 @@ router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> =>
 });
 
 router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
-  const { dateFrom, dateTo, event } = req.query as { dateFrom?: string; dateTo?: string; event?: string };
+  const { dateFrom, dateTo, event, granularity: granularityParam } = req.query as {
+    dateFrom?: string; dateTo?: string; event?: string; granularity?: string;
+  };
+  const granularity = granularityParam === "week" ? "week" : "day";
 
   const conditions = [];
   if (dateFrom) {
@@ -153,17 +156,31 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(analyticsEventsTable.event, event));
   }
 
-  const rows = await db
-    .select({
-      date: sql<string>`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(analyticsEventsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .groupBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
-    .orderBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
+  let rows: { date: string; count: number }[];
 
-  res.json({ trend: rows });
+  if (granularity === "week") {
+    rows = await db
+      .select({
+        date: sql<string>`to_char(DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC'), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(analyticsEventsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(sql`DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC')`)
+      .orderBy(sql`DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC')`);
+  } else {
+    rows = await db
+      .select({
+        date: sql<string>`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(analyticsEventsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
+      .orderBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
+  }
+
+  res.json({ trend: rows, granularity });
 });
 
 export default router;

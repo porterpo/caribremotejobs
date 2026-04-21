@@ -242,6 +242,7 @@ export default function Admin() {
     () => localStorage.getItem("admin_analyticsDateTo") ?? ""
   );
   const [trendEventFilter, setTrendEventFilter] = useState("");
+  const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">("auto");
 
   useEffect(() => {
     if (analyticsDateFrom) {
@@ -277,13 +278,23 @@ export default function Admin() {
     }
   }, [analyticsSummary, trendEventFilter]);
 
-  const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { date: string; count: number }[] }>({
-    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo, trendEventFilter],
+  const effectiveGranularity = useMemo<"day" | "week">(() => {
+    if (granularityOverride !== "auto") return granularityOverride;
+    if (!analyticsDateFrom || !analyticsDateTo) return "week";
+    const from = new Date(analyticsDateFrom + "T00:00:00Z");
+    const to = new Date(analyticsDateTo + "T00:00:00Z");
+    const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+    return diffDays >= 60 ? "week" : "day";
+  }, [granularityOverride, analyticsDateFrom, analyticsDateTo]);
+
+  const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { date: string; count: number }[]; granularity: string }>({
+    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo, trendEventFilter, effectiveGranularity],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (analyticsDateFrom) params.set("dateFrom", analyticsDateFrom);
       if (analyticsDateTo) params.set("dateTo", analyticsDateTo);
       if (trendEventFilter) params.set("event", trendEventFilter);
+      params.set("granularity", effectiveGranularity);
       const qs = params.toString();
       const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/trend${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch analytics trend");
@@ -298,15 +309,28 @@ export default function Admin() {
     const countByDate: Record<string, number> = {};
     for (const row of raw) countByDate[row.date] = row.count;
     const result: { date: string; count: number }[] = [];
-    const cursor = new Date(analyticsDateFrom + "T00:00:00Z");
-    const end = new Date(analyticsDateTo + "T00:00:00Z");
-    while (cursor <= end) {
-      const d = cursor.toISOString().slice(0, 10);
-      result.push({ date: d, count: countByDate[d] ?? 0 });
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    if (effectiveGranularity === "week") {
+      const cursor = new Date(analyticsDateFrom + "T00:00:00Z");
+      const dayOfWeek = cursor.getUTCDay();
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      cursor.setUTCDate(cursor.getUTCDate() + daysToMonday);
+      const end = new Date(analyticsDateTo + "T00:00:00Z");
+      while (cursor <= end) {
+        const d = cursor.toISOString().slice(0, 10);
+        result.push({ date: d, count: countByDate[d] ?? 0 });
+        cursor.setUTCDate(cursor.getUTCDate() + 7);
+      }
+    } else {
+      const cursor = new Date(analyticsDateFrom + "T00:00:00Z");
+      const end = new Date(analyticsDateTo + "T00:00:00Z");
+      while (cursor <= end) {
+        const d = cursor.toISOString().slice(0, 10);
+        result.push({ date: d, count: countByDate[d] ?? 0 });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
     }
     return result;
-  }, [analyticsTrend, analyticsDateFrom, analyticsDateTo]);
+  }, [analyticsTrend, analyticsDateFrom, analyticsDateTo, effectiveGranularity]);
 
   const pricePerUnit = useMemo<Record<string, number>>(() => {
     if (!orderStats) return {};
@@ -1327,22 +1351,42 @@ export default function Admin() {
                     <div>
                       <CardTitle className="text-sm font-medium">Events Over Time</CardTitle>
                       <CardDescription className="text-xs">
-                        {trendEventFilter ? `${trendEventFilter} events per day` : "Total events per day"} in the selected range
+                        {trendEventFilter ? `${trendEventFilter} events` : "Total events"} per {effectiveGranularity === "week" ? "week" : "day"} in the selected range
+                        {granularityOverride === "auto" && effectiveGranularity === "week" && (
+                          <span className="ml-1 text-muted-foreground/70">(auto)</span>
+                        )}
                       </CardDescription>
                     </div>
-                    <Select value={trendEventFilter || "__all__"} onValueChange={(v) => setTrendEventFilter(v === "__all__" ? "" : v)}>
-                      <SelectTrigger className="h-8 text-xs w-48">
-                        <SelectValue placeholder="All events" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">All events</SelectItem>
-                        {(analyticsSummary?.eventBreakdown ?? []).map((e) => (
-                          <SelectItem key={e.event} value={e.event}>
-                            {e.event}
-                          </SelectItem>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center rounded-md border overflow-hidden">
+                        {(["auto", "day", "week"] as const).map((g) => (
+                          <button
+                            key={g}
+                            onClick={() => setGranularityOverride(g)}
+                            className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                              granularityOverride === g
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-transparent text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {g === "auto" ? "Auto" : g === "day" ? "Day" : "Week"}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                      <Select value={trendEventFilter || "__all__"} onValueChange={(v) => setTrendEventFilter(v === "__all__" ? "" : v)}>
+                        <SelectTrigger className="h-8 text-xs w-48">
+                          <SelectValue placeholder="All events" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">All events</SelectItem>
+                          {(analyticsSummary?.eventBreakdown ?? []).map((e) => (
+                            <SelectItem key={e.event} value={e.event}>
+                              {e.event}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1361,12 +1405,16 @@ export default function Admin() {
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 11 }}
-                          tickFormatter={(v: string) => v.slice(5)}
+                          tickFormatter={(v: string) =>
+                            effectiveGranularity === "week" ? `W/o ${v.slice(5)}` : v.slice(5)
+                          }
                           interval="preserveStartEnd"
                         />
                         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                         <Tooltip
-                          labelFormatter={(label: string) => label}
+                          labelFormatter={(label: string) =>
+                            effectiveGranularity === "week" ? `Week of ${label}` : label
+                          }
                           formatter={(value: number) => [value, "Events"]}
                         />
                         <Bar dataKey="count" name="Events" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />

@@ -540,21 +540,26 @@ export default function Jobs() {
                 </span>
               ))}
               {selectedTags.length >= 2 && (
-                <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden">
-                  <button
-                    onClick={() => setTagLogic("and")}
-                    className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                    aria-pressed={tagLogic === "and"}
-                  >
-                    Match ALL
-                  </button>
-                  <button
-                    onClick={() => setTagLogic("or")}
-                    className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                    aria-pressed={tagLogic === "or"}
-                  >
-                    Match ANY
-                  </button>
+                <div className="inline-flex flex-col items-start gap-0.5">
+                  <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden">
+                    <button
+                      onClick={() => setTagLogic("and")}
+                      className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      aria-pressed={tagLogic === "and"}
+                    >
+                      Match ALL
+                    </button>
+                    <button
+                      onClick={() => setTagLogic("or")}
+                      className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      aria-pressed={tagLogic === "or"}
+                    >
+                      Match ANY
+                    </button>
+                  </div>
+                  <span className="text-xs text-muted-foreground pl-0.5">
+                    {tagLogic === "and" ? "Jobs must have all selected tags" : "Jobs can have any selected tag"}
+                  </span>
                 </div>
               )}
               {selectedTags.length > 1 && (

@@ -110,12 +110,13 @@ export default function ProfilePage() {
   };
 
   const isLoading = status === "pending";
+  const showOnboarding = isOnboarding || (status === "success" && profile === null);
 
   return (
     <PageLayout>
       <div className="max-w-2xl mx-auto px-4 py-10 w-full">
         <div className="mb-8">
-          {isOnboarding ? (
+          {showOnboarding ? (
             <>
               <h1 className="text-3xl font-bold text-foreground mb-2">
                 Let's get you set up
@@ -209,11 +210,11 @@ export default function ProfilePage() {
               <Button type="submit" disabled={saveMutation.isPending}>
                 {saveMutation.isPending
                   ? "Saving…"
-                  : isOnboarding
+                  : showOnboarding
                   ? "Save & browse jobs"
                   : "Save profile"}
               </Button>
-              {!isOnboarding && (
+              {!showOnboarding && (
                 <Button type="button" variant="ghost" onClick={() => navigate("/jobs")}>
                   Cancel
                 </Button>

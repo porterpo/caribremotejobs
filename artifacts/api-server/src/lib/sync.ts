@@ -80,6 +80,7 @@ async function syncRemotive(): Promise<SourceResult> {
     const { db, jobsTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
+    const seenSourceJobIds = new Set<string>();
 
     for (const job of data.jobs ?? []) {
       const location = job.candidate_required_location ?? "";
@@ -87,6 +88,7 @@ async function syncRemotive(): Promise<SourceResult> {
       if (!isInternationallyHiring(fullText)) { skipped++; continue; }
       if (!isCaribBean(location)) { skipped++; continue; }
       const sourceJobId = `remotive-${job.id}`;
+      seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
       await db.insert(jobsTable).values({
@@ -105,6 +107,8 @@ async function syncRemotive(): Promise<SourceResult> {
       });
       synced++;
     }
+
+    await db.delete(jobsTable).where(eq(jobsTable.source, "remotive")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Remotive");
@@ -119,6 +123,7 @@ async function syncWWR(): Promise<SourceResult> {
     const { db, jobsTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
+    const seenSourceJobIds = new Set<string>();
 
     for (const item of feed.items) {
       const title = item.title ?? "";
@@ -134,6 +139,7 @@ async function syncWWR(): Promise<SourceResult> {
       const cleanTitle = title.includes(":") ? title.split(":").slice(1).join(":").trim() : title;
       const companyName = title.includes(":") ? title.split(":")[0]?.trim() ?? "Unknown" : "Unknown";
       const sourceJobId = `wwr-${link.replace(/[^a-z0-9]/gi, "-")}`;
+      seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
 
@@ -151,6 +157,8 @@ async function syncWWR(): Promise<SourceResult> {
       });
       synced++;
     }
+
+    await db.delete(jobsTable).where(eq(jobsTable.source, "weworkremotely")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from We Work Remotely");
@@ -175,6 +183,7 @@ async function syncRemoteOK(): Promise<SourceResult> {
     const { db, jobsTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
+    const seenSourceJobIds = new Set<string>();
 
     for (const job of data) {
       if (!job.id || !job.position) continue; // skip the notice/metadata row
@@ -184,6 +193,7 @@ async function syncRemoteOK(): Promise<SourceResult> {
       if (!isCaribBean(location)) { skipped++; continue; }
 
       const sourceJobId = `remoteok-${job.id}`;
+      seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
 
@@ -207,6 +217,8 @@ async function syncRemoteOK(): Promise<SourceResult> {
       });
       synced++;
     }
+
+    await db.delete(jobsTable).where(eq(jobsTable.source, "remoteok")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Remote OK");
@@ -233,6 +245,7 @@ async function syncHimalayas(): Promise<SourceResult> {
     const { db, jobsTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
+    const seenSourceJobIds = new Set<string>();
 
     for (const job of data.jobs ?? []) {
       if (!job.guid || !job.title) continue;
@@ -244,6 +257,7 @@ async function syncHimalayas(): Promise<SourceResult> {
       if (restrictions.length > 0 && !isCaribBean(locationText)) { skipped++; continue; }
 
       const sourceJobId = `himalayas-${job.guid}`;
+      seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
 
@@ -269,6 +283,8 @@ async function syncHimalayas(): Promise<SourceResult> {
       });
       synced++;
     }
+
+    await db.delete(jobsTable).where(eq(jobsTable.source, "himalayas")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Himalayas");
@@ -290,6 +306,7 @@ async function syncWorkingNomads(): Promise<SourceResult> {
     const { db, jobsTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
+    const seenSourceJobIds = new Set<string>();
 
     for (const job of data) {
       if (!job.url || !job.title) continue;
@@ -299,6 +316,7 @@ async function syncWorkingNomads(): Promise<SourceResult> {
       if (!isCaribBean(location)) { skipped++; continue; }
 
       const sourceJobId = `workingnomads-${job.url.replace(/[^a-z0-9]/gi, "-")}`;
+      seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
 
@@ -318,6 +336,8 @@ async function syncWorkingNomads(): Promise<SourceResult> {
       });
       synced++;
     }
+
+    await db.delete(jobsTable).where(eq(jobsTable.source, "workingnomads")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Working Nomads");

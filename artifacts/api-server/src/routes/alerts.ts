@@ -5,6 +5,8 @@ import { CreateAlertBody, DeleteAlertParams, UnsubscribeAlertParams } from "@wor
 import { sendAlertConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/requireAuth";
+import { getAuth } from "@clerk/express";
+import { getSeekerSubscription } from "../lib/getSeekerSubscription";
 
 const router: IRouter = Router();
 
@@ -13,6 +15,17 @@ router.post("/alerts", async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
+  }
+
+  // Signed-in users must be Pro to create alerts
+  const auth = getAuth(req);
+  const clerkUserId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
+  if (clerkUserId) {
+    const sub = await getSeekerSubscription(clerkUserId);
+    if (!sub.isPro) {
+      res.status(403).json({ error: "Seeker Pro subscription required for job alerts" });
+      return;
+    }
   }
 
   // Check existing subscription

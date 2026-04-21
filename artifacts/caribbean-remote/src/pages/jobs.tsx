@@ -17,6 +17,10 @@ import { computeSkillMatch } from "@/lib/skill-match";
 
 const BASE = import.meta.env.BASE_URL;
 const SORT_PREF_KEY = "cr_sort_preference";
+const FILTER_CATEGORY_KEY = "cr_filter_category";
+const FILTER_JOB_TYPE_KEY = "cr_filter_job_type";
+const FILTER_ENTRY_LEVEL_KEY = "cr_filter_entry_level";
+const FILTER_FEATURED_KEY = "cr_filter_featured";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const PAGE_SIZE = 10;
@@ -34,16 +38,45 @@ export default function Jobs() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   
-  const initialCategory = searchParams.get("category") || "all";
-  const initialFeatured = searchParams.get("featured") === "true";
-  
+  const urlCategory = searchParams.get("category");
+  const urlFeatured = searchParams.get("featured");
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
-  
-  const [category, setCategory] = useState(initialCategory);
-  const [jobType, setJobType] = useState("all");
-  const [entryLevel, setEntryLevel] = useState(false);
-  const [featured, setFeatured] = useState(initialFeatured);
+
+  const [category, setCategory] = useState(() => {
+    if (urlCategory) return urlCategory;
+    try {
+      return localStorage.getItem(FILTER_CATEGORY_KEY) || "all";
+    } catch {
+      return "all";
+    }
+  });
+
+  const [jobType, setJobType] = useState(() => {
+    try {
+      return localStorage.getItem(FILTER_JOB_TYPE_KEY) || "all";
+    } catch {
+      return "all";
+    }
+  });
+
+  const [entryLevel, setEntryLevel] = useState(() => {
+    try {
+      return localStorage.getItem(FILTER_ENTRY_LEVEL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const [featured, setFeatured] = useState(() => {
+    if (urlFeatured !== null) return urlFeatured === "true";
+    try {
+      return localStorage.getItem(FILTER_FEATURED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [page, setPage] = useState(1);
   
   const [sortBy, setSortBy] = useState(() => {
@@ -130,6 +163,23 @@ export default function Jobs() {
     } catch {
     }
   }, [sortBy]);
+
+  // Persist filter preferences to localStorage
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_CATEGORY_KEY, category); } catch {}
+  }, [category]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_JOB_TYPE_KEY, jobType); } catch {}
+  }, [jobType]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_ENTRY_LEVEL_KEY, entryLevel ? "1" : "0"); } catch {}
+  }, [entryLevel]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_FEATURED_KEY, featured ? "1" : "0"); } catch {}
+  }, [featured]);
 
   // Reset to newest when skills disappear (persistence effect will save "newest")
   useEffect(() => {
@@ -385,6 +435,7 @@ export default function Jobs() {
                   setSearch("");
                   setCategory("all");
                   setJobType("all");
+                  setEntryLevel(false);
                   setFeatured(false);
                 }}
               >

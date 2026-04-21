@@ -291,7 +291,13 @@ export default function Jobs() {
         : jobsWithScores;
 
       if (isBestMatch) {
-        filtered.sort((a, b) => b.score - a.score);
+        filtered.sort((a, b) => {
+          const scoreDiff = b.score - a.score;
+          if (scoreDiff !== 0) return scoreDiff;
+          const dateA = a.job.createdAt ? new Date(a.job.createdAt).getTime() : 0;
+          const dateB = b.job.createdAt ? new Date(b.job.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
       }
 
       const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
@@ -582,15 +588,23 @@ export default function Jobs() {
           )}
 
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-            <h2 className="text-xl font-semibold">
-              {isLoading
-                ? needsAllJobs
-                  ? isBestMatch
-                    ? "Finding your best matches…"
-                    : "Filtering by skill match…"
-                  : "Loading jobs…"
-                : `${activeTotal} Jobs Found`}
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-semibold">
+                {isLoading
+                  ? needsAllJobs
+                    ? isBestMatch
+                      ? "Finding your best matches…"
+                      : "Filtering by skill match…"
+                    : "Loading jobs…"
+                  : `${activeTotal} Jobs Found`}
+              </h2>
+              {!isLoading && isBestMatch && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-2.5 py-1">
+                  <Sparkles className="h-3 w-3" />
+                  Sorted by best match
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2 shrink-0">
               <Label htmlFor="sort-by" className="text-sm text-muted-foreground whitespace-nowrap">Sort by</Label>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -600,7 +614,12 @@ export default function Jobs() {
                 <SelectContent>
                   <SelectItem value="newest">Newest first</SelectItem>
                   {hasSkills && (
-                    <SelectItem value="best-match">Best match</SelectItem>
+                    <SelectItem value="best-match">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Best match
+                      </span>
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>

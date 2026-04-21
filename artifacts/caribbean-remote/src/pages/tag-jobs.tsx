@@ -4,7 +4,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobs } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Tag, ArrowLeft } from "lucide-react";
+import { Briefcase, Tag, ArrowLeft, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -92,6 +92,24 @@ export default function TagJobs() {
 
   return (
     <PageLayout>
+      {!isSignedIn && (
+        <div className="bg-primary/5 border-b border-primary/10">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-foreground/80">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <span>Create a free account to apply for jobs and get personalised matches.</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/sign-in">
+                <Button variant="outline" size="sm">Sign in</Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button size="sm">Sign up free</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-8 md:py-12">
           <Link href="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">

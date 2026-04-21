@@ -250,9 +250,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/jobs">
               {() => <ProtectedRoute component={Jobs} />}
             </Route>
-            <Route path="/jobs/tag/:tagname">
-              {() => <ProtectedRoute component={TagJobs} />}
-            </Route>
+            <Route path="/jobs/tag/:tagname" component={TagJobs} />
             <Route path="/jobs/:id">
               {() => <ProtectedRoute component={JobDetail} />}
             </Route>

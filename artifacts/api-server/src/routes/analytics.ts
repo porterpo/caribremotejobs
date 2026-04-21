@@ -30,6 +30,7 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
 
 router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> => {
   const EVENT_NAME = "skills_nudge_clicked";
+  const SKILLS_ADDED_EVENT = "skills_added";
 
   const [totalRow] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -42,6 +43,11 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
     .where(
       sql`${analyticsEventsTable.event} = ${EVENT_NAME} and ${analyticsEventsTable.hasResume} = true`
     );
+
+  const [skillsAddedRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(analyticsEventsTable)
+    .where(eq(analyticsEventsTable.event, SKILLS_ADDED_EVENT));
 
   const perJob = await db
     .select({
@@ -62,6 +68,7 @@ router.get("/analytics/summary", requireAuth, async (_req, res): Promise<void> =
   res.json({
     totalClicks: totalRow?.count ?? 0,
     clicksWithResume: resumeRow?.count ?? 0,
+    skillsAdded: skillsAddedRow?.count ?? 0,
     topJobs: perJob,
   });
 });

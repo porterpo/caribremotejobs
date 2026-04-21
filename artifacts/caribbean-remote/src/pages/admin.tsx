@@ -176,6 +176,7 @@ export default function Admin() {
   interface AnalyticsSummary {
     totalClicks: number;
     clicksWithResume: number;
+    skillsAdded: number;
     topJobs: { jobId: number | null; jobTitle: string | null; companyName: string | null; clicks: number }[];
   }
 
@@ -1176,6 +1177,54 @@ export default function Admin() {
                   </CardContent>
                 </Card>
               </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Skills Completion Funnel</CardTitle>
+                  <CardDescription>Event totals comparing skills nudge clicks to skills_added completions. Conversion is calculated as skills_added events ÷ nudge click events.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center h-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                  ) : (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead className="text-right">Total events</TableHead>
+                            <TableHead className="text-right">Event conversion</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="font-medium">Nudge clicked</TableCell>
+                            <TableCell className="text-right font-mono">{analyticsSummary?.totalClicks ?? 0}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">—</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Skills added</TableCell>
+                            <TableCell className="text-right font-mono">{analyticsSummary?.skillsAdded ?? 0}</TableCell>
+                            <TableCell className="text-right">
+                              {analyticsSummary && analyticsSummary.totalClicks > 0 ? (
+                                <Badge className={
+                                  Math.round((analyticsSummary.skillsAdded / analyticsSummary.totalClicks) * 100) >= 50
+                                    ? "bg-green-100 text-green-800 border-0"
+                                    : "bg-amber-100 text-amber-800 border-0"
+                                }>
+                                  {Math.round((analyticsSummary.skillsAdded / analyticsSummary.totalClicks) * 100)}%
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">no data yet</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader>

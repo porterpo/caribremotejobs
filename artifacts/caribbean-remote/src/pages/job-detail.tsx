@@ -72,6 +72,14 @@ export function buildMailtoPreview(
     });
   }
 
+  if (resume?.education && resume.education.length > 0) {
+    lines.push(``);
+    lines.push(`Education:`);
+    resume.education.slice(0, 2).forEach((edu) => {
+      lines.push(`• ${edu.degree}, ${edu.institution} (${edu.graduationYear})`);
+    });
+  }
+
   const profileUrl =
     window.location.origin + BASE.replace(/\/$/, "") + "/resume";
   lines.push(``);

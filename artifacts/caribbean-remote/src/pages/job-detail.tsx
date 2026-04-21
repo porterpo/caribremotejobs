@@ -396,6 +396,20 @@ export default function JobDetail() {
   const jobId = parseInt(params?.id || "0", 10);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState<"idle" | "done" | "error">("idle");
+
+  function handleCopyLink() {
+    const canonicalUrl =
+      window.location.origin + BASE.replace(/\/$/, "") + `/jobs/${jobId}`;
+    navigator.clipboard.writeText(canonicalUrl).then(() => {
+      setLinkCopied("done");
+      setTimeout(() => setLinkCopied("idle"), 2000);
+    }).catch(() => {
+      setLinkCopied("error");
+      setTimeout(() => setLinkCopied("idle"), 2500);
+    });
+  }
+
   const { isSignedIn, user } = useUser();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
@@ -646,6 +660,29 @@ export default function JobDetail() {
                   Apply with Resume
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full text-muted-foreground"
+                onClick={handleCopyLink}
+              >
+                {linkCopied === "done" ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2 text-green-600" />
+                    <span className="text-green-600">Link copied!</span>
+                  </>
+                ) : linkCopied === "error" ? (
+                  <>
+                    <Copy className="h-4 w-4 mr-2 text-destructive" />
+                    <span className="text-destructive">Copy failed</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy link
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>

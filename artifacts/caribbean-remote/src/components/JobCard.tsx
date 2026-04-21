@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,6 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: JobCardProps) {
-  const [, navigate] = useLocation();
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
   const { isSignedIn } = useUser();
@@ -192,35 +191,47 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                       : isMatched
                       ? "Matches your resume"
                       : "Required skill";
+                    const badgeContent = (
+                      <Badge
+                        variant="secondary"
+                        className={
+                          isActive
+                            ? "group/tag bg-primary text-primary-foreground border border-primary text-xs px-2 py-0 cursor-pointer hover:bg-primary/80 transition-colors inline-flex items-center gap-1"
+                            : isMatched
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0 cursor-pointer hover:bg-emerald-200 transition-colors"
+                            : "bg-muted text-muted-foreground text-xs px-2 py-0 cursor-pointer hover:bg-muted/70 transition-colors"
+                        }
+                        {...(onTagClick
+                          ? {
+                              onClick: (e: React.MouseEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onTagClick(tag);
+                              },
+                            }
+                          : {})}
+                      >
+                        {tag}
+                        {isActive && onTagClick && (
+                          <X className="h-3 w-3 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0" />
+                        )}
+                      </Badge>
+                    );
                     return (
                       <SkillBadgeTooltip
                         key={`${tag}-${idx}`}
                         label={tooltipLabel}
                       >
-                        <Badge
-                          variant="secondary"
-                          className={
-                            isActive
-                              ? "group/tag bg-primary text-primary-foreground border border-primary text-xs px-2 py-0 cursor-pointer hover:bg-primary/80 transition-colors inline-flex items-center gap-1"
-                              : isMatched
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0 cursor-pointer hover:bg-emerald-200 transition-colors"
-                              : "bg-muted text-muted-foreground text-xs px-2 py-0 cursor-pointer hover:bg-muted/70 transition-colors"
-                          }
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (onTagClick) {
-                              onTagClick(tag);
-                            } else {
-                              navigate(`/jobs/tag/${encodeURIComponent(tag)}`);
-                            }
-                          }}
-                        >
-                          {tag}
-                          {isActive && onTagClick && (
-                            <X className="h-3 w-3 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0" />
-                          )}
-                        </Badge>
+                        {onTagClick ? (
+                          badgeContent
+                        ) : (
+                          <Link
+                            href={`/jobs/tag/${encodeURIComponent(tag)}`}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                          >
+                            {badgeContent}
+                          </Link>
+                        )}
                       </SkillBadgeTooltip>
                     );
                   })}

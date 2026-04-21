@@ -66,6 +66,15 @@ export function buildEnhancedMailto(
     lines.push(resume.skills.slice(0, 10).join(", "));
   }
 
+  if (resume?.experience && resume.experience.length > 0) {
+    lines.push(``);
+    lines.push(`Recent experience:`);
+    resume.experience.slice(0, 3).forEach((exp) => {
+      const end = exp.endDate ?? "Present";
+      lines.push(`• ${exp.title} at ${exp.company} (${exp.startDate} – ${end})`);
+    });
+  }
+
   const profileUrl =
     window.location.origin + BASE.replace(/\/$/, "") + "/resume";
   lines.push(``);

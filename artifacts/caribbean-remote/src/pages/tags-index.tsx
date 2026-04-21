@@ -1,17 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobTags } from "@workspace/api-client-react";
-import { Tag, ArrowLeft } from "lucide-react";
+import { Tag, ArrowLeft, ArrowDownAZ, TrendingDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
   "Explore all skill tags used across remote job listings on CaribbeanRemote. Click any tag to see matching remote jobs.";
 
+type SortOrder = "count" | "alpha";
+
 export default function TagsIndex() {
   const { data: tags, isLoading } = useListJobTags({ query: { staleTime: 60_000 } });
+  const [sortOrder, setSortOrder] = useState<SortOrder>("count");
 
   useEffect(() => {
     document.title = `${PAGE_TITLE} | CaribbeanRemote`;
@@ -26,6 +30,30 @@ export default function TagsIndex() {
       document.title = "CaribbeanRemote";
     };
   }, []);
+
+  const sortedTags = useMemo(() => {
+    if (!tags) return [];
+    if (sortOrder === "alpha") {
+      return [...tags].sort((a, b) => a.tag.localeCompare(b.tag, undefined, { sensitivity: "base" }));
+    }
+    return tags;
+  }, [tags, sortOrder]);
+
+  const alphaGroups = useMemo(() => {
+    if (sortOrder !== "alpha") return null;
+    const groups: Record<string, typeof sortedTags> = {};
+    for (const item of sortedTags) {
+      const letter = item.tag[0].toUpperCase();
+      const key = /^[A-Z]/.test(letter) ? letter : "#";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    }
+    return Object.entries(groups).sort(([a], [b]) => {
+      if (a === "#") return 1;
+      if (b === "#") return -1;
+      return a.localeCompare(b);
+    });
+  }, [sortOrder, sortedTags]);
 
   return (
     <PageLayout>
@@ -53,6 +81,30 @@ export default function TagsIndex() {
       </div>
 
       <div className="container mx-auto px-4 py-10">
+        {!isLoading && tags && tags.length > 0 && (
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-sm text-muted-foreground mr-1">Sort:</span>
+            <Button
+              variant={sortOrder === "count" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortOrder("count")}
+              className="gap-1.5"
+            >
+              <TrendingDown className="h-3.5 w-3.5" />
+              Most Jobs
+            </Button>
+            <Button
+              variant={sortOrder === "alpha" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSortOrder("alpha")}
+              className="gap-1.5"
+            >
+              <ArrowDownAZ className="h-3.5 w-3.5" />
+              A–Z
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-wrap gap-3">
             {Array.from({ length: 30 }).map((_, i) => (
@@ -60,19 +112,45 @@ export default function TagsIndex() {
             ))}
           </div>
         ) : tags && tags.length > 0 ? (
-          <div className="flex flex-wrap gap-3">
-            {tags.map(({ tag, count }) => (
-              <Link key={tag} href={`/jobs/tag/${encodeURIComponent(tag)}`}>
-                <Badge
-                  variant="secondary"
-                  className="cursor-pointer text-sm px-4 py-1.5 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
-                >
-                  {tag}
-                  <span className="ml-2 text-xs opacity-70">{count}</span>
-                </Badge>
-              </Link>
-            ))}
-          </div>
+          sortOrder === "alpha" && alphaGroups ? (
+            <div className="space-y-8">
+              {alphaGroups.map(([letter, items]) => (
+                <div key={letter}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-lg font-bold text-primary w-7 shrink-0">{letter}</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {items.map(({ tag, count }) => (
+                      <Link key={tag} href={`/jobs/tag/${encodeURIComponent(tag)}`}>
+                        <Badge
+                          variant="secondary"
+                          className="cursor-pointer text-sm px-4 py-1.5 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                        >
+                          {tag}
+                          <span className="ml-2 text-xs opacity-70">{count}</span>
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {sortedTags.map(({ tag, count }) => (
+                <Link key={tag} href={`/jobs/tag/${encodeURIComponent(tag)}`}>
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer text-sm px-4 py-1.5 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    {tag}
+                    <span className="ml-2 text-xs opacity-70">{count}</span>
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )
         ) : (
           <div className="text-center py-16 text-muted-foreground">
             No tags found yet. Check back once jobs have been posted.

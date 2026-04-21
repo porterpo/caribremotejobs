@@ -21,6 +21,7 @@ const FILTER_CATEGORY_KEY = "cr_filter_category";
 const FILTER_JOB_TYPE_KEY = "cr_filter_job_type";
 const FILTER_ENTRY_LEVEL_KEY = "cr_filter_entry_level";
 const FILTER_FEATURED_KEY = "cr_filter_featured";
+const FILTER_TAGS_KEY = "cr_filter_tags";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const PAGE_SIZE = 10;
@@ -80,7 +81,15 @@ export default function Jobs() {
       return false;
     }
   });
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => urlTags.length > 0 ? urlTags : []);
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (urlTags.length > 0) return urlTags;
+    try {
+      const stored = localStorage.getItem(FILTER_TAGS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
@@ -194,6 +203,10 @@ export default function Jobs() {
   useEffect(() => {
     try { localStorage.setItem(FILTER_FEATURED_KEY, featured ? "1" : "0"); } catch {}
   }, [featured]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_TAGS_KEY, JSON.stringify(selectedTags)); } catch {}
+  }, [selectedTags]);
 
   // Reset to newest when skills disappear (persistence effect will save "newest")
   useEffect(() => {

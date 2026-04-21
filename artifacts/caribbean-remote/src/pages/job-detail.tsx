@@ -59,6 +59,7 @@ function ApplyWithResumeDialog({
   const isLoading = status === "pending";
   const hasResume = status === "success" && resume !== null;
   const noResume = status === "success" && resume === null;
+  const hasError = status === "error";
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -77,6 +78,19 @@ function ApplyWithResumeDialog({
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-6 bg-muted rounded animate-pulse" />
             ))}
+          </div>
+        )}
+
+        {hasError && (
+          <div className="py-4 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Unable to load your resume. You can still apply directly.
+            </p>
+            <Button asChild onClick={onClose}>
+              <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+                Apply Now <ExternalLink className="h-4 w-4 ml-2" />
+              </a>
+            </Button>
           </div>
         )}
 

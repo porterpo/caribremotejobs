@@ -243,7 +243,7 @@ function ResumePreview({ form, displayName }: { form: FormState; displayName: st
   if (!hasContent) return null;
 
   return (
-    <div id="resume-print" className="border rounded-xl p-8 bg-white space-y-6 text-sm">
+    <div id="resume-print-region" className="border rounded-xl p-8 bg-white space-y-6 text-sm">
       <div className="border-b pb-4">
         <h2 className="text-2xl font-bold text-foreground">{displayName}</h2>
         <p className="text-xs text-muted-foreground mt-1">CaribbeanRemote Profile</p>
@@ -404,13 +404,17 @@ export default function ResumePage() {
     <>
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #resume-print-wrapper { display: block !important; }
+          body { visibility: hidden; }
+          #resume-print-region, #resume-print-region * { visibility: visible; }
+          #resume-print-region {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 2rem;
+          }
         }
       `}</style>
-      <div id="resume-print-wrapper" style={{ display: "none" }}>
-        <ResumePreview form={form} displayName={displayName} />
-      </div>
 
       <PageLayout>
         <div className="max-w-3xl mx-auto px-4 py-10 w-full">

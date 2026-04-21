@@ -157,6 +157,8 @@ function HomeRoute() {
   );
 }
 
+const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
@@ -170,6 +172,11 @@ function ClerkQueryClientCacheInvalidator() {
         prevUserIdRef.current !== userId
       ) {
         qc.clear();
+        try {
+          localStorage.removeItem(SKILLS_NUDGE_DISMISSED_KEY);
+        } catch {
+          // ignore
+        }
       }
       prevUserIdRef.current = userId;
     });

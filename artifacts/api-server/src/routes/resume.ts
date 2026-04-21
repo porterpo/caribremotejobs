@@ -281,7 +281,11 @@ router.post("/resume/share-token", requireAuth, async (req: Request, res): Promi
   const { userId } = req as AuthenticatedRequest;
 
   const rows = await db
-    .select({ shareToken: resumesTable.shareToken, uploadedResumePath: resumesTable.uploadedResumePath })
+    .select({
+      shareToken: resumesTable.shareToken,
+      uploadedResumePath: resumesTable.uploadedResumePath,
+      updatedAt: resumesTable.updatedAt,
+    })
     .from(resumesTable)
     .where(eq(resumesTable.clerkUserId, userId))
     .limit(1);
@@ -297,7 +301,7 @@ router.post("/resume/share-token", requireAuth, async (req: Request, res): Promi
   }
 
   if (rows[0].shareToken) {
-    res.json({ shareToken: rows[0].shareToken });
+    res.json({ shareToken: rows[0].shareToken, generatedAt: rows[0].updatedAt });
     return;
   }
 
@@ -308,7 +312,7 @@ router.post("/resume/share-token", requireAuth, async (req: Request, res): Promi
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
 
-  res.json({ shareToken: updated.shareToken });
+  res.json({ shareToken: updated.shareToken, generatedAt: updated.updatedAt });
 });
 
 router.delete("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {

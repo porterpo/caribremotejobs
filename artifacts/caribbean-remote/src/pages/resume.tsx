@@ -322,6 +322,7 @@ function ResumePreview({ form, displayName }: { form: FormState; displayName: st
 function UploadResumeTab({
   uploadedResumePath,
   shareToken,
+  shareTokenGeneratedAt,
   resumeExists,
   onUploaded,
   onRemoved,
@@ -329,10 +330,11 @@ function UploadResumeTab({
 }: {
   uploadedResumePath: string | null;
   shareToken: string | null;
+  shareTokenGeneratedAt: string | null;
   resumeExists: boolean;
   onUploaded: (path: string, savedResume: ResumeData) => void;
   onRemoved: () => void;
-  onShareTokenChange: (token: string | null) => void;
+  onShareTokenChange: (token: string | null, generatedAt?: string | null) => void;
 }) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
@@ -346,17 +348,25 @@ function UploadResumeTab({
   const shareUrl = shareToken
     ? `${window.location.origin}${BASE}api/resume/shared/${shareToken}`
     : null;
+  const shareGeneratedAt = shareTokenGeneratedAt ? new Date(shareTokenGeneratedAt) : null;
+  const shareGeneratedLabel = shareGeneratedAt && !Number.isNaN(shareGeneratedAt.getTime())
+    ? shareGeneratedAt.toLocaleString()
+    : null;
 
-  const handleGenerateShareLink = async () => {
+  const handleGenerateShareLink = async (rotate = false) => {
     setShareLoading(true);
     try {
+      if (rotate && shareToken) {
+        const revokeRes = await fetch(`${BASE}api/resume/share-token`, { method: "DELETE" });
+        if (!revokeRes.ok) throw new Error("Failed to rotate share link");
+      }
       const res = await fetch(`${BASE}api/resume/share-token`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Failed to generate share link");
       }
-      const { shareToken: token } = await res.json() as { shareToken: string };
-      onShareTokenChange(token);
+      const { shareToken: token, generatedAt } = await res.json() as { shareToken: string; generatedAt?: string };
+      onShareTokenChange(token, generatedAt ?? null);
       toast({ title: "Share link created", description: "Anyone with the link can view your resume PDF." });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Could not generate link.", variant: "destructive" });
@@ -370,7 +380,7 @@ function UploadResumeTab({
     try {
       const res = await fetch(`${BASE}api/resume/share-token`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to revoke share link");
-      onShareTokenChange(null);
+      onShareTokenChange(null, null);
       toast({ title: "Share link revoked", description: "The previous link is no longer accessible." });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Could not revoke link.", variant: "destructive" });
@@ -551,6 +561,11 @@ function UploadResumeTab({
               <p className="text-xs text-muted-foreground">
                 Anyone with this link can view your resume PDF. You can revoke it at any time.
               </p>
+              {shareGeneratedLabel && (
+                <p className="text-xs text-muted-foreground">
+                  Last generated: {shareGeneratedLabel}
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
@@ -579,6 +594,15 @@ function UploadResumeTab({
                   {shareLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Link2Off className="h-4 w-4 mr-1.5" />}
                   Revoke Link
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleGenerateShareLink(true)}
+                  disabled={shareLoading}
+                >
+                  {shareLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                  Rotate Link
+                </Button>
               </div>
             </>
           ) : (
@@ -589,7 +613,7 @@ function UploadResumeTab({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleGenerateShareLink}
+                onClick={() => handleGenerateShareLink(false)}
                 disabled={shareLoading}
               >
                 {shareLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Link2 className="h-4 w-4 mr-1.5" />}
@@ -797,6 +821,7 @@ export default function ResumePage() {
             <UploadResumeTab
               uploadedResumePath={uploadedResumePath}
               shareToken={shareToken}
+              shareTokenGeneratedAt={resume?.updatedAt ?? null}
               resumeExists={resume !== null && resume !== undefined}
               onUploaded={handleUploadedPath}
               onRemoved={handleRemovedUpload}

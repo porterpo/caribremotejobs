@@ -132,4 +132,35 @@ router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
+router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
+  const { dateFrom, dateTo } = req.query as { dateFrom?: string; dateTo?: string };
+
+  const dateConditions = [];
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (!isNaN(from.getTime())) {
+      dateConditions.push(gte(analyticsEventsTable.occurredAt, from));
+    }
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (!isNaN(to.getTime())) {
+      to.setUTCHours(23, 59, 59, 999);
+      dateConditions.push(lte(analyticsEventsTable.occurredAt, to));
+    }
+  }
+
+  const rows = await db
+    .select({
+      date: sql<string>`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(analyticsEventsTable)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+    .groupBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
+    .orderBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
+
+  res.json({ trend: rows });
+});
+
 export default router;

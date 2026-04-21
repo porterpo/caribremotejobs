@@ -22,6 +22,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState, useMemo } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 interface CertificationOrder {
   id: number;
@@ -241,6 +250,36 @@ export default function Admin() {
       return res.json();
     },
   });
+
+  const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { date: string; count: number }[] }>({
+    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (analyticsDateFrom) params.set("dateFrom", analyticsDateFrom);
+      if (analyticsDateTo) params.set("dateTo", analyticsDateTo);
+      const qs = params.toString();
+      const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/trend${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("Failed to fetch analytics trend");
+      return res.json();
+    },
+  });
+
+  const trendData = useMemo(() => {
+    const raw = analyticsTrend?.trend ?? [];
+    if (!raw.length) return raw;
+    if (!analyticsDateFrom || !analyticsDateTo) return raw;
+    const countByDate: Record<string, number> = {};
+    for (const row of raw) countByDate[row.date] = row.count;
+    const result: { date: string; count: number }[] = [];
+    const cursor = new Date(analyticsDateFrom + "T00:00:00Z");
+    const end = new Date(analyticsDateTo + "T00:00:00Z");
+    while (cursor <= end) {
+      const d = cursor.toISOString().slice(0, 10);
+      result.push({ date: d, count: countByDate[d] ?? 0 });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return result;
+  }, [analyticsTrend, analyticsDateFrom, analyticsDateTo]);
 
   const pricePerUnit = useMemo<Record<string, number>>(() => {
     if (!orderStats) return {};
@@ -1249,6 +1288,42 @@ export default function Admin() {
                       </p>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Events Over Time</CardTitle>
+                  <CardDescription className="text-xs">Total events per day in the selected range</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {trendLoading ? (
+                    <div className="flex items-center justify-center h-48">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !trendData.length ? (
+                    <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                      No data for the selected range
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={trendData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(v: string) => v.slice(5)}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          labelFormatter={(label: string) => label}
+                          formatter={(value: number) => [value, "Events"]}
+                        />
+                        <Bar dataKey="count" name="Events" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
 

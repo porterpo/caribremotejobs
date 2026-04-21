@@ -46,15 +46,27 @@ export default function Jobs() {
   const searchParams = new URLSearchParams(window.location.search);
   
   const urlCategory = searchParams.get("category");
+  const urlJobType = searchParams.get("jobType");
+  const urlEntryLevel = searchParams.get("entryLevel");
   const urlFeatured = searchParams.get("featured");
   const urlTags = searchParams.getAll("tag");
   const urlTagLogic = searchParams.get("tagLogic");
+
+  // If any filter param is present in the URL, treat the URL as the sole
+  // source of truth for ALL filter state so shared links are deterministic.
+  const hasUrlFilters =
+    urlCategory !== null ||
+    urlJobType !== null ||
+    urlEntryLevel !== null ||
+    urlFeatured !== null ||
+    urlTags.length > 0;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
 
   const [category, setCategory] = useState(() => {
     if (urlCategory) return urlCategory;
+    if (hasUrlFilters) return "all";
     try {
       return localStorage.getItem(FILTER_CATEGORY_KEY) || "all";
     } catch {
@@ -63,6 +75,8 @@ export default function Jobs() {
   });
 
   const [jobType, setJobType] = useState(() => {
+    if (urlJobType) return urlJobType;
+    if (hasUrlFilters) return "all";
     try {
       return localStorage.getItem(FILTER_JOB_TYPE_KEY) || "all";
     } catch {
@@ -71,6 +85,8 @@ export default function Jobs() {
   });
 
   const [entryLevel, setEntryLevel] = useState(() => {
+    if (urlEntryLevel !== null) return urlEntryLevel === "true";
+    if (hasUrlFilters) return false;
     try {
       return localStorage.getItem(FILTER_ENTRY_LEVEL_KEY) === "1";
     } catch {
@@ -80,6 +96,7 @@ export default function Jobs() {
 
   const [featured, setFeatured] = useState(() => {
     if (urlFeatured !== null) return urlFeatured === "true";
+    if (hasUrlFilters) return false;
     try {
       return localStorage.getItem(FILTER_FEATURED_KEY) === "1";
     } catch {
@@ -88,6 +105,7 @@ export default function Jobs() {
   });
   const [selectedTags, setSelectedTags] = useState<string[]>(() => {
     if (urlTags.length > 0) return urlTags;
+    if (hasUrlFilters) return [];
     try {
       const stored = localStorage.getItem(FILTER_TAGS_KEY);
       return stored ? JSON.parse(stored) : [];
@@ -99,6 +117,7 @@ export default function Jobs() {
   const [tagLogic, setTagLogic] = useState<"and" | "or">(() => {
     if (urlTagLogic === "or") return "or";
     if (urlTagLogic === "and") return "and";
+    if (hasUrlFilters) return "and";
     try {
       const stored = localStorage.getItem(FILTER_TAG_LOGIC_KEY);
       return stored === "or" ? "or" : "and";
@@ -250,9 +269,34 @@ export default function Jobs() {
     try { localStorage.setItem(FILTER_TAG_LOGIC_KEY, tagLogic); } catch {}
   }, [tagLogic]);
 
-  // Sync selectedTags and tagLogic to the URL so filter state is shareable
+  // Sync all active filters to the URL so filter state is shareable
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    if (category !== "all") {
+      params.set("category", category);
+    } else {
+      params.delete("category");
+    }
+
+    if (jobType !== "all") {
+      params.set("jobType", jobType);
+    } else {
+      params.delete("jobType");
+    }
+
+    if (entryLevel) {
+      params.set("entryLevel", "true");
+    } else {
+      params.delete("entryLevel");
+    }
+
+    if (featured) {
+      params.set("featured", "true");
+    } else {
+      params.delete("featured");
+    }
+
     params.delete("tag");
     selectedTags.forEach((t) => params.append("tag", t));
     if (selectedTags.length >= 2 && tagLogic === "or") {
@@ -260,12 +304,13 @@ export default function Jobs() {
     } else {
       params.delete("tagLogic");
     }
+
     const newSearch = params.toString();
     const newUrl = newSearch
       ? `${window.location.pathname}?${newSearch}`
       : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [selectedTags, tagLogic]);
+  }, [category, jobType, entryLevel, featured, selectedTags, tagLogic]);
 
   useEffect(() => {
     try { localStorage.setItem(FILTER_MIN_MATCH_KEY, String(minMatch)); } catch {}

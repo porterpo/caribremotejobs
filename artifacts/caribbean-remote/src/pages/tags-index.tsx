@@ -11,11 +11,21 @@ const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
   "Explore all skill tags used across remote job listings on CaribbeanRemote. Click any tag to see matching remote jobs.";
 
+const LS_KEY = "tagsSortOrder";
+
 type SortOrder = "count" | "alpha";
+
+function readStoredSort(): SortOrder {
+  try {
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored === "alpha" || stored === "count") return stored;
+  } catch {}
+  return "count";
+}
 
 export default function TagsIndex() {
   const { data: tags, isLoading } = useListJobTags({ query: { staleTime: 60_000 } });
-  const [sortOrder, setSortOrder] = useState<SortOrder>("count");
+  const [sortOrder, setSortOrder] = useState<SortOrder>(readStoredSort);
 
   useEffect(() => {
     document.title = `${PAGE_TITLE} | CaribbeanRemote`;
@@ -87,7 +97,7 @@ export default function TagsIndex() {
             <Button
               variant={sortOrder === "count" ? "default" : "outline"}
               size="sm"
-              onClick={() => setSortOrder("count")}
+              onClick={() => { setSortOrder("count"); try { localStorage.setItem(LS_KEY, "count"); } catch {} }}
               className="gap-1.5"
             >
               <TrendingDown className="h-3.5 w-3.5" />
@@ -96,7 +106,7 @@ export default function TagsIndex() {
             <Button
               variant={sortOrder === "alpha" ? "default" : "outline"}
               size="sm"
-              onClick={() => setSortOrder("alpha")}
+              onClick={() => { setSortOrder("alpha"); try { localStorage.setItem(LS_KEY, "alpha"); } catch {} }}
               className="gap-1.5"
             >
               <ArrowDownAZ className="h-3.5 w-3.5" />

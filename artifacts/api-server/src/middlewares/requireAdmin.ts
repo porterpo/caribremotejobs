@@ -9,8 +9,7 @@ const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS ?? "")
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (ADMIN_USER_IDS.length === 0) {
-    logger.warn("ADMIN_USER_IDS is not configured — admin action gated only by authentication");
-    next();
+    res.status(403).json({ error: "Forbidden: ADMIN_USER_IDS is not configured on this server" });
     return;
   }
 

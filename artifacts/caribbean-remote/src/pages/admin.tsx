@@ -52,6 +52,7 @@ interface AdminCompany {
   website: string | null;
   description: string | null;
   verifiedEmployer: boolean;
+  hasViolation: boolean;
   caribbeanFriendly: boolean;
   createdAt: string;
   eligibility: {
@@ -211,6 +212,32 @@ export default function Admin() {
       refetchAdminCompanies();
     },
     onError: () => toast({ title: "Failed to revoke badge", variant: "destructive" }),
+  });
+
+  const flagViolation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/flag-violation`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to flag violation");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Company flagged for policy violation" });
+      refetchAdminCompanies();
+    },
+    onError: () => toast({ title: "Failed to flag violation", variant: "destructive" }),
+  });
+
+  const clearViolation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/companies/${id}/clear-violation`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to clear violation");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Company violation flag cleared" });
+      refetchAdminCompanies();
+    },
+    onError: () => toast({ title: "Failed to clear violation", variant: "destructive" }),
   });
 
   const pendingVerificationCount = adminCompanies?.filter(c => c.eligibility.eligible && !c.verifiedEmployer).length ?? 0;
@@ -1192,7 +1219,7 @@ export default function Admin() {
                       ) : (
                         adminCompanies?.map((company) => {
                           const { criteria, eligible } = company.eligibility;
-                          const isMutating = grantVerified.isPending || revokeVerified.isPending;
+                          const isMutating = grantVerified.isPending || revokeVerified.isPending || flagViolation.isPending || clearViolation.isPending;
                           const isIneligible = !eligible && !company.verifiedEmployer;
                           return (
                             <TableRow key={company.id} className={company.verifiedEmployer ? "bg-blue-50/40" : isIneligible ? "opacity-50" : ""}>
@@ -1276,22 +1303,45 @@ export default function Admin() {
                                 </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-center">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      {criteria.noViolations ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-700 mx-auto cursor-default" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600 mx-auto cursor-default" />
-                                      )}
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {criteria.noViolations
-                                        ? "No policy violations detected ✓"
-                                        : "Has listings not approved after 72h (possible policy violation)"}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        {criteria.noViolations ? (
+                                          <CheckCircle2 className="h-4 w-4 text-green-700 cursor-default" />
+                                        ) : (
+                                          <XCircle className="h-4 w-4 text-red-600 cursor-default" />
+                                        )}
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        {criteria.noViolations
+                                          ? "No policy violations recorded ✓"
+                                          : "Flagged for policy violation by admin"}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  {company.hasViolation ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-1.5 text-xs text-green-700 hover:text-green-900"
+                                      disabled={isMutating}
+                                      onClick={() => clearViolation.mutate(company.id)}
+                                    >
+                                      Clear
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-1.5 text-xs text-red-600 hover:text-red-800"
+                                      disabled={isMutating}
+                                      onClick={() => flagViolation.mutate(company.id)}
+                                    >
+                                      Flag
+                                    </Button>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="text-center">
                                 {company.verifiedEmployer ? (

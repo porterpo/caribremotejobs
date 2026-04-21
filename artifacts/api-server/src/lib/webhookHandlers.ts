@@ -1,6 +1,6 @@
 import { getStripeSync } from "./stripeClient";
 import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
-import { eq, ne, and } from "drizzle-orm";
+import { eq, ne, and, or } from "drizzle-orm";
 import { sendOrderConfirmation } from "./resend";
 import { logger } from "./logger";
 
@@ -107,14 +107,27 @@ export class WebhookHandlers {
       eventType === "customer.subscription.created"
     ) {
       const subMetadata = ((eventObj?.metadata ?? {}) as Record<string, string>);
-      const clerkUserId = subMetadata?.clerkUserId;
+      let clerkUserId = subMetadata?.clerkUserId;
+      const customerId = eventObj?.customer as string | undefined;
+      const subscriptionId = eventObj?.id as string | undefined;
+
+      // Fallback: look up clerkUserId via stored subscription/customer IDs when metadata is absent
+      if (!clerkUserId && (subscriptionId || customerId)) {
+        const conditions = [];
+        if (subscriptionId) conditions.push(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
+        if (customerId) conditions.push(eq(seekerSubscriptionsTable.stripeCustomerId, customerId));
+        const [existing] = await db
+          .select({ clerkUserId: seekerSubscriptionsTable.clerkUserId })
+          .from(seekerSubscriptionsTable)
+          .where(or(...conditions));
+        clerkUserId = existing?.clerkUserId;
+      }
+
       if (clerkUserId) {
         const status = (eventObj?.status as string) ?? "none";
         const currentPeriodEnd = eventObj?.current_period_end
           ? new Date((eventObj.current_period_end as number) * 1000)
           : null;
-        const customerId = eventObj?.customer as string | undefined;
-        const subscriptionId = eventObj?.id as string | undefined;
 
         await db
           .insert(seekerSubscriptionsTable)
@@ -141,7 +154,22 @@ export class WebhookHandlers {
 
     if (eventType === "customer.subscription.deleted") {
       const subMetadata = ((eventObj?.metadata ?? {}) as Record<string, string>);
-      const clerkUserId = subMetadata?.clerkUserId;
+      let clerkUserId = subMetadata?.clerkUserId;
+      const customerId = eventObj?.customer as string | undefined;
+      const subscriptionId = eventObj?.id as string | undefined;
+
+      // Fallback: look up clerkUserId via stored subscription/customer IDs when metadata is absent
+      if (!clerkUserId && (subscriptionId || customerId)) {
+        const conditions = [];
+        if (subscriptionId) conditions.push(eq(seekerSubscriptionsTable.stripeSubscriptionId, subscriptionId));
+        if (customerId) conditions.push(eq(seekerSubscriptionsTable.stripeCustomerId, customerId));
+        const [existing] = await db
+          .select({ clerkUserId: seekerSubscriptionsTable.clerkUserId })
+          .from(seekerSubscriptionsTable)
+          .where(or(...conditions));
+        clerkUserId = existing?.clerkUserId;
+      }
+
       if (clerkUserId) {
         await db
           .update(seekerSubscriptionsTable)

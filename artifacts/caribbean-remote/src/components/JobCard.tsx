@@ -13,7 +13,7 @@ import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 
 const LONG_PRESS_MS = 500;
 
-function SkillBadgeTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+function SkillBadgeTooltip({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -109,6 +109,17 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
     visibleTags = promoted;
   }
   const overflowCount = allTags.length - visibleTags.length;
+  // Use index-based tracking so duplicate tag values are handled correctly
+  const hiddenTagIndices = new Set(allTags.map((_, i) => i));
+  for (const vTag of visibleTags) {
+    for (const [i, t] of allTags.entries()) {
+      if (t === vTag && hiddenTagIndices.has(i)) {
+        hiddenTagIndices.delete(i);
+        break;
+      }
+    }
+  }
+  const hiddenTags = allTags.filter((_, i) => hiddenTagIndices.has(i));
 
   return (
     <Card className={`group relative transition-all duration-300 hover:shadow-md ${
@@ -236,9 +247,36 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                     );
                   })}
                   {overflowCount > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      +{overflowCount} more
-                    </span>
+                    <SkillBadgeTooltip
+                      label={
+                        <div className="flex flex-col gap-1 max-w-[220px]">
+                          {hiddenTags.map((tag, i) => {
+                            const isMatched = matchedSet.has(tag.toLowerCase());
+                            return (
+                              <span
+                                key={`${tag}-${i}`}
+                                className={
+                                  isMatched
+                                    ? "text-emerald-400 font-medium flex items-center gap-1"
+                                    : "text-muted-foreground"
+                                }
+                              >
+                                {tag}
+                                {isMatched && (
+                                  <span className="text-[10px] font-normal opacity-80">
+                                    ✓ matches resume
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      }
+                    >
+                      <span className="text-xs text-muted-foreground cursor-default select-none">
+                        +{overflowCount} more
+                      </span>
+                    </SkillBadgeTooltip>
                   )}
                 </div>
               </TooltipProvider>

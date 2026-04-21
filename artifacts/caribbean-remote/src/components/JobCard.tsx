@@ -187,8 +187,11 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (onTagClick) onTagClick(tag);
-                            navigate(`/jobs/tag/${encodeURIComponent(tag)}`);
+                            if (onTagClick) {
+                              onTagClick(tag);
+                            } else {
+                              navigate(`/jobs/tag/${encodeURIComponent(tag)}`);
+                            }
                           }}
                         >
                           {tag}

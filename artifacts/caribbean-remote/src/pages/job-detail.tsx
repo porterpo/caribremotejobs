@@ -11,6 +11,7 @@ import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
@@ -627,23 +628,32 @@ export default function JobDetail() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {job.tags.split(',').map(tag => {
-                    const isMatched = skillMatch?.matchedSkills.includes(tag.trim());
-                    return (
-                      <Link
-                        key={tag}
-                        href={`/jobs/tag/${encodeURIComponent(tag.trim())}`}
-                        className="no-underline"
-                      >
-                        <Badge
-                          variant="secondary"
-                          className={`font-normal text-sm px-3 py-1 cursor-pointer transition-colors ${isMatched ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-200" : "hover:bg-muted/70"}`}
-                        >
-                          {tag.trim()}
-                        </Badge>
-                      </Link>
-                    );
-                  })}
+                  <TooltipProvider>
+                    {job.tags.split(',').map(tag => {
+                      const isMatched = skillMatch?.matchedSkills.includes(tag.trim());
+                      const tooltipText = isMatched ? "Matches your resume" : "Required skill";
+                      return (
+                        <Tooltip key={tag}>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`/jobs/tag/${encodeURIComponent(tag.trim())}`}
+                              className="no-underline"
+                            >
+                              <Badge
+                                variant="secondary"
+                                className={`font-normal text-sm px-3 py-1 cursor-pointer transition-colors ${isMatched ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-200" : "hover:bg-muted/70"}`}
+                              >
+                                {tag.trim()}
+                              </Badge>
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            {tooltipText}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </TooltipProvider>
                 </div>
                 {skillMatch && (
                   <p className="text-xs text-muted-foreground mt-2">

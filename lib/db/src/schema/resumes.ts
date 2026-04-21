@@ -28,6 +28,7 @@ export const resumesTable = pgTable("resumes", {
   education: jsonb("education").$type<EducationEntry[]>().default([]),
   skills: text("skills").array().default([]),
   uploadedResumePath: text("uploaded_resume_path"),
+  shareToken: text("share_token").unique(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

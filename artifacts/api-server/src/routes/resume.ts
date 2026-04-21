@@ -5,6 +5,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { getObjectAclPolicy, setObjectAclPolicy, ObjectPermission } from "../lib/objectAcl";
 import { Readable } from "stream";
+import { randomBytes } from "crypto";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -127,7 +128,7 @@ router.delete("/resume/upload", requireAuth, async (req: Request, res): Promise<
   const existingPath = rows[0].uploadedResumePath;
   const [updated] = await db
     .update(resumesTable)
-    .set({ uploadedResumePath: null, updatedAt: new Date() })
+    .set({ uploadedResumePath: null, shareToken: null, updatedAt: new Date() })
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
   if (!updated) {
@@ -272,6 +273,106 @@ router.get("/resume/pdf/:objectId", requireAuth, async (req: Request, res): Prom
       return;
     }
     req.log.error({ err: error }, "Error serving resume PDF");
+    res.status(500).json({ error: "Failed to serve resume PDF" });
+  }
+});
+
+router.post("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {
+  const { userId } = req as AuthenticatedRequest;
+
+  const rows = await db
+    .select({ shareToken: resumesTable.shareToken, uploadedResumePath: resumesTable.uploadedResumePath })
+    .from(resumesTable)
+    .where(eq(resumesTable.clerkUserId, userId))
+    .limit(1);
+
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Resume not found" });
+    return;
+  }
+
+  if (!rows[0].uploadedResumePath) {
+    res.status(422).json({ error: "No uploaded PDF resume to share" });
+    return;
+  }
+
+  if (rows[0].shareToken) {
+    res.json({ shareToken: rows[0].shareToken });
+    return;
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const [updated] = await db
+    .update(resumesTable)
+    .set({ shareToken: token })
+    .where(eq(resumesTable.clerkUserId, userId))
+    .returning();
+
+  res.json({ shareToken: updated.shareToken });
+});
+
+router.delete("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {
+  const { userId } = req as AuthenticatedRequest;
+
+  const [updated] = await db
+    .update(resumesTable)
+    .set({ shareToken: null })
+    .where(eq(resumesTable.clerkUserId, userId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Resume not found" });
+    return;
+  }
+
+  res.json({ ok: true });
+});
+
+router.get("/resume/shared/:token", async (req: Request, res): Promise<void> => {
+  const token = String(req.params["token"] ?? "");
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) {
+    res.status(400).json({ error: "Invalid token" });
+    return;
+  }
+
+  const rows = await db
+    .select({ uploadedResumePath: resumesTable.uploadedResumePath, clerkUserId: resumesTable.clerkUserId })
+    .from(resumesTable)
+    .where(eq(resumesTable.shareToken, token))
+    .limit(1);
+
+  if (rows.length === 0 || !rows[0].uploadedResumePath) {
+    res.status(404).json({ error: "Resume not found or link has been revoked" });
+    return;
+  }
+
+  const objectId = rows[0].uploadedResumePath.split("/").pop()!;
+
+  try {
+    const objectPath = `/objects/uploads/${objectId}`;
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const response = await objectStorageService.downloadObject(objectFile);
+
+    res.setHeader("Content-Disposition", `inline; filename="resume.pdf"`);
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "content-disposition") {
+        res.setHeader(key, value);
+      }
+    });
+
+    if (response.body) {
+      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "PDF not found" });
+      return;
+    }
+    req.log.error({ err: error }, "Error serving shared resume PDF");
     res.status(500).json({ error: "Failed to serve resume PDF" });
   }
 });

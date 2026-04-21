@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -40,6 +40,7 @@ interface ResumeData {
   education: EducationEntry[] | null;
   skills: string[] | null;
   uploadedResumePath: string | null;
+  shareToken: string | null;
   updatedAt: string;
 }
 
@@ -320,21 +321,74 @@ function ResumePreview({ form, displayName }: { form: FormState; displayName: st
 
 function UploadResumeTab({
   uploadedResumePath,
+  shareToken,
   resumeExists,
   onUploaded,
   onRemoved,
+  onShareTokenChange,
 }: {
   uploadedResumePath: string | null;
+  shareToken: string | null;
   resumeExists: boolean;
   onUploaded: (path: string, savedResume: ResumeData) => void;
   onRemoved: () => void;
+  onShareTokenChange: (token: string | null) => void;
 }) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const objectId = uploadedResumePath ? uploadedResumePath.split("/").pop() : null;
   const previewUrl = objectId ? `${BASE}api/resume/pdf/${objectId}` : null;
+
+  const shareUrl = shareToken
+    ? `${window.location.origin}${BASE}api/resume/shared/${shareToken}`
+    : null;
+
+  const handleGenerateShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const res = await fetch(`${BASE}api/resume/share-token`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Failed to generate share link");
+      }
+      const { shareToken: token } = await res.json() as { shareToken: string };
+      onShareTokenChange(token);
+      toast({ title: "Share link created", description: "Anyone with the link can view your resume PDF." });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Could not generate link.", variant: "destructive" });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRevokeShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const res = await fetch(`${BASE}api/resume/share-token`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to revoke share link");
+      onShareTokenChange(null);
+      toast({ title: "Share link revoked", description: "The previous link is no longer accessible." });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Could not revoke link.", variant: "destructive" });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Could not copy", description: "Please copy the link manually.", variant: "destructive" });
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -486,6 +540,66 @@ function UploadResumeTab({
         disabled={uploading}
       />
 
+      {uploadedResumePath && (
+        <div className="border rounded-xl p-6 bg-card space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Link2 className="h-4 w-4 text-primary shrink-0" />
+            <p className="font-semibold text-sm">Shareable Resume Link</p>
+          </div>
+          {shareUrl ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Anyone with this link can view your resume PDF. You can revoke it at any time.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={shareUrl}
+                  className="text-xs font-mono bg-muted"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <Button variant="outline" size="sm" onClick={handleCopy} className="shrink-0">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  <span className="ml-1.5">{copied ? "Copied" : "Copy"}</span>
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <a href={shareUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1.5" /> Open Link
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleRevokeShareLink}
+                  disabled={shareLoading}
+                >
+                  {shareLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Link2Off className="h-4 w-4 mr-1.5" />}
+                  Revoke Link
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Generate a permanent link to share your resume PDF with employers without it expiring.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateShareLink}
+                disabled={shareLoading}
+              >
+                {shareLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+                Generate Share Link
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
         Your PDF is stored securely and only you can access it. When you apply for a job, a download
         link will be included in the application email so employers can view your resume.
@@ -586,12 +700,19 @@ export default function ResumePage() {
 
   const handleRemovedUpload = () => {
     queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
-      old ? { ...old, uploadedResumePath: null } : old
+      old ? { ...old, uploadedResumePath: null, shareToken: null } : old
+    );
+  };
+
+  const handleShareTokenChange = (token: string | null) => {
+    queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
+      old ? { ...old, shareToken: token } : old
     );
   };
 
   const isLoading = status === "pending";
   const uploadedResumePath = resume?.uploadedResumePath ?? null;
+  const shareToken = resume?.shareToken ?? null;
 
   const displayName =
     (queryClient.getQueryData(["profile", "me"]) as { displayName?: string } | null)
@@ -675,9 +796,11 @@ export default function ResumePage() {
           ) : activeTab === "upload" ? (
             <UploadResumeTab
               uploadedResumePath={uploadedResumePath}
+              shareToken={shareToken}
               resumeExists={resume !== null && resume !== undefined}
               onUploaded={handleUploadedPath}
               onRemoved={handleRemovedUpload}
+              onShareTokenChange={handleShareTokenChange}
             />
           ) : (
             <form onSubmit={handleSubmit} className="space-y-10">

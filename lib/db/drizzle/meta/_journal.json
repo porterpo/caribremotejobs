@@ -57,6 +57,13 @@
       "when": 1745611420000,
       "tag": "0007_add_uploaded_resume_path",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1745700000000,
+      "tag": "0008_add_resume_share_token",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import Parser from "rss-parser";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 
 const EXCLUDED_PATTERNS = [
@@ -63,6 +64,18 @@ export interface SyncResult {
 
 type SourceResult = { synced: number; skipped: number; error: boolean };
 
+async function deleteMissingSourceJobs(source: string, seenSourceJobIds: string[]): Promise<void> {
+  const { db, jobsTable } = await import("@workspace/db");
+  const conditions = [eq(jobsTable.source, source)];
+  if (seenSourceJobIds.length === 0) {
+    conditions.push(sql`${jobsTable.sourceJobId} is not null`);
+  } else {
+    conditions.push(sql`${jobsTable.sourceJobId} is not null`);
+    conditions.push(sql`${jobsTable.sourceJobId} not in (${sql.join(seenSourceJobIds.map((id) => sql`${id}`), sql`, `)})`);
+  }
+  await db.delete(jobsTable).where(and(...conditions));
+}
+
 async function syncRemotive(): Promise<SourceResult> {
   try {
     const response = await fetch("https://remotive.com/api/remote-jobs?limit=50");
@@ -78,7 +91,6 @@ async function syncRemotive(): Promise<SourceResult> {
     };
 
     const { db, jobsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
     const seenSourceJobIds = new Set<string>();
 
@@ -108,7 +120,7 @@ async function syncRemotive(): Promise<SourceResult> {
       synced++;
     }
 
-    await db.delete(jobsTable).where(eq(jobsTable.source, "remotive")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
+    await deleteMissingSourceJobs("remotive", Array.from(seenSourceJobIds));
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Remotive");
@@ -121,7 +133,6 @@ async function syncWWR(): Promise<SourceResult> {
     const parser = new Parser({ customFields: { item: ["region", "type", "category", "skills"] } });
     const feed = await parser.parseURL("https://weworkremotely.com/remote-jobs.rss");
     const { db, jobsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
     const seenSourceJobIds = new Set<string>();
 
@@ -158,7 +169,7 @@ async function syncWWR(): Promise<SourceResult> {
       synced++;
     }
 
-    await db.delete(jobsTable).where(eq(jobsTable.source, "weworkremotely")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
+    await deleteMissingSourceJobs("weworkremotely", Array.from(seenSourceJobIds));
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from We Work Remotely");
@@ -181,7 +192,6 @@ async function syncRemoteOK(): Promise<SourceResult> {
     }>;
 
     const { db, jobsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
     const seenSourceJobIds = new Set<string>();
 
@@ -218,7 +228,7 @@ async function syncRemoteOK(): Promise<SourceResult> {
       synced++;
     }
 
-    await db.delete(jobsTable).where(eq(jobsTable.source, "remoteok")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
+    await deleteMissingSourceJobs("remoteok", Array.from(seenSourceJobIds));
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Remote OK");
@@ -243,7 +253,6 @@ async function syncHimalayas(): Promise<SourceResult> {
     };
 
     const { db, jobsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
     const seenSourceJobIds = new Set<string>();
 
@@ -284,7 +293,7 @@ async function syncHimalayas(): Promise<SourceResult> {
       synced++;
     }
 
-    await db.delete(jobsTable).where(eq(jobsTable.source, "himalayas")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
+    await deleteMissingSourceJobs("himalayas", Array.from(seenSourceJobIds));
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Himalayas");
@@ -304,7 +313,6 @@ async function syncWorkingNomads(): Promise<SourceResult> {
     }>;
 
     const { db, jobsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
     let synced = 0, skipped = 0;
     const seenSourceJobIds = new Set<string>();
 
@@ -337,7 +345,7 @@ async function syncWorkingNomads(): Promise<SourceResult> {
       synced++;
     }
 
-    await db.delete(jobsTable).where(eq(jobsTable.source, "workingnomads")).where(sql`${jobsTable.sourceJobId} is not null and ${jobsTable.sourceJobId} not in (${Array.from(seenSourceJobIds).map((id) => sql`${id}`)})`);
+    await deleteMissingSourceJobs("workingnomads", Array.from(seenSourceJobIds));
     return { synced, skipped, error: false };
   } catch (err) {
     logger.error({ err }, "Error syncing from Working Nomads");

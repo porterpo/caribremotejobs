@@ -23,8 +23,10 @@ const FILTER_ENTRY_LEVEL_KEY = "cr_filter_entry_level";
 const FILTER_FEATURED_KEY = "cr_filter_featured";
 const FILTER_TAGS_KEY = "cr_filter_tags";
 const FILTER_TAG_LOGIC_KEY = "cr_filter_tag_logic";
+const FILTER_MIN_MATCH_KEY = "cr_filter_min_match";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
+const ALLOWED_MIN_MATCH_VALUES = [0, 25, 50, 75] as const;
 const PAGE_SIZE = 10;
 const JOBS_STALE_TIME_MS = 60_000;
 const BEST_MATCH_FETCH_LIMIT = 9999;
@@ -120,6 +122,15 @@ export default function Jobs() {
     }
   });
 
+  const [minMatch, setMinMatch] = useState<number>(() => {
+    try {
+      const stored = parseInt(localStorage.getItem(FILTER_MIN_MATCH_KEY) ?? "0", 10);
+      return (ALLOWED_MIN_MATCH_VALUES as readonly number[]).includes(stored) ? stored : 0;
+    } catch {
+      return 0;
+    }
+  });
+
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
 
@@ -171,24 +182,25 @@ export default function Jobs() {
   };
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
+  const needsAllJobs = hasSkills && (isBestMatch || minMatch > 0);
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
-    query: { enabled: !isBestMatch, staleTime: JOBS_STALE_TIME_MS },
+    query: { enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: BEST_MATCH_FETCH_LIMIT };
-  const { data: allJobsResponse, isLoading: isLoadingBestMatch, isError: isBestMatchError } = useListJobs(allJobsQueryParams, {
-    query: { enabled: isBestMatch, staleTime: JOBS_STALE_TIME_MS },
+  const { data: allJobsResponse, isLoading: isLoadingAllJobs, isError: isAllJobsError } = useListJobs(allJobsQueryParams, {
+    query: { enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
-  const isLoading = isBestMatch
-    ? !isBestMatchError && (isLoadingBestMatch || allJobsResponse === undefined)
+  const isLoading = needsAllJobs
+    ? !isAllJobsError && (isLoadingAllJobs || allJobsResponse === undefined)
     : isLoadingNormal;
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, selectedTags, tagLogic]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, minMatch, selectedTags, tagLogic]);
 
   // Persist sort preference to localStorage
   useEffect(() => {
@@ -223,39 +235,52 @@ export default function Jobs() {
     try { localStorage.setItem(FILTER_TAG_LOGIC_KEY, tagLogic); } catch {}
   }, [tagLogic]);
 
-  // Reset to newest when skills disappear (persistence effect will save "newest")
   useEffect(() => {
-    if (!hasSkills && sortBy === "best-match") {
-      setSortBy("newest");
+    try { localStorage.setItem(FILTER_MIN_MATCH_KEY, String(minMatch)); } catch {}
+  }, [minMatch]);
+
+  // Reset skill-based settings when skills disappear
+  useEffect(() => {
+    if (!hasSkills) {
+      if (sortBy === "best-match") setSortBy("newest");
+      if (minMatch > 0) setMinMatch(0);
     }
-  }, [hasSkills, sortBy]);
+  }, [hasSkills, sortBy, minMatch]);
 
   const { displayedJobs, activeTotal, activeTotalPages } = useMemo(() => {
-    if (isBestMatch) {
+    if (needsAllJobs) {
       const allJobs = allJobsResponse?.jobs ?? [];
       const serverTotal = allJobsResponse?.total ?? allJobs.length;
 
       if (serverTotal > allJobs.length) {
         console.warn(
-          `[best-match] Fetched ${allJobs.length} of ${serverTotal} jobs — sort order may not reflect the full result set.`,
+          `[skill-filter] Fetched ${allJobs.length} of ${serverTotal} jobs — results may not reflect the full set.`,
         );
       }
 
-      const sorted = [...allJobs].sort((a, b) => {
-        const matchA = computeSkillMatch(resumeSkills, a.tags ?? null);
-        const matchB = computeSkillMatch(resumeSkills, b.tags ?? null);
-        return (matchB?.percentage ?? 0) - (matchA?.percentage ?? 0);
-      });
-      const totalPages = Math.ceil(sorted.length / PAGE_SIZE) || 1;
-      const pageJobs = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-      return { displayedJobs: pageJobs, activeTotal: serverTotal, activeTotalPages: totalPages };
+      const jobsWithScores = allJobs.map((job) => ({
+        job,
+        score: computeSkillMatch(resumeSkills, job.tags ?? null)?.percentage ?? 0,
+      }));
+
+      const filtered = minMatch > 0
+        ? jobsWithScores.filter(({ score }) => score >= minMatch)
+        : jobsWithScores;
+
+      if (isBestMatch) {
+        filtered.sort((a, b) => b.score - a.score);
+      }
+
+      const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+      const pageJobs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(({ job }) => job);
+      return { displayedJobs: pageJobs, activeTotal: filtered.length, activeTotalPages: totalPages };
     }
     return {
       displayedJobs: jobsResponse?.jobs ?? [],
       activeTotal: jobsResponse?.total ?? 0,
       activeTotalPages: jobsResponse?.totalPages ?? 1,
     };
-  }, [isBestMatch, allJobsResponse, jobsResponse, resumeSkills, page]);
+  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, page]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -313,6 +338,23 @@ export default function Jobs() {
           </Label>
         </div>
       </div>
+
+      {hasSkills && (
+        <div className="space-y-3">
+          <Label htmlFor="min-match">Minimum Skill Match</Label>
+          <Select value={String(minMatch)} onValueChange={(v) => setMinMatch(Number(v))}>
+            <SelectTrigger id="min-match">
+              <SelectValue placeholder="Any match" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Any match</SelectItem>
+              <SelectItem value="25">25% or more</SelectItem>
+              <SelectItem value="50">50% or more</SelectItem>
+              <SelectItem value="75">75% or more</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       
       <Button 
         variant="outline" 
@@ -325,6 +367,7 @@ export default function Jobs() {
           setFeatured(false);
           setSelectedTags([]);
           setTagLogic("and");
+          setMinMatch(0);
         }}
       >
         Clear Filters
@@ -449,8 +492,10 @@ export default function Jobs() {
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
               {isLoading
-                ? isBestMatch
-                  ? "Finding your best matches…"
+                ? needsAllJobs
+                  ? isBestMatch
+                    ? "Finding your best matches…"
+                    : "Filtering by skill match…"
                   : "Loading jobs…"
                 : `${activeTotal} Jobs Found`}
             </h2>
@@ -470,13 +515,13 @@ export default function Jobs() {
             </div>
           </div>
 
-          {isBestMatch && isBestMatchError ? (
+          {needsAllJobs && isAllJobsError ? (
             <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
               <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Couldn't load Best Match results</h3>
+              <h3 className="text-lg font-medium text-foreground mb-2">Couldn't load results</h3>
               <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
-              <Button variant="outline" onClick={() => setSortBy("newest")}>
-                Switch to Newest first
+              <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); }}>
+                Reset and show newest first
               </Button>
             </div>
           ) : isLoading ? (
@@ -541,6 +586,7 @@ export default function Jobs() {
                   setFeatured(false);
                   setSelectedTags([]);
                   setTagLogic("and");
+                  setMinMatch(0);
                 }}
               >
                 Clear all filters

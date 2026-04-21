@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: JobCardProps) {
+  const [, navigate] = useLocation();
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
   const { isSignedIn } = useUser();
@@ -178,12 +179,17 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                           variant="secondary"
                           className={
                             isActive
-                              ? `bg-primary text-primary-foreground border border-primary text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-primary/80 transition-colors" : ""}`
+                              ? "bg-primary text-primary-foreground border border-primary text-xs px-2 py-0 cursor-pointer hover:bg-primary/80 transition-colors"
                               : isMatched
-                              ? `bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-emerald-200 transition-colors" : ""}`
-                              : `bg-muted text-muted-foreground text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-muted/70 transition-colors" : ""}`
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0 cursor-pointer hover:bg-emerald-200 transition-colors"
+                              : "bg-muted text-muted-foreground text-xs px-2 py-0 cursor-pointer hover:bg-muted/70 transition-colors"
                           }
-                          onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (onTagClick) onTagClick(tag);
+                            navigate(`/jobs/tag/${encodeURIComponent(tag)}`);
+                          }}
                         >
                           {tag}
                         </Badge>

@@ -632,7 +632,7 @@ export default function JobDetail() {
                     return (
                       <Link
                         key={tag}
-                        href={`/jobs?tag=${encodeURIComponent(tag.trim())}`}
+                        href={`/jobs/tag/${encodeURIComponent(tag.trim())}`}
                         className="no-underline"
                       >
                         <Badge

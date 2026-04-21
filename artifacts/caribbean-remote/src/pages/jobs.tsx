@@ -47,6 +47,7 @@ export default function Jobs() {
   const urlCategory = searchParams.get("category");
   const urlFeatured = searchParams.get("featured");
   const urlTags = searchParams.getAll("tag");
+  const urlTagLogic = searchParams.get("tagLogic");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -95,6 +96,8 @@ export default function Jobs() {
   });
 
   const [tagLogic, setTagLogic] = useState<"and" | "or">(() => {
+    if (urlTagLogic === "or") return "or";
+    if (urlTagLogic === "and") return "and";
     try {
       const stored = localStorage.getItem(FILTER_TAG_LOGIC_KEY);
       return stored === "or" ? "or" : "and";
@@ -237,6 +240,23 @@ export default function Jobs() {
   useEffect(() => {
     try { localStorage.setItem(FILTER_TAG_LOGIC_KEY, tagLogic); } catch {}
   }, [tagLogic]);
+
+  // Sync selectedTags and tagLogic to the URL so filter state is shareable
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("tag");
+    selectedTags.forEach((t) => params.append("tag", t));
+    if (selectedTags.length >= 2 && tagLogic === "or") {
+      params.set("tagLogic", "or");
+    } else {
+      params.delete("tagLogic");
+    }
+    const newSearch = params.toString();
+    const newUrl = newSearch
+      ? `${window.location.pathname}?${newSearch}`
+      : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [selectedTags, tagLogic]);
 
   useEffect(() => {
     try { localStorage.setItem(FILTER_MIN_MATCH_KEY, String(minMatch)); } catch {}

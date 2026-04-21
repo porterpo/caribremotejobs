@@ -10,7 +10,7 @@ const router = Router();
 
 router.get("/seeker/subscription", requireAuth, async (req, res): Promise<void> => {
   const { userId } = req as AuthenticatedRequest;
-  const info = await getSeekerSubscription(userId);
+  const { stripeCustomerId: _omit, ...info } = await getSeekerSubscription(userId);
   res.json(info);
 });
 
@@ -55,7 +55,10 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
     await db
       .insert(seekerSubscriptionsTable)
       .values({ clerkUserId: userId, status: "pending" })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: seekerSubscriptionsTable.clerkUserId,
+        set: { status: "pending", updatedAt: new Date() },
+      });
 
     res.json({ url: session.url });
   } catch (err) {

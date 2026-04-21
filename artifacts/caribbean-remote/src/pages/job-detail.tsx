@@ -567,6 +567,7 @@ export default function JobDetail() {
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [upgradeGateOpen, setUpgradeGateOpen] = useState(false);
+  const [localApplyCount, setLocalApplyCount] = useState(0);
   const [pendingPdfUrl, setPendingPdfUrl] = useState<string | null>(null);
   const [pendingResumeType, setPendingResumeType] = useState<ResumeType>("none");
   const [isPrimaryFetchingPdf, setIsPrimaryFetchingPdf] = useState(false);
@@ -654,25 +655,18 @@ export default function JobDetail() {
 
   const applyGateLoading = !!isSignedIn && seekerSubLoading;
 
-  async function checkApplyGateFresh(): Promise<boolean> {
+  // Use the higher of locally-tracked applies (optimistic) vs server count to gate immediately
+  const effectiveApplyCount = Math.max(localApplyCount, seekerSub?.applicationCount ?? 0);
+
+  function checkApplyGate(): boolean {
     if (!isSignedIn) return true;
-    let fresh: SeekerSub;
-    try {
-      fresh = await queryClient.fetchQuery<SeekerSub>({
-        queryKey: ["seeker-subscription"],
-        queryFn: async () => {
-          const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
-          if (!res.ok) throw new Error("Failed to fetch");
-          return res.json() as Promise<SeekerSub>;
-        },
-        staleTime: 0,
-      });
-    } catch {
+    if (seekerSubLoading) return false;
+    if (seekerSubError || !seekerSub) {
       toast({ title: "Could not verify subscription", description: "Please refresh and try again.", variant: "destructive" });
       return false;
     }
-    if (fresh.isPro) return true;
-    if (fresh.applicationLimit !== null && fresh.applicationCount >= fresh.applicationLimit) {
+    if (seekerSub.isPro) return true;
+    if (seekerSub.applicationLimit !== null && effectiveApplyCount >= seekerSub.applicationLimit) {
       setUpgradeGateOpen(true);
       return false;
     }
@@ -687,7 +681,7 @@ export default function JobDetail() {
     seekerSub.applicationLimit !== null;
 
   const appsRemaining = showQuotaIndicator
-    ? Math.max(0, (seekerSub!.applicationLimit ?? 3) - seekerSub!.applicationCount)
+    ? Math.max(0, (seekerSub!.applicationLimit ?? 3) - effectiveApplyCount)
     : null;
 
   const userName = user?.fullName || user?.firstName || "Applicant";
@@ -815,7 +809,7 @@ export default function JobDetail() {
     !(resume.skills?.length);
 
   async function handlePrimaryApply() {
-    if (!(await checkApplyGateFresh())) return;
+    if (!checkApplyGate()) return;
     const resumeType: ResumeType = hasPdfOnly ? "pdf" : (resume ? "built" : "none");
     setPendingResumeType(resumeType);
     if (hasPdfOnly && showPreviewOnApply) {
@@ -843,6 +837,7 @@ export default function JobDetail() {
   }
 
   function handleDirectApply(resumeType: ResumeType = "none") {
+    setLocalApplyCount(prev => prev + 1);
     track("application_started", { job_id: jobId, resume_type: resumeType });
     saveApplicationRecord(jobId, resumeType);
     setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
@@ -1032,7 +1027,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.location.href = effectiveApplyUrl; }}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1044,7 +1039,7 @@ export default function JobDetail() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={async () => { if (!(await checkApplyGateFresh())) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume
@@ -1263,7 +1258,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.location.href = effectiveApplyUrl; }}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1275,7 +1270,7 @@ export default function JobDetail() {
                   size="lg"
                   variant="outline"
                   className="px-8"
-                  onClick={async () => { if (!(await checkApplyGateFresh())) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume

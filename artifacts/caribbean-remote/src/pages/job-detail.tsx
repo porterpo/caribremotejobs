@@ -630,13 +630,18 @@ export default function JobDetail() {
                   {job.tags.split(',').map(tag => {
                     const isMatched = skillMatch?.matchedSkills.includes(tag.trim());
                     return (
-                      <Badge
+                      <Link
                         key={tag}
-                        variant="secondary"
-                        className={`font-normal text-sm px-3 py-1 ${isMatched ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-200" : ""}`}
+                        href={`/jobs?tag=${encodeURIComponent(tag.trim())}`}
+                        className="no-underline"
                       >
-                        {tag.trim()}
-                      </Badge>
+                        <Badge
+                          variant="secondary"
+                          className={`font-normal text-sm px-3 py-1 cursor-pointer transition-colors ${isMatched ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-200" : "hover:bg-muted/70"}`}
+                        >
+                          {tag.trim()}
+                        </Badge>
+                      </Link>
                     );
                   })}
                 </div>

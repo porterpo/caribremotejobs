@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Briefcase, Filter, Sparkles, X } from "lucide-react";
+import { Search, Briefcase, Filter, Sparkles, X, Tag } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -40,6 +40,7 @@ export default function Jobs() {
   
   const urlCategory = searchParams.get("category");
   const urlFeatured = searchParams.get("featured");
+  const urlTag = searchParams.get("tag");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -77,6 +78,8 @@ export default function Jobs() {
       return false;
     }
   });
+  const [selectedTag, setSelectedTag] = useState<string | null>(() => urlTag || null);
+
   const [page, setPage] = useState(1);
   
   const [sortBy, setSortBy] = useState(() => {
@@ -136,6 +139,7 @@ export default function Jobs() {
     ...(jobType !== "all" ? { jobType } : {}),
     ...(entryLevel ? { entryLevel: true } : {}),
     ...(featured ? { featured: true } : {}),
+    ...(selectedTag ? { tag: selectedTag } : {}),
   };
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
@@ -156,7 +160,7 @@ export default function Jobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy, selectedTag]);
 
   // Persist sort preference to localStorage
   useEffect(() => {
@@ -283,6 +287,7 @@ export default function Jobs() {
           setJobType("all");
           setEntryLevel(false);
           setFeatured(false);
+          setSelectedTag(null);
         }}
       >
         Clear Filters
@@ -359,6 +364,23 @@ export default function Jobs() {
             </div>
           )}
 
+          {selectedTag && (
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Filtered by skill:</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-sm px-3 py-1 font-medium">
+                <Tag className="h-3 w-3" />
+                {selectedTag}
+                <button
+                  onClick={() => setSelectedTag(null)}
+                  aria-label={`Remove ${selectedTag} filter`}
+                  className="ml-0.5 hover:text-primary/70 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
               {isLoading
@@ -413,7 +435,7 @@ export default function Jobs() {
           ) : displayedJobs.length ? (
             <div className="space-y-4">
               {displayedJobs.map((job) => (
-                <JobCard key={job.id} job={job} isBestMatch={isBestMatch} />
+                <JobCard key={job.id} job={job} isBestMatch={isBestMatch} onTagClick={setSelectedTag} />
               ))}
               
               {/* Pagination */}
@@ -452,6 +474,7 @@ export default function Jobs() {
                   setJobType("all");
                   setEntryLevel(false);
                   setFeatured(false);
+                  setSelectedTag(null);
                 }}
               >
                 Clear all filters

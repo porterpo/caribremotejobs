@@ -12,9 +12,10 @@ import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 interface JobCardProps {
   job: Job;
   isBestMatch?: boolean;
+  onTagClick?: (tag: string) => void;
 }
 
-export function JobCard({ job, isBestMatch = false }: JobCardProps) {
+export function JobCard({ job, isBestMatch = false, onTagClick }: JobCardProps) {
   const isFeatured = job.featured;
   const isCaribbeanFriendly = job.caribbeanFriendly;
   const { isSignedIn } = useUser();
@@ -117,9 +118,10 @@ export function JobCard({ job, isBestMatch = false }: JobCardProps) {
                       variant="secondary"
                       className={
                         isMatched
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0"
-                          : "bg-muted text-muted-foreground text-xs px-2 py-0"
+                          ? `bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-emerald-200 transition-colors" : ""}`
+                          : `bg-muted text-muted-foreground text-xs px-2 py-0${onTagClick ? " cursor-pointer hover:bg-muted/70 transition-colors" : ""}`
                       }
+                      onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
                     >
                       {tag}
                     </Badge>

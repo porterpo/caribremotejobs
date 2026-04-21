@@ -25,6 +25,7 @@ import Certified from "@/pages/certified";
 import Profile from "@/pages/profile";
 import Resume from "@/pages/resume";
 import TagJobs from "@/pages/tag-jobs";
+import TagsIndex from "@/pages/tags-index";
 
 const queryClient = new QueryClient();
 
@@ -250,6 +251,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/jobs">
               {() => <ProtectedRoute component={Jobs} />}
             </Route>
+            <Route path="/jobs/tags" component={TagsIndex} />
             <Route path="/jobs/tag/:tagname" component={TagJobs} />
             <Route path="/jobs/:id">
               {() => <ProtectedRoute component={JobDetail} />}

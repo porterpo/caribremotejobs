@@ -18,6 +18,7 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List job listings
  */
+export const listJobsQueryTagLogicDefault = `and`;
 export const listJobsQueryPageDefault = 1;
 export const listJobsQueryLimitDefault = 20;
 
@@ -30,8 +31,8 @@ export const ListJobsQueryParams = zod.object({
   caribbeanFriendly: zod.coerce.boolean().optional(),
   entryLevel: zod.coerce.boolean().optional(),
   featured: zod.coerce.boolean().optional(),
-  tag: zod.union([zod.array(zod.coerce.string()), zod.coerce.string()]).optional(),
-  tagLogic: zod.enum(["and", "or"]).default("and"),
+  tag: zod.array(zod.coerce.string()).optional(),
+  tagLogic: zod.enum(["and", "or"]).default(listJobsQueryTagLogicDefault),
   page: zod.coerce.number().default(listJobsQueryPageDefault),
   limit: zod.coerce.number().default(listJobsQueryLimitDefault),
 });
@@ -94,6 +95,16 @@ export const CreateJobBody = zod.object({
   approved: zod.boolean().optional(),
   postedAt: zod.coerce.date().optional(),
 });
+
+/**
+ * Returns every unique tag across all approved jobs with how many jobs use that tag, sorted by count descending.
+ * @summary List all skill tags with job counts
+ */
+export const ListJobTagsResponseItem = zod.object({
+  tag: zod.string(),
+  count: zod.number(),
+});
+export const ListJobTagsResponse = zod.array(ListJobTagsResponseItem);
 
 /**
  * @summary Get a job by ID

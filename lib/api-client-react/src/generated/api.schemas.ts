@@ -210,6 +210,11 @@ export interface CategoryCount {
   count: number;
 }
 
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
 export interface ErrorEnvelope {
   error: string;
 }
@@ -250,10 +255,18 @@ export type ListJobsParams = {
   entryLevel?: boolean;
   featured?: boolean;
   tag?: string[];
-  tagLogic?: 'and' | 'or';
+  tagLogic?: ListJobsTagLogic;
   page?: number;
   limit?: number;
 };
+
+export type ListJobsTagLogic =
+  (typeof ListJobsTagLogic)[keyof typeof ListJobsTagLogic];
+
+export const ListJobsTagLogic = {
+  and: "and",
+  or: "or",
+} as const;
 
 export type ListCompaniesParams = {
   caribbeanFriendly?: boolean;

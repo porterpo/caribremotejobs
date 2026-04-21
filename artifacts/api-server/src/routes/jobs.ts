@@ -33,8 +33,37 @@ router.get("/jobs/recent", async (req, res): Promise<void> => {
   res.json(jobs);
 });
 
+router.get("/jobs/tags", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({ tags: jobsTable.tags })
+    .from(jobsTable)
+    .where(eq(jobsTable.approved, true));
+
+  const countMap = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.tags) continue;
+    const parts = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    for (const tag of parts) {
+      countMap.set(tag, (countMap.get(tag) ?? 0) + 1);
+    }
+  }
+
+  const result = Array.from(countMap.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+
+  res.json(result);
+});
+
 router.get("/jobs", async (req, res): Promise<void> => {
-  const parsed = ListJobsQueryParams.safeParse(req.query);
+  const rawTag = req.query.tag;
+  const normalizedQuery = {
+    ...req.query,
+    tag: rawTag !== undefined
+      ? (Array.isArray(rawTag) ? rawTag : [rawTag])
+      : undefined,
+  };
+  const parsed = ListJobsQueryParams.safeParse(normalizedQuery);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;

@@ -32,6 +32,7 @@ import type {
   ListJobsParams,
   PlatformStats,
   SyncJobsResponse,
+  TagCount,
   UnsubscribeResponse,
   UpdateCompanyBody,
   UpdateJobBody,
@@ -131,12 +132,17 @@ export const getListJobsUrl = (params?: ListJobsParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? "null" : v.toString());
+      });
+      return;
+    }
+
     if (value !== undefined) {
-      if (Array.isArray(value)) {
-        value.forEach((item) => normalizedParams.append(key, item === null ? "null" : String(item)));
-      } else {
-        normalizedParams.append(key, value === null ? "null" : value.toString());
-      }
+      normalizedParams.append(key, value === null ? "null" : value.toString());
     }
   });
 
@@ -307,6 +313,82 @@ export const useCreateJob = <
 > => {
   return useMutation(getCreateJobMutationOptions(options));
 };
+
+/**
+ * Returns every unique tag across all approved jobs with how many jobs use that tag, sorted by count descending.
+ * @summary List all skill tags with job counts
+ */
+export const getListJobTagsUrl = () => {
+  return `/api/jobs/tags`;
+};
+
+export const listJobTags = async (
+  options?: RequestInit,
+): Promise<TagCount[]> => {
+  return customFetch<TagCount[]>(getListJobTagsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListJobTagsQueryKey = () => {
+  return [`/api/jobs/tags`] as const;
+};
+
+export const getListJobTagsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listJobTags>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listJobTags>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListJobTagsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listJobTags>>> = ({
+    signal,
+  }) => listJobTags({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listJobTags>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListJobTagsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listJobTags>>
+>;
+export type ListJobTagsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all skill tags with job counts
+ */
+
+export function useListJobTags<
+  TData = Awaited<ReturnType<typeof listJobTags>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listJobTags>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListJobTagsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get a job by ID

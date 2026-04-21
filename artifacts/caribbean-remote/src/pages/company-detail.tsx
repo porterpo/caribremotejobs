@@ -86,16 +86,10 @@ export default function CompanyDetail() {
             
             <div className="flex-1">
               <div className="flex flex-wrap gap-2 mb-3">
-                {company.caribbeanFriendlyCertified && (
-                  <Badge className="bg-amber-500 text-white border-amber-500 gap-1">
-                    <Palmtree className="h-3.5 w-3.5" />
-                    Caribbean Friendly Certified
-                  </Badge>
-                )}
-                {!company.caribbeanFriendlyCertified && company.caribbeanFriendly && (
+                {company.caribbeanFriendly && (
                   <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
                     <Palmtree className="h-3.5 w-3.5" />
-                    Caribbean Friendly Employer
+                    Caribbean Friendly
                   </Badge>
                 )}
                 {company.hiresBahamas && (

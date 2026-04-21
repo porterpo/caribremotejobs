@@ -3,7 +3,7 @@ import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from "@/lib/meta";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetJob, getGetJobQueryKey, useListJobs } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -593,6 +593,7 @@ export default function JobDetail() {
 
   const { isSignedIn, user } = useUser();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: job, isLoading, error } = useGetJob(jobId, {
     query: { enabled: !!jobId, queryKey: getGetJobQueryKey(jobId) }
@@ -653,15 +654,25 @@ export default function JobDetail() {
 
   const applyGateLoading = !!isSignedIn && seekerSubLoading;
 
-  function checkApplyGate(): boolean {
+  async function checkApplyGateFresh(): Promise<boolean> {
     if (!isSignedIn) return true;
-    if (seekerSubLoading) return false;
-    if (seekerSubError || !seekerSub) {
+    let fresh: SeekerSub;
+    try {
+      fresh = await queryClient.fetchQuery<SeekerSub>({
+        queryKey: ["seeker-subscription"],
+        queryFn: async () => {
+          const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
+          if (!res.ok) throw new Error("Failed to fetch");
+          return res.json() as Promise<SeekerSub>;
+        },
+        staleTime: 0,
+      });
+    } catch {
       toast({ title: "Could not verify subscription", description: "Please refresh and try again.", variant: "destructive" });
       return false;
     }
-    if (seekerSub.isPro) return true;
-    if (seekerSub.applicationLimit !== null && seekerSub.applicationCount >= seekerSub.applicationLimit) {
+    if (fresh.isPro) return true;
+    if (fresh.applicationLimit !== null && fresh.applicationCount >= fresh.applicationLimit) {
       setUpgradeGateOpen(true);
       return false;
     }
@@ -804,7 +815,7 @@ export default function JobDetail() {
     !(resume.skills?.length);
 
   async function handlePrimaryApply() {
-    if (!checkApplyGate()) return;
+    if (!(await checkApplyGateFresh())) return;
     const resumeType: ResumeType = hasPdfOnly ? "pdf" : (resume ? "built" : "none");
     setPendingResumeType(resumeType);
     if (hasPdfOnly && showPreviewOnApply) {
@@ -828,12 +839,14 @@ export default function JobDetail() {
     saveApplicationRecord(jobId, pendingResumeType);
     track("application_started", { job_id: jobId, resume_type: pendingResumeType });
     setAppliedRecord({ resumeType: pendingResumeType, appliedAt: new Date().toISOString() });
+    void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
   }
 
   function handleDirectApply(resumeType: ResumeType = "none") {
     track("application_started", { job_id: jobId, resume_type: resumeType });
     saveApplicationRecord(jobId, resumeType);
     setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
+    void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
   }
 
   const resumeTypeLabel: Record<ResumeType, string> = {
@@ -1019,7 +1032,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.open(effectiveApplyUrl, "_blank", "noopener,noreferrer"); }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1031,7 +1044,7 @@ export default function JobDetail() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={async () => { if (!(await checkApplyGateFresh())) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume
@@ -1250,7 +1263,7 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={async (e) => { e.preventDefault(); if (!(await checkApplyGateFresh())) return; handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); window.open(effectiveApplyUrl, "_blank", "noopener,noreferrer"); }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1262,7 +1275,7 @@ export default function JobDetail() {
                   size="lg"
                   variant="outline"
                   className="px-8"
-                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={async () => { if (!(await checkApplyGateFresh())) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume

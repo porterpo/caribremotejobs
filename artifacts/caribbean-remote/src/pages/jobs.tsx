@@ -18,6 +18,7 @@ import { computeSkillMatch } from "@/lib/skill-match";
 const BASE = import.meta.env.BASE_URL;
 const SORT_PREF_KEY = "cr_sort_preference";
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
+const PAGE_SIZE = 10;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -79,21 +80,31 @@ export default function Jobs() {
 
   const hasSkills = !!isSignedIn && resumeSkills.length > 0;
 
-  const queryParams = {
+  const filterParams = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(category !== "all" ? { category } : {}),
     ...(jobType !== "all" ? { jobType } : {}),
     ...(entryLevel ? { entryLevel: true } : {}),
     ...(featured ? { featured: true } : {}),
-    page,
-    limit: 10,
   };
 
-  const { data: jobsResponse, isLoading } = useListJobs(queryParams);
+  const isBestMatch = sortBy === "best-match" && hasSkills;
+
+  const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
+  const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
+    query: { enabled: !isBestMatch },
+  });
+
+  const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
+  const { data: allJobsResponse, isLoading: isLoadingBestMatch } = useListJobs(allJobsQueryParams, {
+    query: { enabled: isBestMatch },
+  });
+
+  const isLoading = isBestMatch ? isLoadingBestMatch : isLoadingNormal;
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, category, jobType, entryLevel, featured]);
+  }, [debouncedSearch, category, jobType, entryLevel, featured, sortBy]);
 
   // Persist sort preference to localStorage
   useEffect(() => {
@@ -110,15 +121,32 @@ export default function Jobs() {
     }
   }, [hasSkills, sortBy]);
 
-  const displayedJobs = useMemo(() => {
-    const jobs = jobsResponse?.jobs ?? [];
-    if (sortBy !== "best-match" || !hasSkills) return jobs;
-    return [...jobs].sort((a, b) => {
-      const matchA = computeSkillMatch(resumeSkills, a.tags ?? null);
-      const matchB = computeSkillMatch(resumeSkills, b.tags ?? null);
-      return (matchB?.percentage ?? 0) - (matchA?.percentage ?? 0);
-    });
-  }, [jobsResponse?.jobs, sortBy, hasSkills, resumeSkills]);
+  const { displayedJobs, activeTotal, activeTotalPages } = useMemo(() => {
+    if (isBestMatch) {
+      const allJobs = allJobsResponse?.jobs ?? [];
+      const serverTotal = allJobsResponse?.total ?? allJobs.length;
+
+      if (serverTotal > allJobs.length) {
+        console.warn(
+          `[best-match] Fetched ${allJobs.length} of ${serverTotal} jobs — sort order may not reflect the full result set.`,
+        );
+      }
+
+      const sorted = [...allJobs].sort((a, b) => {
+        const matchA = computeSkillMatch(resumeSkills, a.tags ?? null);
+        const matchB = computeSkillMatch(resumeSkills, b.tags ?? null);
+        return (matchB?.percentage ?? 0) - (matchA?.percentage ?? 0);
+      });
+      const totalPages = Math.ceil(sorted.length / PAGE_SIZE) || 1;
+      const pageJobs = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+      return { displayedJobs: pageJobs, activeTotal: serverTotal, activeTotalPages: totalPages };
+    }
+    return {
+      displayedJobs: jobsResponse?.jobs ?? [],
+      activeTotal: jobsResponse?.total ?? 0,
+      activeTotalPages: jobsResponse?.totalPages ?? 1,
+    };
+  }, [isBestMatch, allJobsResponse, jobsResponse, resumeSkills, page]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -245,7 +273,7 @@ export default function Jobs() {
         <div className="flex-1 w-full min-w-0">
           <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
-              {isLoading ? "Loading jobs..." : `${jobsResponse?.total || 0} Jobs Found`}
+              {isLoading ? "Loading jobs..." : `${activeTotal} Jobs Found`}
             </h2>
             <div className="flex items-center gap-2 shrink-0">
               <Label htmlFor="sort-by" className="text-sm text-muted-foreground whitespace-nowrap">Sort by</Label>
@@ -288,7 +316,7 @@ export default function Jobs() {
               ))}
               
               {/* Pagination */}
-              {jobsResponse.totalPages > 1 && (
+              {activeTotalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-8">
                   <Button 
                     variant="outline" 
@@ -298,12 +326,12 @@ export default function Jobs() {
                     Previous
                   </Button>
                   <span className="text-sm font-medium px-4">
-                    Page {page} of {jobsResponse.totalPages}
+                    Page {page} of {activeTotalPages}
                   </span>
                   <Button 
                     variant="outline" 
-                    disabled={page === jobsResponse.totalPages}
-                    onClick={() => setPage(p => Math.min(jobsResponse.totalPages, p + 1))}
+                    disabled={page === activeTotalPages}
+                    onClick={() => setPage(p => Math.min(activeTotalPages, p + 1))}
                   >
                     Next
                   </Button>

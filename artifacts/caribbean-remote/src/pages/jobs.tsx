@@ -147,7 +147,7 @@ export default function Jobs() {
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
   const { data: allJobsResponse, isLoading: isLoadingBestMatch, isError: isBestMatchError } = useListJobs(allJobsQueryParams, {
-    query: { enabled: isBestMatch },
+    query: { enabled: isBestMatch, staleTime: 60_000 },
   });
 
   const isLoading = isBestMatch

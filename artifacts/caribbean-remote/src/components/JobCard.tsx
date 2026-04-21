@@ -26,6 +26,16 @@ export function JobCard({ job }: JobCardProps) {
       ? computeSkillMatch(resume.skills, job.tags ?? null)
       : null;
 
+  const allTags = job.tags
+    ? job.tags.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+  const MAX_TAGS = 4;
+  const visibleTags = allTags.slice(0, MAX_TAGS);
+  const overflowCount = allTags.length - visibleTags.length;
+  const matchedSet = new Set(
+    skillMatch ? skillMatch.matchedSkills.map((s) => s.toLowerCase()) : []
+  );
+
   return (
     <Card className={`group relative transition-all duration-300 hover:shadow-md ${
       isFeatured ? "border-primary/50 shadow-sm ring-1 ring-primary/10" : ""
@@ -73,7 +83,7 @@ export function JobCard({ job }: JobCardProps) {
               )}
             </div>
             
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-3">
               <div className="flex items-center gap-1.5 font-medium text-foreground/80">
                 <Building2 className="h-4 w-4" />
                 {job.companyName}
@@ -95,6 +105,32 @@ export function JobCard({ job }: JobCardProps) {
                 </div>
               )}
             </div>
+
+            {visibleTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mb-3 relative z-20">
+                {visibleTags.map((tag, idx) => {
+                  const isMatched = matchedSet.has(tag.toLowerCase());
+                  return (
+                    <Badge
+                      key={`${tag}-${idx}`}
+                      variant="secondary"
+                      className={
+                        isMatched
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0"
+                          : "bg-muted text-muted-foreground text-xs px-2 py-0"
+                      }
+                    >
+                      {tag}
+                    </Badge>
+                  );
+                })}
+                {overflowCount > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{overflowCount} more
+                  </span>
+                )}
+              </div>
+            )}
             
             <div className="flex flex-wrap items-center gap-2 relative z-20">
               {isCaribbeanFriendly && (

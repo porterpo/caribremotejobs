@@ -496,6 +496,29 @@ export default function Jobs() {
                   </button>
                 </div>
               ))}
+              {selectedTags.length >= 2 && (
+                <div className="flex flex-col gap-1 pt-1">
+                  <div className="inline-flex items-center rounded-full border bg-muted text-xs font-medium overflow-hidden self-start">
+                    <button
+                      onClick={() => setTagLogic("and")}
+                      className={`px-2.5 py-1 transition-colors ${tagLogic === "and" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      aria-pressed={tagLogic === "and"}
+                    >
+                      Match ALL
+                    </button>
+                    <button
+                      onClick={() => setTagLogic("or")}
+                      className={`px-2.5 py-1 transition-colors ${tagLogic === "or" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      aria-pressed={tagLogic === "or"}
+                    >
+                      Match ANY
+                    </button>
+                  </div>
+                  <span className="text-xs text-muted-foreground pl-0.5">
+                    {tagLogic === "and" ? "Jobs must have all selected tags" : "Jobs can have any selected tag"}
+                  </span>
+                </div>
+              )}
               {trimmed && suggestions.slice(0, 8).map(({ tag }) => (
                 <button
                   key={tag}

@@ -7,7 +7,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 import { formatDistanceToNow, format } from "date-fns";
@@ -269,7 +269,7 @@ export default function JobDetail() {
 
   const isMailto = !!job?.applyUrl?.startsWith("mailto:");
 
-  const { data: resume } = useQuery<ResumeData | null>({
+  const { data: resume, status: resumeStatus } = useQuery<ResumeData | null>({
     queryKey: ["resume", "me"],
     queryFn: async () => {
       const res = await fetch(`${BASE}api/resume/me`);
@@ -282,13 +282,15 @@ export default function JobDetail() {
     enabled: !!isSignedIn,
   });
 
+  const isResumePending = isSignedIn && isMailto && resumeStatus === "pending";
+
   const effectiveApplyUrl =
-    isSignedIn && isMailto && job
+    isSignedIn && isMailto && job && resume
       ? buildEnhancedMailto(
           job.applyUrl,
           job.title,
           user?.fullName || user?.firstName || "Applicant",
-          resume ?? null,
+          resume,
         )
       : job?.applyUrl ?? "";
 
@@ -420,10 +422,16 @@ export default function JobDetail() {
             </div>
             
             <div className="flex flex-col gap-3 min-w-[200px] shrink-0 mt-4 md:mt-0">
-              <Button size="lg" className="w-full text-base h-12" asChild>
-                <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
-                  Apply Now <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+              <Button size="lg" className="w-full text-base h-12" disabled={isResumePending} asChild={!isResumePending}>
+                {isResumePending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
+                  </>
+                ) : (
+                  <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                    Apply Now <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                )}
               </Button>
               {isSignedIn && (
                 <Button
@@ -484,10 +492,16 @@ export default function JobDetail() {
             )}
 
             <div className="pt-8 border-t flex flex-wrap gap-3">
-              <Button size="lg" className="px-8" asChild>
-                <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
-                  Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+              <Button size="lg" className="px-8" disabled={isResumePending} asChild={!isResumePending}>
+                {isResumePending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
+                  </>
+                ) : (
+                  <a href={effectiveApplyUrl} target="_blank" rel="noopener noreferrer">
+                    Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                )}
               </Button>
               {isSignedIn && (
                 <Button

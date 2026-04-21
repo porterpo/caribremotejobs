@@ -24,7 +24,10 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
       JOIN stripe.products p ON pr.product = p.id
       WHERE p.active = true
         AND pr.active = true
+        AND pr.type = 'recurring'
+        AND pr.recurring->>'interval' = 'month'
         AND p.metadata->>'type' = 'seeker_pro'
+      ORDER BY pr.unit_amount ASC
       LIMIT 1
     `);
 

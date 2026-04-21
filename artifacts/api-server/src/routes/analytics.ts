@@ -72,6 +72,35 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
   res.status(204).end();
 });
 
+router.get("/applications/history", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId;
+  const rows = await db
+    .select({
+      jobId: analyticsEventsTable.jobId,
+      jobTitle: jobsTable.title,
+      companyName: jobsTable.companyName,
+      resumeType: sql<string | null>`max(case when ${analyticsEventsTable.event} = 'application_started' then ${analyticsEventsTable.event} else null end)`,
+      appliedAt: sql<string | null>`max(${analyticsEventsTable.occurredAt})`,
+    })
+    .from(analyticsEventsTable)
+    .leftJoin(jobsTable, eq(analyticsEventsTable.jobId, jobsTable.id))
+    .where(and(eq(analyticsEventsTable.userId, userId), eq(analyticsEventsTable.event, "application_started")))
+    .groupBy(analyticsEventsTable.jobId, jobsTable.title, jobsTable.companyName)
+    .orderBy(desc(sql`max(${analyticsEventsTable.occurredAt})`));
+
+  res.json({
+    applications: rows
+      .filter((row) => row.jobId !== null)
+      .map((row) => ({
+        jobId: row.jobId,
+        jobTitle: row.jobTitle,
+        companyName: row.companyName,
+        appliedAt: row.appliedAt,
+        resumeType: null,
+      })),
+  });
+});
+
 router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> => {
   const EVENT_NAME = "skills_nudge_clicked";
   const SKILLS_ADDED_EVENT = "skills_added";

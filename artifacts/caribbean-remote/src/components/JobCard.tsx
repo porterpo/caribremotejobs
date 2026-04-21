@@ -17,12 +17,18 @@ const LONG_PRESS_MS = 500;
 function SkillBadgeTooltip({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   function clearTimer() {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  }
+
+  function toggleOpen() {
+    clearTimer();
+    setOpen((current) => !current);
   }
 
   return (
@@ -40,12 +46,20 @@ function SkillBadgeTooltip({ label, children }: { label: React.ReactNode; childr
             timerRef.current = setTimeout(() => setOpen(true), LONG_PRESS_MS);
           }}
           onTouchEnd={() => {
+            const touchStart = touchStartRef.current;
+            touchStartRef.current = null;
+            clearTimer();
+            if (!touchStart) return;
+          }}
+          onTouchMove={() => {
+            touchStartRef.current = null;
             clearTimer();
             setOpen(false);
           }}
-          onTouchMove={() => {
-            clearTimer();
-            setOpen(false);
+          onClick={() => {
+            if (window.matchMedia("(pointer: coarse)").matches) {
+              toggleOpen();
+            }
           }}
         >
           {children}

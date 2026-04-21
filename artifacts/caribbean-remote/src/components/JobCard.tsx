@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Building2, MapPin, DollarSign, Clock, Palmtree, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
@@ -248,46 +249,69 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
                     );
                   })}
                   {overflowCount > 0 && (
-                    <SkillBadgeTooltip
-                      label={
-                        <div className="flex flex-col gap-1 max-w-[220px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          className={[
+                            "text-xs underline-offset-2 hover:underline cursor-pointer select-none focus:outline-none",
+                            hiddenMatchedCount > 0 ? "text-emerald-700 font-medium" : "text-primary",
+                          ].join(" ")}
+                        >
+                          +{overflowCount} more
+                          {hiddenMatchedCount > 0 && (
+                            <span className="ml-1">
+                              ({hiddenMatchedCount} match{hiddenMatchedCount === 1 ? "" : "es"})
+                            </span>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto max-w-[260px] p-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p className="text-xs font-medium text-muted-foreground mb-2">More skills</p>
+                        <div className="flex flex-wrap gap-1.5">
                           {hiddenTags.map((tag, i) => {
                             const isMatched = matchedSet.has(tag.toLowerCase());
-                            return (
-                              <span
-                                key={`${tag}-${i}`}
+                            const badgeEl = (
+                              <Badge
+                                key={`hidden-${tag}-${i}`}
+                                variant="secondary"
                                 className={
                                   isMatched
-                                    ? "text-emerald-400 font-medium flex items-center gap-1"
-                                    : "text-muted-foreground"
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs px-2 py-0 hover:bg-emerald-200 transition-colors"
+                                    : "bg-muted text-muted-foreground text-xs px-2 py-0 hover:bg-muted/70 transition-colors"
                                 }
                               >
                                 {tag}
-                                {isMatched && (
-                                  <span className="text-[10px] font-normal opacity-80">
-                                    ✓ matches resume
-                                  </span>
-                                )}
-                              </span>
+                              </Badge>
+                            );
+                            if (onTagClick) {
+                              return (
+                                <button
+                                  key={`hidden-btn-${tag}-${i}`}
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); }}
+                                >
+                                  {badgeEl}
+                                </button>
+                              );
+                            }
+                            return (
+                              <Link
+                                key={`hidden-link-${tag}-${i}`}
+                                href={`/jobs/tag/${encodeURIComponent(tag)}`}
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              >
+                                {badgeEl}
+                              </Link>
                             );
                           })}
                         </div>
-                      }
-                    >
-                      <span
-                        className={[
-                          "text-xs cursor-default select-none",
-                          hiddenMatchedCount > 0 ? "text-emerald-700 font-medium" : "text-muted-foreground",
-                        ].join(" ")}
-                      >
-                        +{overflowCount} more
-                        {hiddenMatchedCount > 0 && (
-                          <span className="ml-1">
-                            ({hiddenMatchedCount} match{hiddenMatchedCount === 1 ? "" : "es"})
-                          </span>
-                        )}
-                      </span>
-                    </SkillBadgeTooltip>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
               </TooltipProvider>

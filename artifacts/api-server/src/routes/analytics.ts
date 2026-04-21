@@ -133,21 +133,24 @@ router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> =>
 });
 
 router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
-  const { dateFrom, dateTo } = req.query as { dateFrom?: string; dateTo?: string };
+  const { dateFrom, dateTo, event } = req.query as { dateFrom?: string; dateTo?: string; event?: string };
 
-  const dateConditions = [];
+  const conditions = [];
   if (dateFrom) {
     const from = new Date(dateFrom);
     if (!isNaN(from.getTime())) {
-      dateConditions.push(gte(analyticsEventsTable.occurredAt, from));
+      conditions.push(gte(analyticsEventsTable.occurredAt, from));
     }
   }
   if (dateTo) {
     const to = new Date(dateTo);
     if (!isNaN(to.getTime())) {
       to.setUTCHours(23, 59, 59, 999);
-      dateConditions.push(lte(analyticsEventsTable.occurredAt, to));
+      conditions.push(lte(analyticsEventsTable.occurredAt, to));
     }
+  }
+  if (typeof event === "string" && event.length > 0) {
+    conditions.push(eq(analyticsEventsTable.event, event));
   }
 
   const rows = await db
@@ -156,7 +159,7 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
       count: sql<number>`count(*)::int`,
     })
     .from(analyticsEventsTable)
-    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .groupBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
     .orderBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
 

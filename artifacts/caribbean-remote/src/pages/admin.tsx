@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -241,6 +241,7 @@ export default function Admin() {
   const [analyticsDateTo, setAnalyticsDateTo] = useState(
     () => localStorage.getItem("admin_analyticsDateTo") ?? ""
   );
+  const [trendEventFilter, setTrendEventFilter] = useState("");
 
   useEffect(() => {
     if (analyticsDateFrom) {
@@ -268,12 +269,21 @@ export default function Admin() {
     },
   });
 
+  useEffect(() => {
+    if (!trendEventFilter) return;
+    const available = (analyticsSummary?.eventBreakdown ?? []).map((e) => e.event);
+    if (available.length > 0 && !available.includes(trendEventFilter)) {
+      setTrendEventFilter("");
+    }
+  }, [analyticsSummary, trendEventFilter]);
+
   const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { date: string; count: number }[] }>({
-    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo],
+    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo, trendEventFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (analyticsDateFrom) params.set("dateFrom", analyticsDateFrom);
       if (analyticsDateTo) params.set("dateTo", analyticsDateTo);
+      if (trendEventFilter) params.set("event", trendEventFilter);
       const qs = params.toString();
       const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/trend${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch analytics trend");
@@ -1313,8 +1323,27 @@ export default function Admin() {
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Events Over Time</CardTitle>
-                  <CardDescription className="text-xs">Total events per day in the selected range</CardDescription>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <CardTitle className="text-sm font-medium">Events Over Time</CardTitle>
+                      <CardDescription className="text-xs">
+                        {trendEventFilter ? `${trendEventFilter} events per day` : "Total events per day"} in the selected range
+                      </CardDescription>
+                    </div>
+                    <Select value={trendEventFilter || "__all__"} onValueChange={(v) => setTrendEventFilter(v === "__all__" ? "" : v)}>
+                      <SelectTrigger className="h-8 text-xs w-48">
+                        <SelectValue placeholder="All events" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All events</SelectItem>
+                        {(analyticsSummary?.eventBreakdown ?? []).map((e) => (
+                          <SelectItem key={e.event} value={e.event}>
+                            {e.event}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {trendLoading ? (

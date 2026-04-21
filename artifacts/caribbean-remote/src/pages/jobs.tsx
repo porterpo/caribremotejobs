@@ -11,6 +11,7 @@ import { Search, Briefcase, Filter, Sparkles, X, Tag } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { computeSkillMatch } from "@/lib/skill-match";
@@ -728,10 +729,17 @@ export default function Jobs() {
                   : `${activeTotal} Jobs Found`}
               </h2>
               {!isLoading && isBestMatch && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-2.5 py-1">
-                  <Sparkles className="h-3 w-3" />
-                  Sorted by best match
-                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-2.5 py-1 cursor-default">
+                      <Sparkles className="h-3 w-3" />
+                      Sorted by best match
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[200px] text-center">
+                    Order is based on how well each job matches your resume skills
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">

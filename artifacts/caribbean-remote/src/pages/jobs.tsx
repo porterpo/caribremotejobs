@@ -142,7 +142,7 @@ export default function Jobs() {
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
-    query: { enabled: !isBestMatch },
+    query: { enabled: !isBestMatch, staleTime: 60_000 },
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };

@@ -37,15 +37,6 @@ const ANALYTICS_PREF_KEY_TO = "admin_analyticsDateTo";
 const ANALYTICS_PREF_KEY_TREND_EVENT = "admin_trendEventFilter";
 const ANALYTICS_PREF_KEY_GRANULARITY = "admin_trendGranularity";
 
-interface CertificationOrder {
-  id: number;
-  email: string;
-  companyName: string;
-  stripeSessionId: string;
-  status: string;
-  createdAt: string;
-}
-
 interface JobOrder {
   id: number;
   email: string;
@@ -137,10 +128,6 @@ export default function Admin() {
   const [orderProductType, setOrderProductType] = useState("all");
   const [orderDateFrom, setOrderDateFrom] = useState("");
   const [orderDateTo, setOrderDateTo] = useState("");
-  const [certStatus, setCertStatus] = useState("all");
-  const [certDateFrom, setCertDateFrom] = useState("");
-  const [certDateTo, setCertDateTo] = useState("");
-
   const { data: stats } = useGetStats();
 
   const { data: orderStats } = useQuery<OrderStats>({
@@ -166,49 +153,6 @@ export default function Admin() {
   
   // Sync
   const syncJobs = useSyncJobs();
-
-  // Certifications
-  const { data: certifications, isLoading: certificationsLoading, refetch: refetchCertifications } = useQuery<CertificationOrder[]>({
-    queryKey: ["certifications"],
-    queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications`);
-      if (!res.ok) throw new Error("Failed to fetch certifications");
-      return res.json();
-    },
-  });
-
-  const approveCertification = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications/${id}/approve`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to approve certification");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Certification approved" });
-      refetchCertifications();
-      queryClient.invalidateQueries({ queryKey: getListCompaniesQueryKey() });
-    },
-    onError: () => toast({ title: "Failed to approve certification", variant: "destructive" }),
-  });
-
-  const rejectCertification = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/certifications/${id}/reject`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to reject certification");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Certification rejected" });
-      refetchCertifications();
-    },
-    onError: () => toast({ title: "Failed to reject certification", variant: "destructive" }),
-  });
-
-  const pendingCertifications = certifications?.filter(c => c.status === "paid") || [];
 
   // Orders
   const { data: orders, isLoading: ordersLoading } = useQuery<JobOrder[]>({
@@ -447,23 +391,6 @@ export default function Admin() {
       .reduce((sum, o) => sum + (pricePerUnit[o.productType] ?? 0), 0);
   }, [orders, pricePerUnit]);
 
-  const certStatusCounts = useMemo(() => {
-    if (!certifications) return { pending: 0, paid: 0, approved: 0, rejected: 0 };
-    return certifications.reduce(
-      (acc, c) => {
-        if (c.status in acc) acc[c.status as keyof typeof acc]++;
-        return acc;
-      },
-      { pending: 0, paid: 0, approved: 0, rejected: 0 },
-    );
-  }, [certifications]);
-
-  const filteredCertifications = useMemo(() => {
-    if (!certifications) return [];
-    if (certStatus === "all") return certifications;
-    return certifications.filter((c) => c.status === certStatus);
-  }, [certifications, certStatus]);
-
   const filteredBreakdown = useMemo(() => {
     if (!orders) return [];
     const productLabels: Record<string, string> = {
@@ -689,12 +616,6 @@ export default function Admin() {
                 <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0">{pendingJobs.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="certifications" className="px-6 py-2">
-              Certifications
-              {pendingCertifications.length > 0 && (
-                <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0">{pendingCertifications.length}</Badge>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="orders" className="px-6 py-2">
               Orders
               {missingEmailCount > 0 && (
@@ -775,184 +696,6 @@ export default function Admin() {
             </Card>
           </TabsContent>
           
-          <TabsContent value="certifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Caribbean Friendly Certifications</CardTitle>
-                <CardDescription>Review and approve certification applications from employers.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {certifications && certifications.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {([
-                      { key: "paid", label: "Awaiting Review", count: certStatusCounts.paid },
-                      { key: "pending", label: "Payment Pending", count: certStatusCounts.pending },
-                      { key: "approved", label: "Approved", count: certStatusCounts.approved },
-                      { key: "rejected", label: "Rejected", count: certStatusCounts.rejected },
-                    ] as const).map(({ key, label, count }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`relative text-center cursor-pointer rounded px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${key === certStatus ? "bg-primary border border-primary shadow-sm" : "hover:bg-muted border border-border"}`}
-                        title={key === certStatus ? "Click to clear filter" : `Filter by ${label}`}
-                        onClick={() => setCertStatus(key === certStatus ? "all" : key)}
-                      >
-                        {key === certStatus && (
-                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white leading-none border border-white/30">×</span>
-                        )}
-                        <div className={`text-sm font-semibold leading-tight ${key === certStatus ? "text-primary-foreground" : ""}`}>{count}</div>
-                        <div className={`text-xs underline decoration-dotted ${key === certStatus ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{label}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="flex flex-wrap items-end gap-4 mb-4 p-3 bg-muted/40 rounded-lg border">
-                  <div className="flex flex-wrap gap-2 w-full">
-                    {ANALYTICS_PRESETS.map(({ label, getRange }) => {
-                      const range = getRange();
-                      const isActive = certDateFrom === range.from && certDateTo === range.to;
-                      return (
-                        <Button
-                          key={label}
-                          variant={isActive ? "default" : "outline"}
-                          size="sm"
-                          className="text-xs h-7 px-3"
-                          onClick={() => {
-                            setCertDateFrom(range.from);
-                            setCertDateTo(range.to);
-                          }}
-                        >
-                          {label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs text-muted-foreground">From</Label>
-                    <Input
-                      type="date"
-                      value={certDateFrom}
-                      onChange={(e) => setCertDateFrom(e.target.value)}
-                      className="h-8 w-[140px] text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs text-muted-foreground">To</Label>
-                    <Input
-                      type="date"
-                      value={certDateTo}
-                      onChange={(e) => setCertDateTo(e.target.value)}
-                      className="h-8 w-[140px] text-sm"
-                    />
-                  </div>
-                  {(certDateFrom || certDateTo) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        setCertDateFrom("");
-                        setCertDateTo("");
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (certStatus && certStatus !== "all") params.set("status", certStatus);
-                      if (certDateFrom) params.set("dateFrom", certDateFrom);
-                      if (certDateTo) params.set("dateTo", certDateTo);
-                      const url = `${import.meta.env.BASE_URL}api/admin/certification-orders/export${params.toString() ? `?${params.toString()}` : ""}`;
-                      window.open(url, "_blank");
-                    }}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    Export CSV
-                  </Button>
-                </div>
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {certificationsLoading ? (
-                        <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
-                      ) : filteredCertifications.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">{certStatus === "all" ? "No certification applications." : "No certifications match this filter."}</TableCell></TableRow>
-                      ) : (
-                        filteredCertifications.map((cert) => (
-                          <TableRow key={cert.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <Palmtree className="h-4 w-4 text-amber-600 shrink-0" />
-                                {cert.companyName}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">{cert.email}</TableCell>
-                            <TableCell>
-                              {cert.status === "paid" && (
-                                <Badge className="bg-orange-100 text-orange-800 border-0">Awaiting Review</Badge>
-                              )}
-                              {cert.status === "pending" && (
-                                <Badge variant="outline" className="text-muted-foreground">Payment Pending</Badge>
-                              )}
-                              {cert.status === "approved" && (
-                                <Badge className="bg-green-100 text-green-800 border-0">Approved</Badge>
-                              )}
-                              {cert.status === "rejected" && (
-                                <Badge variant="outline" className="text-destructive">Rejected</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {format(new Date(cert.createdAt), "MMM d, yyyy")}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {cert.status === "paid" && (
-                                <div className="flex gap-2 justify-end">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => approveCertification.mutate(cert.id)}
-                                    disabled={approveCertification.isPending || rejectCertification.isPending}
-                                  >
-                                    <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => rejectCertification.mutate(cert.id)}
-                                    disabled={approveCertification.isPending || rejectCertification.isPending}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="orders">
             <Card>
               <CardHeader>

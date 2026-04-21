@@ -1,10 +1,9 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
-import { db, jobsTable, companiesTable, certificationOrdersTable, jobOrdersTable } from "@workspace/db";
+import { db, jobsTable, companiesTable, jobOrdersTable } from "@workspace/db";
 import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
-import { sendOrderConfirmation, sendCertificationApprovalConfirmation } from "../lib/resend";
+import { sendOrderConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
-import { WebhookHandlers } from "../lib/webhookHandlers";
 
 const router: IRouter = Router();
 
@@ -212,7 +211,7 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
 
   const [job] = await db
     .update(jobsTable)
-    .set({ approved: true, featured: featuredValue })
+    .set({ approved: true, featured: featuredValue, caribbeanFriendly: true })
     .where(eq(jobsTable.id, id))
     .returning();
 
@@ -227,207 +226,6 @@ router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
   }
 
   res.json(job);
-});
-
-router.get("/admin/certification-orders/export", async (req, res): Promise<void> => {
-  const { dateFrom, dateTo, status } = req.query as Record<string, string | undefined>;
-
-  const allowedStatuses = ["pending", "paid", "approved", "rejected"];
-  if (status && status !== "all" && !allowedStatuses.includes(status)) {
-    res.status(400).json({ error: "Invalid status" });
-    return;
-  }
-
-  const conditions: SQL[] = [];
-  if (status && status !== "all") {
-    conditions.push(eq(certificationOrdersTable.status, status));
-  }
-  if (dateFrom) {
-    const from = new Date(dateFrom);
-    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
-    conditions.push(gte(certificationOrdersTable.createdAt, from));
-  }
-  if (dateTo) {
-    const to = new Date(dateTo);
-    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
-    to.setHours(23, 59, 59, 999);
-    conditions.push(lte(certificationOrdersTable.createdAt, to));
-  }
-
-  const orders = await db
-    .select({
-      id: certificationOrdersTable.id,
-      email: certificationOrdersTable.email,
-      companyName: certificationOrdersTable.companyName,
-      stripeSessionId: certificationOrdersTable.stripeSessionId,
-      status: certificationOrdersTable.status,
-      createdAt: certificationOrdersTable.createdAt,
-    })
-    .from(certificationOrdersTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(certificationOrdersTable.createdAt));
-
-  const escape = (val: string | number | null | undefined): string => {
-    if (val === null || val === undefined) return "";
-    let str = String(val);
-    if (/^[=+\-@\t\r]/.test(str)) {
-      str = `'${str}`;
-    }
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const headers = [
-    "Order ID",
-    "Email",
-    "Company Name",
-    "Stripe Session ID",
-    "Status",
-    "Created Date",
-  ];
-
-  const rows = orders.map((o) => [
-    escape(o.id),
-    escape(o.email),
-    escape(o.companyName),
-    escape(o.stripeSessionId),
-    escape(o.status),
-    escape(o.createdAt ? new Date(o.createdAt).toISOString() : null),
-  ]);
-
-  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="certification-orders-export.csv"`);
-  res.send(csv);
-});
-
-router.get("/admin/certifications", async (_req, res): Promise<void> => {
-  const certifications = await db
-    .select()
-    .from(certificationOrdersTable)
-    .orderBy(certificationOrdersTable.createdAt);
-  res.json(certifications);
-});
-
-router.post("/admin/certifications/:id/approve", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-
-  const [cert] = await db
-    .select()
-    .from(certificationOrdersTable)
-    .where(eq(certificationOrdersTable.id, id));
-
-  if (!cert) {
-    res.status(404).json({ error: "Certification order not found" });
-    return;
-  }
-
-  const [updated] = await db
-    .update(certificationOrdersTable)
-    .set({ status: "approved" })
-    .where(eq(certificationOrdersTable.id, id))
-    .returning();
-
-  try {
-    await sendCertificationApprovalConfirmation({
-      email: cert.email,
-      companyName: cert.companyName,
-    });
-  } catch (emailErr) {
-    logger.error({ emailErr }, "Failed to send certification approval confirmation email — approval still recorded");
-  }
-
-  const expiresAt = new Date();
-  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-
-  const existingCompanies = await db
-    .select({ id: companiesTable.id })
-    .from(companiesTable)
-    .where(eq(companiesTable.name, cert.companyName));
-
-  if (existingCompanies.length > 0) {
-    const companyId = existingCompanies[0].id;
-    await db
-      .update(companiesTable)
-      .set({
-        caribbeanFriendly: true,
-        caribbeanFriendlyCertified: true,
-        certificationExpiresAt: expiresAt,
-      })
-      .where(eq(companiesTable.id, companyId));
-
-    await db
-      .update(jobsTable)
-      .set({ caribbeanFriendly: true })
-      .where(eq(jobsTable.companyId, companyId));
-  }
-
-  res.json(updated);
-});
-
-router.post("/admin/certifications/:id/reject", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-
-  const [cert] = await db
-    .select()
-    .from(certificationOrdersTable)
-    .where(eq(certificationOrdersTable.id, id));
-
-  if (!cert) {
-    res.status(404).json({ error: "Certification order not found" });
-    return;
-  }
-
-  const [updated] = await db
-    .update(certificationOrdersTable)
-    .set({ status: "rejected" })
-    .where(eq(certificationOrdersTable.id, id))
-    .returning();
-
-  res.json(updated);
-});
-
-router.post("/admin/certifications/:id/revoke", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-
-  const [cert] = await db
-    .select()
-    .from(certificationOrdersTable)
-    .where(eq(certificationOrdersTable.id, id));
-
-  if (!cert) {
-    res.status(404).json({ error: "Certification order not found" });
-    return;
-  }
-
-  const existingCompanies = await db
-    .select({ id: companiesTable.id })
-    .from(companiesTable)
-    .where(eq(companiesTable.name, cert.companyName));
-
-  if (existingCompanies.length === 0) {
-    res.status(404).json({ error: "No matching company found for this certification" });
-    return;
-  }
-
-  const companyId = existingCompanies[0].id;
-
-  await db
-    .update(companiesTable)
-    .set({ caribbeanFriendlyCertified: false, certificationExpiresAt: null })
-    .where(eq(companiesTable.id, companyId));
-
-  await db
-    .update(jobsTable)
-    .set({ caribbeanFriendly: false })
-    .where(eq(jobsTable.companyId, companyId));
-
-  logger.info({ certId: id, companyId, companyName: cert.companyName }, "Certification manually revoked by admin");
-
-  res.json({ success: true, companyId, companyName: cert.companyName });
 });
 
 router.get("/admin/order-stats", async (_req, res): Promise<void> => {
@@ -470,16 +268,6 @@ router.get("/admin/order-stats", async (_req, res): Promise<void> => {
   }
 
   res.json({ totalPaid, breakdown, totalRevenue, revenueBreakdown });
-});
-
-router.post("/admin/certifications/expire-lapsed", async (_req, res): Promise<void> => {
-  try {
-    const count = await WebhookHandlers.expireElapsedCertifications();
-    res.json({ expired: count });
-  } catch (err) {
-    logger.error({ err }, "Failed to expire lapsed certifications");
-    res.status(500).json({ error: "Failed to expire lapsed certifications" });
-  }
 });
 
 export default router;

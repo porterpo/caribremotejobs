@@ -19,9 +19,6 @@ import Unsubscribe from "@/pages/unsubscribe";
 import Pricing from "@/pages/pricing";
 import Success from "@/pages/success";
 import PostJob from "@/pages/post-job";
-import Certify from "@/pages/certify";
-import CertifySuccess from "@/pages/certify-success";
-import Certified from "@/pages/certified";
 import Profile from "@/pages/profile";
 import Resume from "@/pages/resume";
 import TagJobs from "@/pages/tag-jobs";
@@ -266,10 +263,6 @@ function ClerkProviderWithRoutes() {
             <Route path="/admin">
               {() => <ProtectedRoute component={Admin} />}
             </Route>
-            <Route path="/certified">
-              {() => <ProtectedRoute component={Certified} />}
-            </Route>
-
             <Route path="/pricing">
               {() => <ProtectedRoute component={Pricing} />}
             </Route>
@@ -279,13 +272,6 @@ function ClerkProviderWithRoutes() {
             <Route path="/post-job">
               {() => <ProtectedRoute component={PostJob} />}
             </Route>
-            <Route path="/certify">
-              {() => <ProtectedRoute component={Certify} />}
-            </Route>
-            <Route path="/certify/success">
-              {() => <ProtectedRoute component={CertifySuccess} />}
-            </Route>
-
             <Route path="/profile">
               {() => <ProtectedRoute component={Profile} />}
             </Route>

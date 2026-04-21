@@ -209,7 +209,7 @@ router.post("/jobs", async (req, res): Promise<void> => {
     .insert(jobsTable)
     .values({
       ...parsed.data,
-      caribbeanFriendly: parsed.data.caribbeanFriendly ?? false,
+      caribbeanFriendly: true,
       featured: parsed.data.featured ?? false,
       approved: parsed.data.approved ?? true,
     })

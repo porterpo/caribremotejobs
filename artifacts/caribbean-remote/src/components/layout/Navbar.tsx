@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, Palmtree, LogOut, ChevronDown, User, FileText, Tag } from "lucide-react";
+import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -107,10 +107,8 @@ export function Navbar() {
     { name: "Jobs", href: "/jobs", icon: Briefcase },
     { name: "Browse Tags", href: "/jobs/tags", icon: Tag },
     { name: "Companies", href: "/companies", icon: Building2 },
-    { name: "CF Certified", href: "/certified", icon: Palmtree },
     { name: "Alerts", href: "/alerts", icon: BellRing },
     { name: "Post a Job", href: "/pricing", icon: DollarSign },
-    { name: "Get Certified", href: "/certify", icon: Palmtree },
   ];
 
   return (

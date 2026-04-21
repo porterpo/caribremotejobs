@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -9,8 +9,6 @@ export const companiesTable = pgTable("companies", {
   website: text("website"),
   description: text("description"),
   caribbeanFriendly: boolean("caribbean_friendly").notNull().default(false),
-  caribbeanFriendlyCertified: boolean("caribbean_friendly_certified").notNull().default(false),
-  certificationExpiresAt: timestamp("certification_expires_at", { withTimezone: true }),
   hiresBahamas: boolean("hires_bahamas").notNull().default(false),
   hiresCaribbean: boolean("hires_caribbean").notNull().default(false),
   country: text("country"),

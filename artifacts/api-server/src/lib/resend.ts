@@ -175,66 +175,6 @@ export async function sendJobSubmissionConfirmation(params: {
   }
 }
 
-export async function sendCertificationApplicationConfirmation(params: {
-  email: string;
-  companyName: string;
-}): Promise<void> {
-  const { client, fromEmail } = await getResendClient();
-  try {
-    await client.emails.send({
-      from: fromEmail,
-      to: params.email,
-      subject: "Your Caribbean Friendly Certification application has been received",
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #0d9488;">Application Received!</h1>
-          <p>Hi there,</p>
-          <p>Thank you for applying for <strong>Caribbean Friendly Certification</strong> for <strong>${params.companyName}</strong>.</p>
-          <p>Our team will review your application and get back to you within <strong>2 business days</strong>. Once approved, your company will receive a verified badge displayed on your job listings.</p>
-          <p style="font-size: 14px; color: #6b7280;">If you have any questions in the meantime, feel free to reply to this email.</p>
-          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
-        </div>
-      `,
-    });
-  } catch (err) {
-    logger.error({ err }, "Failed to send certification application confirmation email");
-    throw err;
-  }
-}
-
-export async function sendCertificationApprovalConfirmation(params: {
-  email: string;
-  companyName: string;
-}): Promise<void> {
-  const { client, fromEmail } = await getResendClient();
-  const appUrl = process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribbeanremote.com");
-  try {
-    await client.emails.send({
-      from: fromEmail,
-      to: params.email,
-      subject: "Congratulations! Your Caribbean Friendly Certification has been approved",
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #0d9488;">Certification Approved!</h1>
-          <p>Hi there,</p>
-          <p>Great news — <strong>${params.companyName}</strong> has been approved as a <strong>Caribbean Friendly Certified</strong> employer!</p>
-          <p>Your company will now display a verified Caribbean Friendly badge on all of your job listings on CaribbeanRemote, signalling to candidates that you actively support Caribbean remote professionals.</p>
-          <p>Your certification is valid for one year from today.</p>
-          <a href="${appUrl}/jobs" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 0;">View Your Listings</a>
-          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
-        </div>
-      `,
-    });
-  } catch (err) {
-    logger.error({ err }, "Failed to send certification approval confirmation email");
-    throw err;
-  }
-}
-
 export async function sendJobAlerts(
   email: string,
   unsubscribeToken: string,

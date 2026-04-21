@@ -727,8 +727,8 @@ export default function Jobs() {
             </div>
           )}
 
-          <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold">
                 {isLoading
                   ? needsAllJobs
@@ -741,8 +741,8 @@ export default function Jobs() {
               {!isLoading && isBestMatch && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-2.5 py-1 cursor-default">
-                      <Sparkles className="h-3 w-3" />
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-2.5 py-1 cursor-default whitespace-nowrap">
+                      <Sparkles className="h-3 w-3 shrink-0" />
                       Sorted by best match
                     </span>
                   </TooltipTrigger>

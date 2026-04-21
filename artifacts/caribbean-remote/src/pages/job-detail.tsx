@@ -570,6 +570,11 @@ export default function JobDetail() {
             </div>
             
             <div className="flex flex-col gap-3 min-w-[200px] shrink-0 mt-4 md:mt-0">
+              {skillMatch && (
+                <div className="flex justify-center md:justify-end">
+                  <SkillMatchBadge match={skillMatch} size="md" />
+                </div>
+              )}
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
@@ -623,9 +628,6 @@ export default function JobDetail() {
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <h3 className="text-lg font-semibold">Skills & Requirements</h3>
-                  {skillMatch && (
-                    <SkillMatchBadge match={skillMatch} size="md" />
-                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <TooltipProvider>

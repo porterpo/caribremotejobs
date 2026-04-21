@@ -1,4 +1,4 @@
-import { getStripeSync } from "./stripeClient";
+import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
 import { sendOrderConfirmation } from "./resend";
@@ -44,6 +44,16 @@ export class WebhookHandlers {
         const customerId = eventObj?.customer as string | undefined;
         const subscriptionId = eventObj?.subscription as string | undefined;
         if (clerkUserId) {
+          let currentPeriodEnd: Date | null = null;
+          if (subscriptionId) {
+            try {
+              const stripe = await getUncachableStripeClient();
+              const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+              currentPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+            } catch (subErr) {
+              logger.warn({ subErr }, "Could not fetch subscription currentPeriodEnd at checkout — will be set by subscription event");
+            }
+          }
           await db
             .insert(seekerSubscriptionsTable)
             .values({
@@ -51,6 +61,7 @@ export class WebhookHandlers {
               stripeCustomerId: customerId ?? null,
               stripeSubscriptionId: subscriptionId ?? null,
               status: "active",
+              currentPeriodEnd,
             })
             .onConflictDoUpdate({
               target: seekerSubscriptionsTable.clerkUserId,
@@ -58,6 +69,7 @@ export class WebhookHandlers {
                 stripeCustomerId: customerId ?? null,
                 stripeSubscriptionId: subscriptionId ?? null,
                 status: "active",
+                currentPeriodEnd,
                 updatedAt: new Date(),
               },
             });

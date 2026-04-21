@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
+import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
 import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -601,7 +602,16 @@ export default function JobDetail() {
                   <div className="mt-4 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
                     <Sparkles className="h-4 w-4 shrink-0 text-primary" />
                     <p className="text-sm text-foreground">
-                      <Link href="/resume" className="font-medium text-primary hover:underline">
+                      <Link
+                        href="/resume"
+                        className="font-medium text-primary hover:underline"
+                        onClick={() =>
+                          track("skills_nudge_clicked", {
+                            job_id: jobId,
+                            has_resume: !!resume,
+                          })
+                        }
+                      >
                         Add skills to your resume
                       </Link>{" "}
                       to see how well you match this job.

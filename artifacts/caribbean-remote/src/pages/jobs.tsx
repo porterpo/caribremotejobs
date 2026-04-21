@@ -567,9 +567,21 @@ export default function Jobs() {
             </div>
           )}
 
-          {selectedTags.length > 0 && (
+          {(selectedTags.length > 0 || minMatch > 0) && (
             <div className="mb-4 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">Filtered by skill:</span>
+              {minMatch > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-sm px-3 py-1 font-medium">
+                  {minMatch}%+ match
+                  <button
+                    onClick={() => setMinMatch(0)}
+                    aria-label="Remove minimum match filter"
+                    className="ml-0.5 hover:text-primary/70 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              )}
               {selectedTags.map((tag) => (
                 <span key={tag} className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-sm px-3 py-1 font-medium">
                   <Tag className="h-3 w-3" />

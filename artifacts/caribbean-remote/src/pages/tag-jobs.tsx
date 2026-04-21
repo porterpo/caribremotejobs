@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobs } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Tag, ArrowLeft, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Briefcase, Tag, ArrowLeft, Sparkles, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ export default function TagJobs() {
   const tag = decodeURIComponent(tagname ?? "");
 
   const [page, setPage] = useState(1);
+  const [selectedTags, setSelectedTags] = useState<string[]>(tag ? [tag] : []);
 
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
@@ -47,10 +49,23 @@ export default function TagJobs() {
   const [sortBy, setSortBy] = useState("newest");
   const [minMatch, setMinMatch] = useState(0);
 
+  // Reset selectedTags whenever the URL tag changes
+  useEffect(() => {
+    setSelectedTags(tag ? [tag] : []);
+  }, [tag]);
+
   const filterParams = tag ? { tag: [tag] } : {};
 
   const isBestMatch = sortBy === "best-match" && hasSkills;
-  const needsAllJobs = hasSkills && (isBestMatch || minMatch > 0);
+
+  // Extra tags are those beyond the URL tag — require all-jobs fetch + local filter
+  const extraTags = useMemo(
+    () => selectedTags.filter((t) => t.toLowerCase() !== tag.toLowerCase()),
+    [selectedTags, tag]
+  );
+
+  const needsAllJobs =
+    (hasSkills && (isBestMatch || minMatch > 0)) || extraTags.length > 0;
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
@@ -68,7 +83,7 @@ export default function TagJobs() {
 
   useEffect(() => {
     setPage(1);
-  }, [tag, sortBy, minMatch]);
+  }, [tag, sortBy, minMatch, selectedTags]);
 
   useEffect(() => {
     if (skillsResolved && !hasSkills) {
@@ -76,6 +91,22 @@ export default function TagJobs() {
       if (minMatch > 0) setMinMatch(0);
     }
   }, [skillsResolved, hasSkills, sortBy, minMatch]);
+
+  const handleTagClick = useCallback(
+    (clickedTag: string) => {
+      setSelectedTags((prev) => {
+        const lc = clickedTag.toLowerCase();
+        const prevLc = prev.map((t) => t.toLowerCase());
+        if (prevLc.includes(lc)) {
+          // Never remove the URL tag — it's the base filter for this page
+          if (lc === tag.toLowerCase()) return prev;
+          return prev.filter((t) => t.toLowerCase() !== lc);
+        }
+        return [...prev, clickedTag];
+      });
+    },
+    [tag]
+  );
 
   const { displayedJobs, activeTotal, activeTotalPages } = useMemo(() => {
     if (needsAllJobs) {
@@ -86,8 +117,15 @@ export default function TagJobs() {
         score: computeSkillMatch(resumeSkills, job.tags ?? null)?.percentage ?? 0,
       }));
 
-      const filtered = jobsWithScores.filter(({ score }) => {
+      const filtered = jobsWithScores.filter(({ score, job }) => {
         if (minMatch > 0 && score < minMatch) return false;
+        if (extraTags.length > 0) {
+          const jobTagsLc = (job.tags ?? "")
+            .split(",")
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean);
+          if (!extraTags.every((et) => jobTagsLc.includes(et.toLowerCase()))) return false;
+        }
         return true;
       });
 
@@ -110,7 +148,7 @@ export default function TagJobs() {
       activeTotal: jobsResponse?.total ?? 0,
       activeTotalPages: jobsResponse?.totalPages ?? 1,
     };
-  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, page]);
+  }, [needsAllJobs, isBestMatch, allJobsResponse, jobsResponse, resumeSkills, minMatch, extraTags, page]);
 
   const pageTitle = tag ? `Remote ${tag} Jobs` : "Remote Jobs by Tag";
   const metaDescription = tag
@@ -173,20 +211,60 @@ export default function TagJobs() {
           <p className="text-muted-foreground text-lg max-w-2xl">
             {isLoading
               ? "Finding jobs…"
-              : `${activeTotal} remote ${activeTotal === 1 ? "job" : "jobs"} requiring ${tag} skills.`}
+              : `${activeTotal} remote ${activeTotal === 1 ? "job" : "jobs"} requiring ${selectedTags.join(" + ")} skills.`}
           </p>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-xl font-semibold">
-            {isLoading
-              ? isBestMatch
-                ? "Finding your best matches…"
-                : "Loading jobs…"
-              : `${activeTotal} ${activeTotal === 1 ? "Job" : "Jobs"} Found`}
-          </h2>
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-semibold">
+              {isLoading
+                ? isBestMatch
+                  ? "Finding your best matches…"
+                  : "Loading jobs…"
+                : `${activeTotal} ${activeTotal === 1 ? "Job" : "Jobs"} Found`}
+            </h2>
+            {selectedTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Filtering by:</span>
+                {selectedTags.map((t) => {
+                  const isUrlTag = t.toLowerCase() === tag.toLowerCase();
+                  return (
+                    <Badge
+                      key={t}
+                      variant="secondary"
+                      title={isUrlTag ? "This is the page tag — navigate to a different tag to change it" : "Click to remove filter"}
+                      className={
+                        isUrlTag
+                          ? "bg-primary/15 text-primary border border-primary/30 text-xs px-2 py-0"
+                          : "group/filter bg-primary text-primary-foreground border border-primary text-xs px-2 py-0 cursor-pointer hover:bg-primary/80 transition-colors inline-flex items-center gap-1"
+                      }
+                      onClick={
+                        isUrlTag
+                          ? undefined
+                          : () => handleTagClick(t)
+                      }
+                    >
+                      {t}
+                      {!isUrlTag && (
+                        <X className="h-3 w-3 opacity-60 group-hover/filter:opacity-100 transition-opacity shrink-0" />
+                      )}
+                    </Badge>
+                  );
+                })}
+                {extraTags.length > 0 && (
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                    onClick={() => setSelectedTags(tag ? [tag] : [])}
+                  >
+                    Clear extra filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {hasSkills && (
             <div className="flex items-center gap-3 flex-wrap shrink-0">
               <div className="flex items-center gap-2">
@@ -222,7 +300,7 @@ export default function TagJobs() {
             <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-medium mb-2">Couldn't load results</h3>
             <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
-            <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); }}>
+            <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); setSelectedTags(tag ? [tag] : []); }}>
               Reset filters
             </Button>
           </div>
@@ -251,7 +329,8 @@ export default function TagJobs() {
                 key={job.id}
                 job={job}
                 isBestMatch={isBestMatch}
-                selectedTags={[tag]}
+                selectedTags={selectedTags}
+                onTagClick={handleTagClick}
               />
             ))}
 
@@ -280,13 +359,22 @@ export default function TagJobs() {
         ) : (
           <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
             <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">No jobs found for "{tag}"</h3>
+            <h3 className="text-lg font-medium mb-2">No jobs found</h3>
             <p className="text-muted-foreground mb-6">
-              There are no active remote jobs tagged with {tag} right now. Check back soon or browse all jobs.
+              {extraTags.length > 0
+                ? `No jobs match all of: ${selectedTags.join(", ")}. Try removing some filters.`
+                : `There are no active remote jobs tagged with ${tag} right now. Check back soon or browse all jobs.`}
             </p>
-            <Link href="/jobs">
-              <Button variant="outline">Browse All Jobs</Button>
-            </Link>
+            <div className="flex gap-3 justify-center flex-wrap">
+              {extraTags.length > 0 && (
+                <Button variant="outline" onClick={() => setSelectedTags(tag ? [tag] : [])}>
+                  Clear extra filters
+                </Button>
+              )}
+              <Link href="/jobs">
+                <Button variant="outline">Browse All Jobs</Button>
+              </Link>
+            </div>
           </div>
         )}
       </div>

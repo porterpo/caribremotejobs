@@ -245,6 +245,7 @@ export default function Admin() {
     () => localStorage.getItem("admin_analyticsDateTo") ?? ""
   );
   const [trendEventFilter, setTrendEventFilter] = useState("");
+  const [trendEventFilterSecondary, setTrendEventFilterSecondary] = useState("");
   const [granularityOverride, setGranularityOverride] = useState<"auto" | "day" | "week">("auto");
   const [analyticsPreferenceLoaded, setAnalyticsPreferenceLoaded] = useState(false);
 
@@ -312,12 +313,15 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    if (!trendEventFilter) return;
+    if (!trendEventFilter && !trendEventFilterSecondary) return;
     const available = (analyticsSummary?.eventBreakdown ?? []).map((e) => e.event);
-    if (available.length > 0 && !available.includes(trendEventFilter)) {
+    if (available.length > 0 && trendEventFilter && !available.includes(trendEventFilter)) {
       setTrendEventFilter("");
     }
-  }, [analyticsSummary, trendEventFilter]);
+    if (available.length > 0 && trendEventFilterSecondary && !available.includes(trendEventFilterSecondary)) {
+      setTrendEventFilterSecondary("");
+    }
+  }, [analyticsSummary, trendEventFilter, trendEventFilterSecondary]);
 
   const effectiveGranularity = useMemo<"day" | "week">(() => {
     if (granularityOverride !== "auto") return granularityOverride;
@@ -328,13 +332,14 @@ export default function Admin() {
     return diffDays >= 60 ? "week" : "day";
   }, [granularityOverride, analyticsDateFrom, analyticsDateTo]);
 
-  const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { date: string; count: number }[]; granularity: string }>({
-    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo, trendEventFilter, effectiveGranularity],
+  const { data: analyticsTrend, isLoading: trendLoading } = useQuery<{ trend: { event?: string; trend: { date: string; count: number }[] }[] | { date: string; count: number }[]; granularity: string }>({
+    queryKey: ["admin-analytics-trend", analyticsDateFrom, analyticsDateTo, trendEventFilter, trendEventFilterSecondary, effectiveGranularity],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (analyticsDateFrom) params.set("dateFrom", analyticsDateFrom);
       if (analyticsDateTo) params.set("dateTo", analyticsDateTo);
-      if (trendEventFilter) params.set("event", trendEventFilter);
+      const events = [trendEventFilter, trendEventFilterSecondary].filter(Boolean);
+      if (events.length) params.set("event", events.join(","));
       params.set("granularity", effectiveGranularity);
       const qs = params.toString();
       const res = await fetch(`${import.meta.env.BASE_URL}api/analytics/trend${qs ? `?${qs}` : ""}`);
@@ -345,7 +350,7 @@ export default function Admin() {
 
   const trendData = useMemo(() => {
     const raw = analyticsTrend?.trend ?? [];
-    if (!raw.length) return raw;
+    if (!raw.length || "event" in raw[0]) return raw as any;
     if (!analyticsDateFrom || !analyticsDateTo) return raw;
     const countByDate: Record<string, number> = {};
     for (const row of raw) countByDate[row.date] = row.count;
@@ -372,6 +377,13 @@ export default function Admin() {
     }
     return result;
   }, [analyticsTrend, analyticsDateFrom, analyticsDateTo, effectiveGranularity]);
+
+  const trendSeriesData = useMemo(() => {
+    const raw = analyticsTrend?.trend ?? [];
+    if (raw.length && "event" in raw[0]) return raw as { event: string; trend: { date: string; count: number }[] }[];
+    if (!raw.length) return [];
+    return [{ event: trendEventFilter || "Events", trend: trendData }];
+  }, [analyticsTrend, trendData, trendEventFilter]);
 
   const pricePerUnit = useMemo<Record<string, number>>(() => {
     if (!orderStats) return {};
@@ -1468,11 +1480,24 @@ export default function Admin() {
                         ))}
                       </div>
                       <Select value={trendEventFilter || "__all__"} onValueChange={(v) => setTrendEventFilter(v === "__all__" ? "" : v)}>
-                        <SelectTrigger className="h-8 text-xs w-48">
+                        <SelectTrigger className="h-8 text-xs w-44">
                           <SelectValue placeholder="All events" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__all__">All events</SelectItem>
+                          {(analyticsSummary?.eventBreakdown ?? []).map((e) => (
+                            <SelectItem key={e.event} value={e.event}>
+                              {e.event}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={trendEventFilterSecondary || "__all__"} onValueChange={(v) => setTrendEventFilterSecondary(v === "__all__" ? "" : v)}>
+                        <SelectTrigger className="h-8 text-xs w-44">
+                          <SelectValue placeholder="Compare second event" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">No comparison</SelectItem>
                           {(analyticsSummary?.eventBreakdown ?? []).map((e) => (
                             <SelectItem key={e.event} value={e.event}>
                               {e.event}
@@ -1488,7 +1513,7 @@ export default function Admin() {
                     <div className="flex items-center justify-center h-48">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                  ) : !trendData.length ? (
+                  ) : !trendSeriesData.length ? (
                     <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
                       No data for the selected range
                     </div>
@@ -1511,7 +1536,10 @@ export default function Admin() {
                           }
                           formatter={(value: number) => [value, "Events"]}
                         />
-                        <Bar dataKey="count" name="Events" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="count" name={trendEventFilter || "Events"} fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                        {trendEventFilterSecondary && (
+                          <Bar dataKey="count" name={trendEventFilterSecondary} fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   )}

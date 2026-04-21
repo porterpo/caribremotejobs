@@ -181,6 +181,7 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
     dateFrom?: string; dateTo?: string; event?: string; granularity?: string;
   };
   const granularity = granularityParam === "week" ? "week" : "day";
+  const eventList = typeof event === "string" && event.length > 0 ? event.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
   const conditions = [];
   if (dateFrom) {
@@ -196,8 +197,8 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
       conditions.push(lte(analyticsEventsTable.occurredAt, to));
     }
   }
-  if (typeof event === "string" && event.length > 0) {
-    conditions.push(eq(analyticsEventsTable.event, event));
+  if (eventList.length === 1) {
+    conditions.push(eq(analyticsEventsTable.event, eventList[0]));
   }
 
   let rows: { date: string; count: number }[];
@@ -224,7 +225,38 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
       .orderBy(sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
   }
 
-  res.json({ trend: rows, granularity });
+  if (eventList.length <= 1) {
+    res.json({ trend: rows, granularity });
+    return;
+  }
+
+  const series = await Promise.all(
+    eventList.map(async (eventName) => {
+      const eventConditions = [...conditions, eq(analyticsEventsTable.event, eventName)];
+      const eventRows = await db
+        .select({
+          date: granularity === "week"
+            ? sql<string>`to_char(DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC'), 'YYYY-MM-DD')`
+            : sql<string>`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(analyticsEventsTable)
+        .where(and(...eventConditions))
+        .groupBy(
+          granularity === "week"
+            ? sql`DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC')`
+            : sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`
+        )
+        .orderBy(
+          granularity === "week"
+            ? sql`DATE_TRUNC('week', ${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC')`
+            : sql`to_char(${analyticsEventsTable.occurredAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`
+        );
+      return { event: eventName, trend: eventRows };
+    })
+  );
+
+  res.json({ trend: series, granularity });
 });
 
 export default router;

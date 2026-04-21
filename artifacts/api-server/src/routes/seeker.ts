@@ -1,43 +1,17 @@
 import { Router } from "express";
-import { db, seekerSubscriptionsTable, analyticsEventsTable } from "@workspace/db";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { db, seekerSubscriptionsTable } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
+import { getSeekerSubscription } from "../lib/getSeekerSubscription";
 
 const router = Router();
 
-const FREE_WEEKLY_LIMIT = 3;
-
 router.get("/seeker/subscription", requireAuth, async (req, res): Promise<void> => {
   const { userId } = req as AuthenticatedRequest;
-
-  const [sub] = await db
-    .select()
-    .from(seekerSubscriptionsTable)
-    .where(eq(seekerSubscriptionsTable.clerkUserId, userId));
-
-  const isPro = sub?.status === "active" || sub?.status === "trialing";
-
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(analyticsEventsTable)
-    .where(
-      and(
-        eq(analyticsEventsTable.userId, userId),
-        eq(analyticsEventsTable.event, "application_started"),
-        gte(analyticsEventsTable.occurredAt, oneWeekAgo),
-      )
-    );
-
-  res.json({
-    status: sub?.status ?? "none",
-    isPro,
-    currentPeriodEnd: sub?.currentPeriodEnd ?? null,
-    applicationCount: countRow?.count ?? 0,
-    applicationLimit: isPro ? null : FREE_WEEKLY_LIMIT,
-  });
+  const info = await getSeekerSubscription(userId);
+  res.json(info);
 });
 
 router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<void> => {
@@ -90,12 +64,9 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
 router.post("/stripe/seeker-portal", requireAuth, async (req, res): Promise<void> => {
   const { userId } = req as AuthenticatedRequest;
 
-  const [sub] = await db
-    .select()
-    .from(seekerSubscriptionsTable)
-    .where(eq(seekerSubscriptionsTable.clerkUserId, userId));
+  const sub = await getSeekerSubscription(userId);
 
-  if (!sub?.stripeCustomerId) {
+  if (!sub.stripeCustomerId) {
     res.status(400).json({ error: "No active subscription found" });
     return;
   }

@@ -637,7 +637,7 @@ export default function JobDetail() {
   const isResumePending = isSignedIn && isMailto && resumeStatus === "pending";
 
   interface SeekerSub { isPro: boolean; applicationCount: number; applicationLimit: number | null; }
-  const { data: seekerSub } = useQuery<SeekerSub>({
+  const { data: seekerSub, isLoading: seekerSubLoading } = useQuery<SeekerSub>({
     queryKey: ["seeker-subscription"],
     queryFn: async () => {
       const res = await fetch(`${BASE}api/seeker/subscription`, { credentials: "include" });
@@ -649,8 +649,11 @@ export default function JobDetail() {
     enabled: !!isSignedIn,
   });
 
+  const applyGateLoading = !!isSignedIn && seekerSubLoading;
+
   function checkApplyGate(): boolean {
     if (!isSignedIn) return true;
+    if (seekerSubLoading) return false;
     if (!seekerSub) return true;
     if (seekerSub.isPro) return true;
     if (seekerSub.applicationLimit !== null && seekerSub.applicationCount >= seekerSub.applicationLimit) {
@@ -659,6 +662,17 @@ export default function JobDetail() {
     }
     return true;
   }
+
+  const showQuotaIndicator =
+    isSignedIn &&
+    !seekerSubLoading &&
+    seekerSub &&
+    !seekerSub.isPro &&
+    seekerSub.applicationLimit !== null;
+
+  const appsRemaining = showQuotaIndicator
+    ? Math.max(0, (seekerSub!.applicationLimit ?? 3) - seekerSub!.applicationCount)
+    : null;
 
   const userName = user?.fullName || user?.firstName || "Applicant";
 
@@ -969,20 +983,29 @@ export default function JobDetail() {
                   </span>
                 </div>
               )}
+              {showQuotaIndicator && (
+                <p className="text-xs text-center text-muted-foreground">
+                  {appsRemaining === 0 ? (
+                    <span className="text-destructive font-medium">0 applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro</a></span>
+                  ) : (
+                    <span>{appsRemaining} of {seekerSub!.applicationLimit} applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro</a></span>
+                  )}
+                </p>
+              )}
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
                   className="w-full text-base h-12"
                   onClick={() => void handlePrimaryApply()}
-                  disabled={isPrimaryFetchingPdf}
+                  disabled={isPrimaryFetchingPdf || applyGateLoading}
                 >
-                  {isPrimaryFetchingPdf
+                  {isPrimaryFetchingPdf || applyGateLoading
                     ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now</>
                     : <>Apply Now <ExternalLink className="ml-2 h-4 w-4" /></>
                   }
                 </Button>
               ) : (
-                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending} asChild={!isResumePending}>
+                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending || applyGateLoading} asChild={!isResumePending && !applyGateLoading}>
                   {isResumePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
@@ -1191,20 +1214,29 @@ export default function JobDetail() {
                   </span>
                 </div>
               )}
+              {showQuotaIndicator && (
+                <p className="w-full text-xs text-muted-foreground">
+                  {appsRemaining === 0 ? (
+                    <span className="text-destructive font-medium">0 applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Upgrade to Pro</a></span>
+                  ) : (
+                    <span>{appsRemaining} of {seekerSub!.applicationLimit} applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro for unlimited</a></span>
+                  )}
+                </p>
+              )}
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
                   className="px-8"
                   onClick={() => void handlePrimaryApply()}
-                  disabled={isPrimaryFetchingPdf}
+                  disabled={isPrimaryFetchingPdf || applyGateLoading}
                 >
-                  {isPrimaryFetchingPdf
+                  {isPrimaryFetchingPdf || applyGateLoading
                     ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing...</>
                     : <>Apply for this position <ExternalLink className="ml-2 h-4 w-4" /></>
                   }
                 </Button>
               ) : (
-                <Button size="lg" className="px-8" disabled={isResumePending} asChild={!isResumePending}>
+                <Button size="lg" className="px-8" disabled={isResumePending || applyGateLoading} asChild={!isResumePending && !applyGateLoading}>
                   {isResumePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position

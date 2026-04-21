@@ -112,10 +112,17 @@ export default function TagJobs() {
       )}
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-8 md:py-12">
-          <Link href="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            All Jobs
-          </Link>
+          <div className="flex items-center gap-3 mb-4">
+            <Link href="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              All Jobs
+            </Link>
+            <span className="text-muted-foreground/40 text-sm">·</span>
+            <Link href="/jobs/tags" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Tag className="h-4 w-4" />
+              All Skill Tags
+            </Link>
+          </div>
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Tag className="h-5 w-5 text-primary" />

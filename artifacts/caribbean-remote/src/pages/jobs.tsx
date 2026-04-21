@@ -459,9 +459,17 @@ export default function Jobs() {
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-8 md:py-12">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Find Your Next Remote Role</h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mb-8">
+          <p className="text-muted-foreground text-lg max-w-2xl mb-4">
             Browse remote opportunities from global companies hiring in the Caribbean and beyond.
           </p>
+
+          <Link
+            href="/jobs/tags"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-8"
+          >
+            <Tag className="h-4 w-4" />
+            Browse by Skill Tag
+          </Link>
           
           <div className="flex gap-2 w-full max-w-3xl">
             <div className="relative flex-1">

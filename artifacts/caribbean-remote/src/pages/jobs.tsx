@@ -727,7 +727,7 @@ export default function Jobs() {
             </div>
           )}
 
-          <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold">
                 {isLoading

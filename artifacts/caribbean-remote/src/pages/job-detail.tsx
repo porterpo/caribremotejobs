@@ -7,7 +7,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -124,8 +124,26 @@ function MailtoPreviewDialog({
   subject: string;
   body: string;
 }) {
+  const [copied, setCopied] = useState<"idle" | "done" | "error">("idle");
+
+  function handleCopy() {
+    const text = `Subject: ${subject}\n\n${body}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied("done");
+      setTimeout(() => setCopied("idle"), 2000);
+    }).catch(() => {
+      setCopied("error");
+      setTimeout(() => setCopied("idle"), 2500);
+    });
+  }
+
+  function handleClose() {
+    setCopied("idle");
+    onClose();
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Email preview</DialogTitle>
@@ -155,13 +173,22 @@ function MailtoPreviewDialog({
             Your mail client may reformat the text slightly.
           </p>
 
-          <div className="pt-2 border-t flex gap-2">
-            <Button className="flex-1" asChild onClick={onClose}>
+          <div className="pt-2 border-t flex gap-2 flex-wrap">
+            <Button className="flex-1" asChild onClick={handleClose}>
               <a href={applyUrl} target="_blank" rel="noopener noreferrer">
                 Open Mail Client <ExternalLink className="h-4 w-4 ml-2" />
               </a>
             </Button>
-            <Button variant="outline" asChild onClick={onClose}>
+            <Button variant="outline" onClick={handleCopy} className="flex-1">
+              {copied === "done" ? (
+                <>Copied <Check className="h-4 w-4 ml-2" /></>
+              ) : copied === "error" ? (
+                <>Copy failed — try manually</>
+              ) : (
+                <>Copy email text <Copy className="h-4 w-4 ml-2" /></>
+              )}
+            </Button>
+            <Button variant="outline" asChild onClick={handleClose}>
               <Link href="/resume">Edit Resume</Link>
             </Button>
           </div>

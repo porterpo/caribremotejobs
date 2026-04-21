@@ -203,11 +203,13 @@ function ApplyWithResumeDialog({
   onClose,
   applyUrl,
   jobTitle,
+  onShowPreview,
 }: {
   open: boolean;
   onClose: () => void;
   applyUrl: string;
   jobTitle: string;
+  onShowPreview?: () => void;
 }) {
   const { data: resume, status } = useQuery<ResumeData | null>({
     queryKey: ["resume", "me"],
@@ -354,11 +356,17 @@ function ApplyWithResumeDialog({
             )}
 
             <div className="pt-3 border-t flex gap-2">
-              <Button className="flex-1" asChild onClick={onClose}>
-                <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+              {onShowPreview ? (
+                <Button className="flex-1" onClick={onShowPreview}>
                   Apply Now <ExternalLink className="h-4 w-4 ml-2" />
-                </a>
-              </Button>
+                </Button>
+              ) : (
+                <Button className="flex-1" asChild onClick={onClose}>
+                  <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+                    Apply Now <ExternalLink className="h-4 w-4 ml-2" />
+                  </a>
+                </Button>
+              )}
               <Button variant="outline" asChild>
                 <Link href="/resume" onClick={onClose}>Edit Resume</Link>
               </Button>
@@ -474,6 +482,7 @@ export default function JobDetail() {
           onClose={() => setApplyDialogOpen(false)}
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
+          onShowPreview={showPreviewOnApply ? () => { setApplyDialogOpen(false); setPreviewDialogOpen(true); } : undefined}
         />
       )}
       {job && mailtoPreview && (

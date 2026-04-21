@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
@@ -68,6 +68,9 @@ export default function SeekerPro() {
   const isSuccess = searchParams.get("success") === "1";
   const isCanceled = searchParams.get("canceled") === "1";
 
+  const pollCountRef = useRef(0);
+  const MAX_POLL_ATTEMPTS = 10;
+
   useEffect(() => {
     if (isSuccess) {
       void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
@@ -83,6 +86,14 @@ export default function SeekerPro() {
     },
     enabled: isLoaded && !!isSignedIn,
     staleTime: isSuccess ? 0 : 30_000,
+    refetchInterval: (query) => {
+      if (!isSuccess) return false;
+      const data = query.state.data as SeekerSubscription | undefined;
+      if (data?.isPro) return false;
+      if (pollCountRef.current >= MAX_POLL_ATTEMPTS) return false;
+      pollCountRef.current += 1;
+      return 2000;
+    },
   });
 
   const { data: productsData } = useQuery<{ products: StripeProduct[] }>({

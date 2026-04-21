@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobs, getListJobsQueryKey, useListCategories } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
@@ -11,8 +11,9 @@ import { Search, Briefcase, Filter } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
+import { computeSkillMatch } from "@/lib/skill-match";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -41,10 +42,13 @@ export default function Jobs() {
   const [featured, setFeatured] = useState(initialFeatured);
   const [page, setPage] = useState(1);
   
+  const [sortBy, setSortBy] = useState("newest");
+
   const { isSignedIn } = useUser();
+  const queryClient = useQueryClient();
   const { data: categories } = useListCategories();
 
-  useQuery({
+  const { data: resumeData } = useQuery({
     queryKey: ["resume", "me"],
     queryFn: async () => {
       const res = await fetch(`${BASE}api/resume/me`);
@@ -56,6 +60,13 @@ export default function Jobs() {
     retry: false,
     enabled: !!isSignedIn,
   });
+
+  const resumeSkills: string[] = useMemo(() => {
+    const cached = queryClient.getQueryData<{ skills?: string[] | null } | null>(["resume", "me"]);
+    return cached?.skills ?? resumeData?.skills ?? [];
+  }, [resumeData, queryClient]);
+
+  const hasSkills = !!isSignedIn && resumeSkills.length > 0;
 
   const queryParams = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
@@ -72,6 +83,23 @@ export default function Jobs() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, category, jobType, entryLevel, featured]);
+
+  // Reset to newest when skills disappear
+  useEffect(() => {
+    if (!hasSkills && sortBy === "best-match") {
+      setSortBy("newest");
+    }
+  }, [hasSkills, sortBy]);
+
+  const displayedJobs = useMemo(() => {
+    const jobs = jobsResponse?.jobs ?? [];
+    if (sortBy !== "best-match" || !hasSkills) return jobs;
+    return [...jobs].sort((a, b) => {
+      const matchA = computeSkillMatch(resumeSkills, a.tags ?? null);
+      const matchB = computeSkillMatch(resumeSkills, b.tags ?? null);
+      return (matchB?.percentage ?? 0) - (matchA?.percentage ?? 0);
+    });
+  }, [jobsResponse?.jobs, sortBy, hasSkills, resumeSkills]);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -196,10 +224,24 @@ export default function Jobs() {
 
         {/* Job List */}
         <div className="flex-1 w-full min-w-0">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-xl font-semibold">
               {isLoading ? "Loading jobs..." : `${jobsResponse?.total || 0} Jobs Found`}
             </h2>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label htmlFor="sort-by" className="text-sm text-muted-foreground whitespace-nowrap">Sort by</Label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger id="sort-by" className="w-[160px] h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  {hasSkills && (
+                    <SelectItem value="best-match">Best match</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {isLoading ? (
@@ -220,9 +262,9 @@ export default function Jobs() {
                 </div>
               ))}
             </div>
-          ) : jobsResponse?.jobs.length ? (
+          ) : displayedJobs.length ? (
             <div className="space-y-4">
-              {jobsResponse.jobs.map((job) => (
+              {displayedJobs.map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}
               

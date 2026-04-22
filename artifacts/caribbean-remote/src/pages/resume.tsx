@@ -471,6 +471,13 @@ function UploadResumeTab({
   const [uploading, setUploading] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [staleBannerDismissed, setStaleBannerDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem("cr_pdf_stale_dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const applicationHistory = (() => {
     try {
@@ -486,11 +493,11 @@ function UploadResumeTab({
   const objectId = uploadedResumePath ? uploadedResumePath.split("/").pop() : null;
   const previewUrl = objectId ? `${BASE}api/resume/pdf/${objectId}` : null;
 
-  const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+  const THREE_MONTHS_MS = 3 * 30 * 24 * 60 * 60 * 1000;
   const isPdfStale =
     !!uploadedResumePath &&
     !!updatedAt &&
-    new Date(updatedAt).getTime() < Date.now() - SIX_MONTHS_MS;
+    new Date(updatedAt).getTime() < Date.now() - THREE_MONTHS_MS;
 
   const shareUrl = shareToken
     ? `${window.location.origin}${BASE}api/resume/shared/${shareToken}`
@@ -659,15 +666,29 @@ function UploadResumeTab({
               <Trash2 className="h-4 w-4 mr-1.5" /> Remove
             </Button>
           </div>
-          {isPdfStale && (
+          {isPdfStale && !staleBannerDismissed && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-              <div>
+              <div className="flex-1">
                 <p className="font-medium">Your PDF may be out of date</p>
                 <p className="text-xs text-amber-700 mt-0.5">
-                  This resume was last updated over 6 months ago. Consider replacing it with a current version so employers see your latest experience.
+                  This resume was last updated over 3 months ago. Consider replacing it with a current version so employers see your latest experience.
                 </p>
               </div>
+              <button
+                type="button"
+                aria-label="Dismiss warning"
+                className="shrink-0 text-amber-600 hover:text-amber-800 ml-1 mt-0.5"
+                onClick={() => {
+                  setStaleBannerDismissed(true);
+                  try {
+                    sessionStorage.setItem("cr_pdf_stale_dismissed", "1");
+                  } catch {
+                  }
+                }}
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>

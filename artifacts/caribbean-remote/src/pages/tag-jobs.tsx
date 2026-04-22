@@ -174,7 +174,7 @@ export default function TagJobs() {
     : "Browse remote jobs by skill tag.";
 
   useEffect(() => {
-    document.title = `${pageTitle} | CaribbeanRemote`;
+    document.title = `${pageTitle} | CaribRemote.com`;
     let metaEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (!metaEl) {
       metaEl = document.createElement("meta");
@@ -183,7 +183,7 @@ export default function TagJobs() {
     }
     metaEl.content = metaDescription;
     return () => {
-      document.title = "CaribbeanRemote";
+      document.title = "CaribRemote.com";
     };
   }, [pageTitle, metaDescription]);
 

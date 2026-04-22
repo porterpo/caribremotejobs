@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 
 const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
-  "Explore all skill tags used across remote job listings on CaribbeanRemote. Click any tag to see matching remote jobs.";
+  "Explore all skill tags used across remote job listings on CaribRemote.com. Click any tag to see matching remote jobs.";
 
 const LS_KEY = "tagsSortOrder";
 
@@ -45,7 +45,7 @@ export default function TagsIndex() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(readStoredSort);
 
   useEffect(() => {
-    document.title = `${PAGE_TITLE} | CaribbeanRemote`;
+    document.title = `${PAGE_TITLE} | CaribRemote.com`;
     let metaEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (!metaEl) {
       metaEl = document.createElement("meta");
@@ -54,7 +54,7 @@ export default function TagsIndex() {
     }
     metaEl.content = META_DESCRIPTION;
     return () => {
-      document.title = "CaribbeanRemote";
+      document.title = "CaribRemote.com";
     };
   }, []);
 

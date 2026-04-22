@@ -395,7 +395,7 @@ router.get("/admin/order-stats", requireAdmin, async (_req, res): Promise<void> 
 });
 
 router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promise<void> => {
-  const { status } = req.query as Record<string, string | undefined>;
+  const { status, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
 
   const allowedStatuses = ["active", "cancelled", "past_due"];
   if (status && !allowedStatuses.includes(status)) {
@@ -406,6 +406,17 @@ router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promis
   const conditions: SQL[] = [];
   if (status) {
     conditions.push(eq(seekerSubscriptionsTable.status, status));
+  }
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
+    conditions.push(gte(seekerSubscriptionsTable.createdAt, from));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
+    to.setHours(23, 59, 59, 999);
+    conditions.push(lte(seekerSubscriptionsTable.createdAt, to));
   }
 
   const subscriptions = await db
@@ -425,7 +436,7 @@ router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promis
 });
 
 router.get("/admin/seeker-subscriptions/export", requireAdmin, async (req, res): Promise<void> => {
-  const { status } = req.query as Record<string, string | undefined>;
+  const { status, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
 
   const allowedStatuses = ["active", "cancelled", "past_due"];
   if (status && !allowedStatuses.includes(status)) {
@@ -436,6 +447,17 @@ router.get("/admin/seeker-subscriptions/export", requireAdmin, async (req, res):
   const conditions: SQL[] = [];
   if (status) {
     conditions.push(eq(seekerSubscriptionsTable.status, status));
+  }
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    if (isNaN(from.getTime())) { res.status(400).json({ error: "Invalid dateFrom" }); return; }
+    conditions.push(gte(seekerSubscriptionsTable.createdAt, from));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    if (isNaN(to.getTime())) { res.status(400).json({ error: "Invalid dateTo" }); return; }
+    to.setHours(23, 59, 59, 999);
+    conditions.push(lte(seekerSubscriptionsTable.createdAt, to));
   }
 
   const subscriptions = await db

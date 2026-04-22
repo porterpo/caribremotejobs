@@ -177,6 +177,8 @@ export default function Admin() {
   const [subStatusFilter, setSubStatusFilter] = useState("all");
   const [ordersMissingEmailOnly, setOrdersMissingEmailOnly] = useState(false);
   const [verifiedPendingOnly, setVerifiedPendingOnly] = useState(false);
+  const [subDateFrom, setSubDateFrom] = useState("");
+  const [subDateTo, setSubDateTo] = useState("");
   const { data: stats } = useGetStats();
 
   const { data: orderStats } = useQuery<OrderStats>({
@@ -290,10 +292,12 @@ export default function Admin() {
   ).length ?? 0;
 
   const { data: seekerSubscriptions, isLoading: subscriptionsLoading } = useQuery<SeekerSubscription[]>({
-    queryKey: ["admin-seeker-subscriptions", subStatusFilter],
+    queryKey: ["admin-seeker-subscriptions", subStatusFilter, subDateFrom, subDateTo],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (subStatusFilter && subStatusFilter !== "all") params.set("status", subStatusFilter);
+      if (subDateFrom) params.set("dateFrom", subDateFrom);
+      if (subDateTo) params.set("dateTo", subDateTo);
       const qs = params.toString();
       const res = await fetch(`${import.meta.env.BASE_URL}api/admin/seeker-subscriptions${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch seeker subscriptions");
@@ -1973,14 +1977,32 @@ export default function Admin() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {subStatusFilter !== "all" && (
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      type="date"
+                      className="h-8 w-[150px] text-sm"
+                      value={subDateFrom}
+                      onChange={(e) => setSubDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      type="date"
+                      className="h-8 w-[150px] text-sm"
+                      value={subDateTo}
+                      onChange={(e) => setSubDateTo(e.target.value)}
+                    />
+                  </div>
+                  {(subStatusFilter !== "all" || subDateFrom || subDateTo) && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 text-xs text-muted-foreground self-end"
-                      onClick={() => setSubStatusFilter("all")}
+                      onClick={() => { setSubStatusFilter("all"); setSubDateFrom(""); setSubDateTo(""); }}
                     >
-                      Clear filter
+                      Clear filters
                     </Button>
                   )}
                   <Button
@@ -1990,6 +2012,8 @@ export default function Admin() {
                     onClick={() => {
                       const params = new URLSearchParams();
                       if (subStatusFilter && subStatusFilter !== "all") params.set("status", subStatusFilter);
+                      if (subDateFrom) params.set("dateFrom", subDateFrom);
+                      if (subDateTo) params.set("dateTo", subDateTo);
                       const url = `${import.meta.env.BASE_URL}api/admin/seeker-subscriptions/export${params.toString() ? `?${params.toString()}` : ""}`;
                       window.open(url, "_blank");
                     }}

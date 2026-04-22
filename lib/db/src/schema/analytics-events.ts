@@ -6,6 +6,7 @@ export const analyticsEventsTable = pgTable("analytics_events", {
   jobId: integer("job_id"),
   userId: text("user_id"),
   hasResume: boolean("has_resume"),
+  resumeType: text("resume_type"),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

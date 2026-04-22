@@ -51,7 +51,7 @@ router.put("/admin/preferences/analytics-date-range", requireAuth, async (req, r
 });
 
 router.post("/analytics/track", async (req, res): Promise<void> => {
-  const { event, job_id, has_resume } = req.body ?? {};
+  const { event, job_id, has_resume, resume_type } = req.body ?? {};
 
   if (typeof event !== "string" || event.length === 0 || event.length > 100) {
     res.status(422).json({ error: "Invalid payload" });
@@ -62,11 +62,18 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
   const userId =
     (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
 
+  const validResumeTypes = ["built", "pdf", "none"];
+  const resumeType =
+    typeof resume_type === "string" && validResumeTypes.includes(resume_type)
+      ? resume_type
+      : null;
+
   await db.insert(analyticsEventsTable).values({
     event,
     jobId: Number.isInteger(job_id) ? (job_id as number) : null,
     userId,
     hasResume: typeof has_resume === "boolean" ? has_resume : null,
+    resumeType,
   });
 
   res.status(204).end();
@@ -79,7 +86,7 @@ router.get("/applications/history", requireAuth, async (req, res): Promise<void>
       jobId: analyticsEventsTable.jobId,
       jobTitle: jobsTable.title,
       companyName: jobsTable.companyName,
-      resumeType: sql<string | null>`max(case when ${analyticsEventsTable.event} = 'application_started' then ${analyticsEventsTable.event} else null end)`,
+      resumeType: sql<string | null>`max(${analyticsEventsTable.resumeType})`,
       appliedAt: sql<string | null>`max(${analyticsEventsTable.occurredAt})`,
     })
     .from(analyticsEventsTable)
@@ -96,7 +103,7 @@ router.get("/applications/history", requireAuth, async (req, res): Promise<void>
         jobTitle: row.jobTitle,
         companyName: row.companyName,
         appliedAt: row.appliedAt,
-        resumeType: null,
+        resumeType: row.resumeType ?? null,
       })),
   });
 });

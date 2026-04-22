@@ -28,6 +28,17 @@ const FILTER_TAG_LOGIC_KEY = "cr_filter_tag_logic";
 const FILTER_MIN_MATCH_KEY = "cr_filter_min_match";
 const FILTER_ONLY_MATCHING_KEY = "cr_filter_only_matching";
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";
+const LIMIT_BANNER_DISMISSED_KEY = "cr_limit_banner_dismissed_week";
+
+function getCurrentWeekToken(): string {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
 const ALLOWED_SORT_VALUES = ["newest", "best-match"] as const;
 const ALLOWED_MIN_MATCH_VALUES = [0, 25, 50, 75] as const;
 const PAGE_SIZE = 10;
@@ -189,7 +200,20 @@ export default function Jobs() {
     setNudgeDismissed(true);
   }
 
-  const [limitBannerDismissed, setLimitBannerDismissed] = useState(false);
+  const [limitBannerDismissed, setLimitBannerDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(LIMIT_BANNER_DISMISSED_KEY) === getCurrentWeekToken();
+    } catch {
+      return false;
+    }
+  });
+
+  function dismissLimitBanner() {
+    try {
+      localStorage.setItem(LIMIT_BANNER_DISMISSED_KEY, getCurrentWeekToken());
+    } catch {}
+    setLimitBannerDismissed(true);
+  }
 
   const { data: subscriptionData } = useQuery<{
     isPro: boolean;
@@ -729,7 +753,7 @@ export default function Jobs() {
                 )}
               </p>
               <button
-                onClick={() => setLimitBannerDismissed(true)}
+                onClick={dismissLimitBanner}
                 aria-label="Dismiss"
                 className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >

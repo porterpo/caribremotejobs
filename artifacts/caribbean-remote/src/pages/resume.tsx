@@ -43,6 +43,7 @@ interface ResumeData {
   skills: string[] | null;
   uploadedResumePath: string | null;
   shareToken: string | null;
+  shareTokenCreatedAt: string | null;
   updatedAt: string;
 }
 
@@ -908,13 +909,13 @@ export default function ResumePage() {
 
   const handleRemovedUpload = () => {
     queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
-      old ? { ...old, uploadedResumePath: null, shareToken: null } : old
+      old ? { ...old, uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null } : old
     );
   };
 
-  const handleShareTokenChange = (token: string | null) => {
+  const handleShareTokenChange = (token: string | null, generatedAt?: string | null) => {
     queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
-      old ? { ...old, shareToken: token } : old
+      old ? { ...old, shareToken: token, shareTokenCreatedAt: generatedAt ?? null } : old
     );
   };
 
@@ -1005,7 +1006,7 @@ export default function ResumePage() {
             <UploadResumeTab
               uploadedResumePath={uploadedResumePath}
               shareToken={shareToken}
-              shareTokenGeneratedAt={resume?.updatedAt ?? null}
+              shareTokenGeneratedAt={resume?.shareTokenCreatedAt ?? null}
               resumeExists={resume !== null && resume !== undefined}
               updatedAt={resume?.updatedAt ?? null}
               onUploaded={handleUploadedPath}

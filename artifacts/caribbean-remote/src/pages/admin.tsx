@@ -80,6 +80,15 @@ interface JobOrder {
   jobSubmissionEmailSentAt: string | null;
 }
 
+interface SeekerSubscription {
+  clerkUserId: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  status: string;
+  currentPeriodEnd: string | null;
+  createdAt: string;
+}
+
 interface PendingJob {
   id: number;
   title: string;
@@ -159,6 +168,7 @@ export default function Admin() {
   const [orderProductType, setOrderProductType] = useState("all");
   const [orderDateFrom, setOrderDateFrom] = useState("");
   const [orderDateTo, setOrderDateTo] = useState("");
+  const [subStatusFilter, setSubStatusFilter] = useState("all");
   const { data: stats } = useGetStats();
 
   const { data: orderStats } = useQuery<OrderStats>({
@@ -270,6 +280,19 @@ export default function Admin() {
   const missingEmailCount = orders?.filter(
     (o) => o.status === "paid" && (!o.confirmationEmailSentAt || (o.jobId && !o.jobSubmissionEmailSentAt))
   ).length ?? 0;
+
+  const { data: seekerSubscriptions, isLoading: subscriptionsLoading } = useQuery<SeekerSubscription[]>({
+    queryKey: ["admin-seeker-subscriptions", subStatusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (subStatusFilter && subStatusFilter !== "all") params.set("status", subStatusFilter);
+      const qs = params.toString();
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/seeker-subscriptions${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("Failed to fetch seeker subscriptions");
+      return res.json();
+    },
+    enabled: activeTab === "seeker-subscriptions",
+  });
 
   interface AnalyticsSummary {
     totalClicks: number;
@@ -734,6 +757,9 @@ export default function Admin() {
             <TabsTrigger value="analytics" className="px-6 py-2">
               <BarChart2 className="h-4 w-4 mr-1.5" />
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="seeker-subscriptions" className="px-6 py-2">
+              Seeker Subscriptions
             </TabsTrigger>
           </TabsList>
 
@@ -1823,6 +1849,127 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="seeker-subscriptions">
+            <Card>
+              <CardHeader>
+                <CardTitle>Seeker Pro Subscriptions</CardTitle>
+                <CardDescription>All seeker Pro subscriptions. Filter by status to find at-risk or cancelled subscribers.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3 mb-4">
+                  <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select value={subStatusFilter} onValueChange={setSubStatusFilter}>
+                      <SelectTrigger className="h-8 w-[160px] text-sm">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="past_due">Past due</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {subStatusFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground self-end"
+                      onClick={() => setSubStatusFilter("all")}
+                    >
+                      Clear filter
+                    </Button>
+                  )}
+                </div>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Clerk User ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Current Period End</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Stripe Links</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {subscriptionsLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center h-24">
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                          </TableCell>
+                        </TableRow>
+                      ) : !seekerSubscriptions || seekerSubscriptions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            No subscriptions found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        seekerSubscriptions.map((sub) => (
+                          <TableRow key={sub.clerkUserId}>
+                            <TableCell className="font-mono text-xs">{sub.clerkUserId}</TableCell>
+                            <TableCell>
+                              {sub.status === "active" && (
+                                <Badge className="bg-green-100 text-green-800 border-0 text-xs">Active</Badge>
+                              )}
+                              {sub.status === "past_due" && (
+                                <Badge className="bg-amber-100 text-amber-800 border-0 text-xs">Past due</Badge>
+                              )}
+                              {sub.status === "cancelled" && (
+                                <Badge variant="outline" className="text-muted-foreground text-xs">Cancelled</Badge>
+                              )}
+                              {sub.status !== "active" && sub.status !== "past_due" && sub.status !== "cancelled" && (
+                                <Badge variant="outline" className="text-xs">{sub.status}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {sub.currentPeriodEnd
+                                ? format(new Date(sub.currentPeriodEnd), "MMM d, yyyy")
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(sub.createdAt), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                {sub.stripeCustomerId && (
+                                  <a
+                                    href={`https://dashboard.stripe.com/customers/${sub.stripeCustomerId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline"
+                                  >
+                                    Customer
+                                  </a>
+                                )}
+                                {sub.stripeSubscriptionId && (
+                                  <a
+                                    href={`https://dashboard.stripe.com/subscriptions/${sub.stripeSubscriptionId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline"
+                                  >
+                                    Subscription
+                                  </a>
+                                )}
+                                {!sub.stripeCustomerId && !sub.stripeSubscriptionId && (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

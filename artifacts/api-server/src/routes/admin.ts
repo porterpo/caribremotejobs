@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
-import { db, jobsTable, companiesTable, jobOrdersTable } from "@workspace/db";
+import { db, jobsTable, companiesTable, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
 import { sendOrderConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
@@ -381,6 +381,36 @@ router.get("/admin/order-stats", async (_req, res): Promise<void> => {
   }
 
   res.json({ totalPaid, breakdown, totalRevenue, revenueBreakdown });
+});
+
+router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promise<void> => {
+  const { status } = req.query as Record<string, string | undefined>;
+
+  const allowedStatuses = ["active", "cancelled", "past_due"];
+  if (status && !allowedStatuses.includes(status)) {
+    res.status(400).json({ error: "Invalid status. Must be one of: active, cancelled, past_due" });
+    return;
+  }
+
+  const conditions: SQL[] = [];
+  if (status) {
+    conditions.push(eq(seekerSubscriptionsTable.status, status));
+  }
+
+  const subscriptions = await db
+    .select({
+      clerkUserId: seekerSubscriptionsTable.clerkUserId,
+      stripeCustomerId: seekerSubscriptionsTable.stripeCustomerId,
+      stripeSubscriptionId: seekerSubscriptionsTable.stripeSubscriptionId,
+      status: seekerSubscriptionsTable.status,
+      currentPeriodEnd: seekerSubscriptionsTable.currentPeriodEnd,
+      createdAt: seekerSubscriptionsTable.createdAt,
+    })
+    .from(seekerSubscriptionsTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(seekerSubscriptionsTable.createdAt));
+
+  res.json(subscriptions);
 });
 
 export default router;

@@ -128,7 +128,7 @@ router.delete("/resume/upload", requireAuth, async (req: Request, res): Promise<
   const existingPath = rows[0].uploadedResumePath;
   const [updated] = await db
     .update(resumesTable)
-    .set({ uploadedResumePath: null, shareToken: null, updatedAt: new Date() })
+    .set({ uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null, updatedAt: new Date() })
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
   if (!updated) {

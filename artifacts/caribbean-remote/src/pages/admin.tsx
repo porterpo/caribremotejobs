@@ -175,6 +175,8 @@ export default function Admin() {
   const [orderDateFrom, setOrderDateFrom] = useState("");
   const [orderDateTo, setOrderDateTo] = useState("");
   const [subStatusFilter, setSubStatusFilter] = useState("all");
+  const [ordersMissingEmailOnly, setOrdersMissingEmailOnly] = useState(false);
+  const [verifiedPendingOnly, setVerifiedPendingOnly] = useState(false);
   const { data: stats } = useGetStats();
 
   const { data: orderStats } = useQuery<OrderStats>({
@@ -747,7 +749,27 @@ export default function Admin() {
             <TabsTrigger value="orders" className="px-6 py-2">
               Orders
               {missingEmailCount > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0">{missingEmailCount}</Badge>
+                <Badge
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTab("orders");
+                    setOrdersMissingEmailOnly(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab("orders");
+                      setOrdersMissingEmailOnly(true);
+                    }
+                  }}
+                  title="View orders missing emails"
+                  className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0 cursor-pointer hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                >
+                  {missingEmailCount}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="jobs" className="px-6 py-2">Jobs</TabsTrigger>
@@ -756,7 +778,27 @@ export default function Admin() {
               <ShieldCheck className="h-4 w-4 mr-1.5" />
               Verified Employers
               {pendingVerificationCount > 0 && (
-                <Badge className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0">{pendingVerificationCount}</Badge>
+                <Badge
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTab("verified-employers");
+                    setVerifiedPendingOnly(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab("verified-employers");
+                      setVerifiedPendingOnly(true);
+                    }
+                  }}
+                  title="View companies pending verification"
+                  className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0 cursor-pointer hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  {pendingVerificationCount}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="alerts" className="px-6 py-2">Alert Subscribers</TabsTrigger>
@@ -921,12 +963,22 @@ export default function Admin() {
                       onChange={(e) => setOrderDateTo(e.target.value)}
                     />
                   </div>
-                  {(orderProductType !== "all" || orderDateFrom || orderDateTo) && (
+                  {ordersMissingEmailOnly && (
+                    <Badge
+                      variant="outline"
+                      className="self-end h-8 px-2 text-xs border-red-300 text-red-700 bg-red-50 cursor-pointer hover:bg-red-100"
+                      onClick={() => setOrdersMissingEmailOnly(false)}
+                      title="Click to clear"
+                    >
+                      Missing emails only ×
+                    </Badge>
+                  )}
+                  {(orderProductType !== "all" || orderDateFrom || orderDateTo || ordersMissingEmailOnly) && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 text-xs text-muted-foreground self-end"
-                      onClick={() => { setOrderProductType("all"); setOrderDateFrom(""); setOrderDateTo(""); }}
+                      onClick={() => { setOrderProductType("all"); setOrderDateFrom(""); setOrderDateTo(""); setOrdersMissingEmailOnly(false); }}
                     >
                       Clear filters
                     </Button>
@@ -1020,7 +1072,10 @@ export default function Admin() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        orders.map((order) => {
+                        (ordersMissingEmailOnly
+                          ? orders.filter(o => o.status === "paid" && (!o.confirmationEmailSentAt || (o.jobId && !o.jobSubmissionEmailSentAt)))
+                          : orders
+                        ).map((order) => {
                           const emailMissing = order.status === "paid" && (!order.confirmationEmailSentAt || (order.jobId && !order.jobSubmissionEmailSentAt));
                           const productLabel: Record<string, string> = {
                             single: "Single Post",
@@ -1264,6 +1319,18 @@ export default function Admin() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {verifiedPendingOnly && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="h-7 px-2 text-xs border-blue-300 text-blue-700 bg-blue-50 cursor-pointer hover:bg-blue-100"
+                      onClick={() => setVerifiedPendingOnly(false)}
+                      title="Click to clear"
+                    >
+                      Pending verification only ×
+                    </Badge>
+                  </div>
+                )}
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1283,7 +1350,10 @@ export default function Admin() {
                       ) : adminCompanies?.length === 0 ? (
                         <TableRow><TableCell colSpan={7} className="text-center h-24">No companies found.</TableCell></TableRow>
                       ) : (
-                        adminCompanies?.map((company) => {
+                        (verifiedPendingOnly
+                          ? adminCompanies?.filter(c => c.eligibility.eligible && !c.verifiedEmployer)
+                          : adminCompanies
+                        )?.map((company) => {
                           const { criteria, eligible } = company.eligibility;
                           const isMutating = grantVerified.isPending || revokeVerified.isPending || jobFlagViolation.isPending || jobClearViolation.isPending;
                           const isIneligible = !eligible && !company.verifiedEmployer;

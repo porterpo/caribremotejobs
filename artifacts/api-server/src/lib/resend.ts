@@ -1,49 +1,78 @@
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
 
-let connectionSettings: { settings: { api_key: string; from_email?: string } } | null = null;
+const SMTP_HOST = process.env.BLUEHOST_SMTP_HOST ?? "sh00876.bluehost.com";
+const SMTP_PORT = Number(process.env.BLUEHOST_SMTP_PORT ?? 465);
+const SMTP_USER = process.env.BLUEHOST_SMTP_USER ?? "hello@caribremotejobs.com";
+const SMTP_PASS = process.env.BLUEHOST_SMTP_PASSWORD;
+const FROM_EMAIL =
+  process.env.MAIL_FROM ?? `CaribRemotejobs <${SMTP_USER}>`;
 
-async function getCredentials(): Promise<{ apiKey: string; fromEmail: string }> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? "repl " + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? "depl " + process.env.WEB_REPL_RENEWAL
-    : null;
+let transporter: Transporter | null = null;
 
-  if (!xReplitToken || !hostname) {
-    throw new Error("Replit connector credentials not found");
+function getTransporter(): Transporter {
+  if (transporter) return transporter;
+  if (!SMTP_PASS) {
+    throw new Error("BLUEHOST_SMTP_PASSWORD is not configured");
   }
-
-  const res = await fetch(
-    "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
-    {
-      headers: {
-        Accept: "application/json",
-        "X-Replit-Token": xReplitToken,
-      },
-    }
-  );
-
-  const data = await res.json() as { items?: Array<{ settings: { api_key: string; from_email?: string } }> };
-  connectionSettings = data.items?.[0] ?? null;
-
-  if (!connectionSettings?.settings?.api_key) {
-    throw new Error("Resend not connected");
-  }
-
-  return {
-    apiKey: connectionSettings.settings.api_key,
-    fromEmail: connectionSettings.settings.from_email ?? "alerts@caribbeanremote.com",
-  };
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  return transporter;
 }
 
-export async function getResendClient(): Promise<{ client: Resend; fromEmail: string }> {
-  const { apiKey, fromEmail } = await getCredentials();
-  return {
-    client: new Resend(apiKey),
-    fromEmail,
-  };
+type SendArgs = {
+  from?: string;
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+};
+
+type SendResult = { data: { id: string } | null; error: Error | null };
+
+const mailClient = {
+  emails: {
+    async send(args: SendArgs): Promise<SendResult> {
+      try {
+        const info = await getTransporter().sendMail({
+          from: args.from ?? FROM_EMAIL,
+          to: args.to,
+          subject: args.subject,
+          html: args.html,
+          text: args.text,
+        });
+        return { data: { id: info.messageId }, error: null };
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        return { data: null, error };
+      }
+    },
+  },
+};
+
+export async function getResendClient(): Promise<{
+  client: typeof mailClient;
+  fromEmail: string;
+}> {
+  return { client: mailClient, fromEmail: FROM_EMAIL };
+}
+
+export async function sendTestEmail(to: string): Promise<SendResult> {
+  return mailClient.emails.send({
+    to,
+    subject: "CaribRemotejobs.com — Test email",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #0d9488;">It works!</h1>
+        <p>This is a test email from <strong>CaribRemotejobs.com</strong> sent through your Bluehost mailbox.</p>
+        <p style="font-size: 12px; color: #6b7280;">If you received this, your outgoing email is configured correctly.</p>
+      </div>
+    `,
+  });
 }
 
 export async function sendAlertConfirmation(
@@ -55,14 +84,14 @@ export async function sendAlertConfirmation(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: "You're subscribed to CaribbeanRemote job alerts",
+      subject: "You're subscribed to CaribRemotejobs.com job alerts",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #0d9488;">Welcome to CaribbeanRemote alerts!</h1>
+          <h1 style="color: #0d9488;">Welcome to CaribRemotejobs.com alerts!</h1>
           <p>You've successfully subscribed to job alerts. We'll notify you when new remote jobs matching your interests are posted.</p>
-          <p>If you'd like to unsubscribe at any time, <a href="${process.env.APP_URL ?? "https://caribbeanremote.com"}/unsubscribe/${unsubscribeToken}">click here</a>.</p>
+          <p>If you'd like to unsubscribe at any time, <a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/unsubscribe/${unsubscribeToken}">click here</a>.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+          <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
       `,
     });
@@ -80,7 +109,7 @@ export async function sendOrderConfirmation(params: {
   const { client, fromEmail } = await getResendClient();
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+    : (process.env.APP_URL ?? "https://caribremotejobs.com");
   const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
 
   const productLabels: Record<string, string> = {
@@ -95,7 +124,7 @@ export async function sendOrderConfirmation(params: {
     await client.emails.send({
       from: fromEmail,
       to: params.email,
-      subject: "Your CaribbeanRemote order is confirmed",
+      subject: "Your CaribRemotejobs.com order is confirmed",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0d9488;">Order Confirmed!</h1>
@@ -119,7 +148,7 @@ export async function sendOrderConfirmation(params: {
           <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">You can return to this link at any time to submit your job posting.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
           <p style="font-size: 12px; color: #6b7280;">Lost this email? Visit <a href="${appUrl}/post-job" style="color: #0d9488;">${appUrl}/post-job</a> to have your submission link resent.</p>
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+          <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
       `,
     });
@@ -139,7 +168,7 @@ export async function sendJobSubmissionConfirmation(params: {
     const { client, fromEmail } = await getResendClient();
     const appUrl = process.env.REPLIT_DOMAINS
       ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : (process.env.APP_URL ?? "https://caribbeanremote.com");
+      : (process.env.APP_URL ?? "https://caribremotejobs.com");
     const editUrl = `${appUrl}/post-job?sessionId=${encodeURIComponent(params.sessionId)}`;
 
     const { data, error } = await client.emails.send({
@@ -154,10 +183,10 @@ export async function sendJobSubmissionConfirmation(params: {
           <p>Need to make changes before it goes live? You can edit your listing at any time using the link below:</p>
           <a href="${editUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 0;">Edit Your Listing</a>
           <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">Or copy this link: <a href="${editUrl}">${editUrl}</a></p>
-          <p style="font-size: 14px; color: #374151;">Once approved, your job will appear live on CaribbeanRemote and job seekers will be able to apply directly.</p>
+          <p style="font-size: 14px; color: #374151;">Once approved, your job will appear live on CaribRemotejobs.com and job seekers will be able to apply directly.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
           <p style="font-size: 12px; color: #6b7280;">Lost this link? Visit <a href="${appUrl}/post-job" style="color: #0d9488;">${appUrl}/post-job</a> to have it resent.</p>
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+          <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
       `,
     });
@@ -196,11 +225,11 @@ export async function sendJobAlerts(
       subject: `${jobs.length} new remote job${jobs.length > 1 ? "s" : ""} for Caribbean professionals`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #0d9488;">New Remote Jobs on CaribbeanRemote</h1>
+          <h1 style="color: #0d9488;">New Remote Jobs on CaribRemotejobs.com</h1>
           <ul>${jobList}</ul>
-          <a href="${process.env.APP_URL ?? "https://caribbeanremote.com"}/jobs" style="background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View all jobs</a>
+          <a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/jobs" style="background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View all jobs</a>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;"><a href="${process.env.APP_URL ?? "https://caribbeanremote.com"}/unsubscribe/${unsubscribeToken}">Unsubscribe</a></p>
+          <p style="font-size: 12px; color: #6b7280;"><a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/unsubscribe/${unsubscribeToken}">Unsubscribe</a></p>
         </div>
       `,
     });
@@ -215,7 +244,7 @@ export async function sendShareLinkExpiryReminder(params: {
 }): Promise<boolean> {
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+    : (process.env.APP_URL ?? "https://caribremotejobs.com");
   const expiryLabel = params.expiresAt.toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -226,16 +255,16 @@ export async function sendShareLinkExpiryReminder(params: {
     const { error } = await client.emails.send({
       from: fromEmail,
       to: params.email,
-      subject: "Your CaribbeanRemote resume share link expires soon",
+      subject: "Your CaribRemotejobs.com resume share link expires soon",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0d9488;">Your resume share link expires soon</h1>
-          <p>Heads up — the share link you created for your CaribbeanRemote resume will expire on <strong>${expiryLabel}</strong>.</p>
+          <p>Heads up — the share link you created for your CaribRemotejobs.com resume will expire on <strong>${expiryLabel}</strong>.</p>
           <p>If employers still need to view your resume after that date, generate a fresh link or extend the expiry from your resume page.</p>
           <a href="${appUrl}/resume?tab=upload" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 0;">Manage My Share Link</a>
           <p style="font-size: 14px; color: #6b7280; margin-top: 16px;">If you no longer need a share link, you can ignore this email — it will simply stop working on the date above.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+          <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
       `,
     });
@@ -253,17 +282,17 @@ export async function sendShareLinkExpiryReminder(params: {
 export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+    : (process.env.APP_URL ?? "https://caribremotejobs.com");
   try {
     const { client, fromEmail } = await getResendClient();
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: "Welcome to CaribbeanRemote Pro!",
+      subject: "Welcome to CaribRemotejobs.com Pro!",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0d9488;">You're now a Pro member!</h1>
-          <p>Thank you for upgrading to <strong>CaribbeanRemote Pro</strong>. Your subscription is active and all Pro benefits are unlocked.</p>
+          <p>Thank you for upgrading to <strong>CaribRemotejobs.com Pro</strong>. Your subscription is active and all Pro benefits are unlocked.</p>
           <h2 style="font-size: 16px; margin-top: 24px;">What's included with Pro:</h2>
           <ul style="line-height: 1.8;">
             <li><strong>Unlimited applications</strong> — no weekly cap on job applications</li>
@@ -273,7 +302,7 @@ export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
           </ul>
           <a href="${appUrl}/resume" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px;">Go to My Resume</a>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+          <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
       `,
     });

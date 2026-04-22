@@ -67,6 +67,12 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Navbar UserMenu: shows "PRO" badge next to name for Pro members; shows "Upgrade to Pro" link in dropdown for non-Pro; mobile nav includes "Seeker Pro" link
 - React Query key: `["seeker-subscription"]` — shared across Navbar, seeker-pro page, job-detail, and alerts
 
+## Stripe Credentials
+
+- Stripe is configured via direct API keys in Replit Secrets (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`), not the Replit Stripe connector.
+- `artifacts/api-server/src/lib/stripeClient.ts` reads these env vars first; if both are present it uses them and skips the connector lookup. Connector code remains as a fallback.
+- To rotate keys: update the secrets in the Secrets tab and restart the `artifacts/api-server: API Server` workflow.
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages

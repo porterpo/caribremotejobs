@@ -58,10 +58,10 @@ async function fetchJobMeta(jobId: string): Promise<JobMeta | null> {
 
 function injectJobMeta(html: string, job: JobMeta): string {
   const title = escapeHtml(
-    `${job.title} at ${job.companyName} | CaribRemote.com`,
+    `${job.title} at ${job.companyName} | CaribRemotejobs.com`,
   );
   const desc = escapeHtml(
-    `${job.title} — ${job.companyName} · ${job.locationRestrictions ?? "Remote"}. Apply for this remote role on CaribRemote.com.`,
+    `${job.title} — ${job.companyName} · ${job.locationRestrictions ?? "Remote"}. Apply for this remote role on CaribRemotejobs.com.`,
   );
   return html
     .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)

@@ -230,7 +230,7 @@ function ClerkProviderWithRoutes() {
         },
         signUp: {
           start: {
-            title: "Join CaribRemote.com",
+            title: "Join CaribRemotejobs.com",
             subtitle: "Create your account to access remote jobs",
           },
         },

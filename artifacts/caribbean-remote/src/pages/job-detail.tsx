@@ -407,7 +407,7 @@ function ApplyWithResumeDialog({
             <div>
               <p className="font-semibold mb-1">No resume yet</p>
               <p className="text-sm text-muted-foreground">
-                Build your CaribRemote.com resume or upload a PDF — then attach it to every application.
+                Build your CaribRemotejobs.com resume or upload a PDF — then attach it to every application.
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -751,8 +751,8 @@ export default function JobDetail() {
     if (!job) return;
 
     const location = job.locationRestrictions || "Remote";
-    const pageTitle = `${job.title} at ${job.companyName} | CaribRemote.com`;
-    const pageDescription = `${job.title} — ${job.companyName} · ${location}. Apply for this remote role on CaribRemote.com.`;
+    const pageTitle = `${job.title} at ${job.companyName} | CaribRemotejobs.com`;
+    const pageDescription = `${job.title} — ${job.companyName} · ${location}. Apply for this remote role on CaribRemotejobs.com.`;
 
     const prevTitle = document.title;
 
@@ -1354,7 +1354,7 @@ export default function JobDetail() {
             {!isSignedIn && (
               <div className="border rounded-xl p-6 bg-primary/5 border-primary/20 text-center">
                 <Palmtree className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-2">Join CaribRemote.com</h3>
+                <h3 className="font-semibold mb-2">Join CaribRemotejobs.com</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Create a free account to apply with your resume, set job alerts, and track opportunities.
                 </p>

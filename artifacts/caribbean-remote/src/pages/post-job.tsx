@@ -854,7 +854,7 @@ export default function PostJob() {
                 toast({
                   title: "Contact support",
                   description:
-                    "Email hello@caribbeanremote.com to change your upgrade type.",
+                    "Email hello@caribremotejobs.com to change your upgrade type.",
                 })
               }
             >

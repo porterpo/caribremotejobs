@@ -390,7 +390,7 @@ function ResumePreview({ form, displayName }: { form: FormState; displayName: st
     <div id="resume-print-region" className="border rounded-xl p-8 bg-white space-y-6 text-sm">
       <div className="border-b pb-4">
         <h2 className="text-2xl font-bold text-foreground">{displayName}</h2>
-        <p className="text-xs text-muted-foreground mt-1">CaribRemote.com Profile</p>
+        <p className="text-xs text-muted-foreground mt-1">CaribRemotejobs.com Profile</p>
       </div>
 
       {form.summary && (

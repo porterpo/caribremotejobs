@@ -177,6 +177,7 @@ export default function Admin() {
   const [subStatusFilter, setSubStatusFilter] = useState("all");
   const [ordersMissingEmailOnly, setOrdersMissingEmailOnly] = useState(false);
   const [verifiedPendingOnly, setVerifiedPendingOnly] = useState(false);
+  const [pendingOldestFirst, setPendingOldestFirst] = useState(false);
   const [subDateFrom, setSubDateFrom] = useState("");
   const [subDateTo, setSubDateTo] = useState("");
   const { data: stats } = useGetStats();
@@ -747,7 +748,27 @@ export default function Admin() {
             <TabsTrigger value="pending" className="px-6 py-2">
               Pending Review
               {pendingJobs && pendingJobs.length > 0 && (
-                <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0">{pendingJobs.length}</Badge>
+                <Badge
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTab("pending");
+                    setPendingOldestFirst(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab("pending");
+                      setPendingOldestFirst(true);
+                    }
+                  }}
+                  title="Review oldest pending jobs first"
+                  className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0 cursor-pointer hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  {pendingJobs.length}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="orders" className="px-6 py-2">
@@ -845,6 +866,21 @@ export default function Admin() {
                 <CardDescription>Jobs submitted by employers awaiting approval before going live.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={pendingOldestFirst ? "default" : "outline"}
+                      className="h-7 text-xs"
+                      onClick={() => setPendingOldestFirst((v) => !v)}
+                    >
+                      {pendingOldestFirst ? "Oldest first ✓" : "Sort: Oldest first"}
+                    </Button>
+                    {pendingOldestFirst && (
+                      <span className="text-xs text-muted-foreground">Top row is the longest waiting.</span>
+                    )}
+                  </div>
+                </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -862,8 +898,16 @@ export default function Admin() {
                       ) : !pendingJobs || pendingJobs.length === 0 ? (
                         <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No jobs pending review.</TableCell></TableRow>
                       ) : (
-                        pendingJobs.map((job) => (
-                          <TableRow key={job.id}>
+                        (pendingOldestFirst
+                          ? [...pendingJobs].sort(
+                              (a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime(),
+                            )
+                          : pendingJobs
+                        ).map((job, idx) => (
+                          <TableRow
+                            key={job.id}
+                            className={pendingOldestFirst && idx === 0 ? "bg-orange-50 ring-2 ring-orange-300" : ""}
+                          >
                             <TableCell className="font-medium max-w-[220px] truncate">{job.title}</TableCell>
                             <TableCell>{job.companyName}</TableCell>
                             <TableCell>

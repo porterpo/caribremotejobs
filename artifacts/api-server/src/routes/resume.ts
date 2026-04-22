@@ -128,7 +128,7 @@ router.delete("/resume/upload", requireAuth, async (req: Request, res): Promise<
   const existingPath = rows[0].uploadedResumePath;
   const [updated] = await db
     .update(resumesTable)
-    .set({ uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null, updatedAt: new Date() })
+    .set({ uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null, shareTokenExpiresAt: null, updatedAt: new Date() })
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
   if (!updated) {
@@ -280,10 +280,22 @@ router.get("/resume/pdf/:objectId", requireAuth, async (req: Request, res): Prom
 router.post("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {
   const { userId } = req as AuthenticatedRequest;
 
+  const rawExpiry = (req.body as { expiresInDays?: unknown })?.expiresInDays;
+  let expiresInDays: number | null = null;
+  if (rawExpiry !== undefined && rawExpiry !== null) {
+    const n = Number(rawExpiry);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 365) {
+      res.status(422).json({ error: "expiresInDays must be an integer between 1 and 365, or null for no expiry" });
+      return;
+    }
+    expiresInDays = n;
+  }
+
   const rows = await db
     .select({
       shareToken: resumesTable.shareToken,
       shareTokenCreatedAt: resumesTable.shareTokenCreatedAt,
+      shareTokenExpiresAt: resumesTable.shareTokenExpiresAt,
       uploadedResumePath: resumesTable.uploadedResumePath,
       updatedAt: resumesTable.updatedAt,
     })
@@ -302,19 +314,28 @@ router.post("/resume/share-token", requireAuth, async (req: Request, res): Promi
   }
 
   if (rows[0].shareToken) {
-    res.json({ shareToken: rows[0].shareToken, generatedAt: rows[0].shareTokenCreatedAt ?? rows[0].updatedAt });
+    res.json({
+      shareToken: rows[0].shareToken,
+      generatedAt: rows[0].shareTokenCreatedAt ?? rows[0].updatedAt,
+      expiresAt: rows[0].shareTokenExpiresAt,
+    });
     return;
   }
 
   const token = randomBytes(32).toString("hex");
   const now = new Date();
+  const expiresAt = expiresInDays !== null ? new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000) : null;
   const [updated] = await db
     .update(resumesTable)
-    .set({ shareToken: token, shareTokenCreatedAt: now })
+    .set({ shareToken: token, shareTokenCreatedAt: now, shareTokenExpiresAt: expiresAt })
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
 
-  res.json({ shareToken: updated.shareToken, generatedAt: updated.shareTokenCreatedAt ?? updated.updatedAt });
+  res.json({
+    shareToken: updated.shareToken,
+    generatedAt: updated.shareTokenCreatedAt ?? updated.updatedAt,
+    expiresAt: updated.shareTokenExpiresAt,
+  });
 });
 
 router.delete("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {
@@ -322,7 +343,7 @@ router.delete("/resume/share-token", requireAuth, async (req: Request, res): Pro
 
   const [updated] = await db
     .update(resumesTable)
-    .set({ shareToken: null, shareTokenCreatedAt: null })
+    .set({ shareToken: null, shareTokenCreatedAt: null, shareTokenExpiresAt: null })
     .where(eq(resumesTable.clerkUserId, userId))
     .returning();
 
@@ -342,13 +363,22 @@ router.get("/resume/shared/:token", async (req: Request, res): Promise<void> => 
   }
 
   const rows = await db
-    .select({ uploadedResumePath: resumesTable.uploadedResumePath, clerkUserId: resumesTable.clerkUserId })
+    .select({
+      uploadedResumePath: resumesTable.uploadedResumePath,
+      clerkUserId: resumesTable.clerkUserId,
+      shareTokenExpiresAt: resumesTable.shareTokenExpiresAt,
+    })
     .from(resumesTable)
     .where(eq(resumesTable.shareToken, token))
     .limit(1);
 
   if (rows.length === 0 || !rows[0].uploadedResumePath) {
     res.status(404).json({ error: "Resume not found or link has been revoked" });
+    return;
+  }
+
+  if (rows[0].shareTokenExpiresAt && rows[0].shareTokenExpiresAt.getTime() < Date.now()) {
+    res.status(410).json({ error: "This share link has expired" });
     return;
   }
 

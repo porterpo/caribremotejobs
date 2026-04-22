@@ -44,6 +44,7 @@ interface ResumeData {
   uploadedResumePath: string | null;
   shareToken: string | null;
   shareTokenCreatedAt: string | null;
+  shareTokenExpiresAt: string | null;
   updatedAt: string;
 }
 
@@ -464,6 +465,7 @@ function UploadResumeTab({
   uploadedResumePath,
   shareToken,
   shareTokenGeneratedAt,
+  shareTokenExpiresAt,
   resumeExists,
   updatedAt,
   onUploaded,
@@ -473,16 +475,18 @@ function UploadResumeTab({
   uploadedResumePath: string | null;
   shareToken: string | null;
   shareTokenGeneratedAt: string | null;
+  shareTokenExpiresAt: string | null;
   resumeExists: boolean;
   updatedAt: string | null;
   onUploaded: (path: string, savedResume: ResumeData) => void;
   onRemoved: () => void;
-  onShareTokenChange: (token: string | null, generatedAt?: string | null) => void;
+  onShareTokenChange: (token: string | null, generatedAt?: string | null, expiresAt?: string | null) => void;
 }) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [expirySelection, setExpirySelection] = useState<"never" | "30" | "60" | "90">("never");
   const [staleBannerDismissed, setStaleBannerDismissed] = useState(() => {
     try {
       return sessionStorage.getItem("cr_pdf_stale_dismissed") === "1";
@@ -518,6 +522,11 @@ function UploadResumeTab({
   const shareGeneratedLabel = shareGeneratedAt && !Number.isNaN(shareGeneratedAt.getTime())
     ? shareGeneratedAt.toLocaleString()
     : null;
+  const shareExpiresAtDate = shareTokenExpiresAt ? new Date(shareTokenExpiresAt) : null;
+  const shareExpiresLabel = shareExpiresAtDate && !Number.isNaN(shareExpiresAtDate.getTime())
+    ? shareExpiresAtDate.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : null;
+  const isShareExpired = !!(shareExpiresAtDate && shareExpiresAtDate.getTime() < Date.now());
 
   const handleGenerateShareLink = async (rotate = false) => {
     setShareLoading(true);
@@ -526,14 +535,28 @@ function UploadResumeTab({
         const revokeRes = await fetch(`${BASE}api/resume/share-token`, { method: "DELETE" });
         if (!revokeRes.ok) throw new Error("Failed to rotate share link");
       }
-      const res = await fetch(`${BASE}api/resume/share-token`, { method: "POST" });
+      const expiresInDays = expirySelection === "never" ? null : Number(expirySelection);
+      const res = await fetch(`${BASE}api/resume/share-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Failed to generate share link");
       }
-      const { shareToken: token, generatedAt } = await res.json() as { shareToken: string; generatedAt?: string };
-      onShareTokenChange(token, generatedAt ?? null);
-      toast({ title: "Share link created", description: "Anyone with the link can view your resume PDF." });
+      const { shareToken: token, generatedAt, expiresAt } = await res.json() as {
+        shareToken: string;
+        generatedAt?: string;
+        expiresAt?: string | null;
+      };
+      onShareTokenChange(token, generatedAt ?? null, expiresAt ?? null);
+      toast({
+        title: "Share link created",
+        description: expiresAt
+          ? `Link will expire on ${new Date(expiresAt).toLocaleDateString()}.`
+          : "Anyone with the link can view your resume PDF.",
+      });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Could not generate link.", variant: "destructive" });
     } finally {
@@ -546,7 +569,7 @@ function UploadResumeTab({
     try {
       const res = await fetch(`${BASE}api/resume/share-token`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to revoke share link");
-      onShareTokenChange(null, null);
+      onShareTokenChange(null, null, null);
       toast({ title: "Share link revoked", description: "The previous link is no longer accessible." });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Could not revoke link.", variant: "destructive" });
@@ -757,6 +780,16 @@ function UploadResumeTab({
                   Last generated: {shareGeneratedLabel}
                 </p>
               )}
+              {shareExpiresLabel && (
+                <p className={`text-xs ${isShareExpired ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                  {isShareExpired ? "Expired on" : "Expires"}: {shareExpiresLabel}
+                </p>
+              )}
+              {!shareTokenExpiresAt && (
+                <p className="text-xs text-muted-foreground">
+                  Expires: Never (link is permanent)
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
@@ -795,12 +828,46 @@ function UploadResumeTab({
                   Rotate Link
                 </Button>
               </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                <Label htmlFor="rotate-expiry" className="text-xs text-muted-foreground">
+                  Expiry on rotate:
+                </Label>
+                <select
+                  id="rotate-expiry"
+                  value={expirySelection}
+                  onChange={(e) => setExpirySelection(e.target.value as "never" | "30" | "60" | "90")}
+                  className="text-xs border rounded px-2 py-1 bg-background"
+                  disabled={shareLoading}
+                >
+                  <option value="never">Never</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </div>
             </>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                Generate a permanent link to share your resume PDF with employers without it expiring.
+                Generate a link to share your resume PDF with employers. Choose how long it should remain valid.
               </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Label htmlFor="new-expiry" className="text-xs text-muted-foreground">
+                  Link expires after:
+                </Label>
+                <select
+                  id="new-expiry"
+                  value={expirySelection}
+                  onChange={(e) => setExpirySelection(e.target.value as "never" | "30" | "60" | "90")}
+                  className="text-xs border rounded px-2 py-1 bg-background"
+                  disabled={shareLoading}
+                >
+                  <option value="never">Never (permanent)</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -942,13 +1009,24 @@ export default function ResumePage() {
 
   const handleRemovedUpload = () => {
     queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
-      old ? { ...old, uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null } : old
+      old ? { ...old, uploadedResumePath: null, shareToken: null, shareTokenCreatedAt: null, shareTokenExpiresAt: null } : old
     );
   };
 
-  const handleShareTokenChange = (token: string | null, generatedAt?: string | null) => {
+  const handleShareTokenChange = (
+    token: string | null,
+    generatedAt?: string | null,
+    expiresAt?: string | null,
+  ) => {
     queryClient.setQueryData(["resume", "me"], (old: ResumeData | null) =>
-      old ? { ...old, shareToken: token, shareTokenCreatedAt: generatedAt ?? null } : old
+      old
+        ? {
+            ...old,
+            shareToken: token,
+            shareTokenCreatedAt: generatedAt ?? null,
+            shareTokenExpiresAt: expiresAt ?? null,
+          }
+        : old
     );
   };
 
@@ -1070,6 +1148,7 @@ export default function ResumePage() {
               uploadedResumePath={uploadedResumePath}
               shareToken={shareToken}
               shareTokenGeneratedAt={resume?.shareTokenCreatedAt ?? null}
+              shareTokenExpiresAt={resume?.shareTokenExpiresAt ?? null}
               resumeExists={resume !== null && resume !== undefined}
               updatedAt={resume?.updatedAt ?? null}
               onUploaded={handleUploadedPath}

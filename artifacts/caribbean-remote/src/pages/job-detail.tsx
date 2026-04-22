@@ -850,17 +850,22 @@ export default function JobDetail() {
     setPreviewDialogOpen(true);
   }
 
+  function trackApplicationStarted(properties: { job_id: number; resume_type?: ResumeType }) {
+    track("application_started", properties);
+    void queryClient.invalidateQueries({ queryKey: ["applications", "history"] });
+  }
+
   function handleMailClientOpened() {
     setLocalApplyCount(prev => prev + 1);
     saveApplicationRecord(jobId, pendingResumeType);
-    track("application_started", { job_id: jobId, resume_type: pendingResumeType });
+    trackApplicationStarted({ job_id: jobId, resume_type: pendingResumeType });
     setAppliedRecord({ resumeType: pendingResumeType, appliedAt: new Date().toISOString() });
     void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
   }
 
   function handleDirectApply(resumeType: ResumeType = "none") {
     setLocalApplyCount(prev => prev + 1);
-    track("application_started", { job_id: jobId, resume_type: resumeType });
+    trackApplicationStarted({ job_id: jobId, resume_type: resumeType });
     saveApplicationRecord(jobId, resumeType);
     setAppliedRecord({ resumeType, appliedAt: new Date().toISOString() });
     void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
@@ -881,7 +886,7 @@ export default function JobDetail() {
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
           onShowPreview={showPreviewOnApply ? (pdfUrl, resumeType) => {
-            track("application_started", { job_id: jobId, resume_type: resumeType });
+            trackApplicationStarted({ job_id: jobId, resume_type: resumeType });
             setPendingPdfUrl(pdfUrl);
             setPendingResumeType(resumeType);
             setApplyDialogOpen(false);
@@ -1061,7 +1066,7 @@ export default function JobDetail() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; trackApplicationStarted({ job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume
@@ -1292,7 +1297,7 @@ export default function JobDetail() {
                   size="lg"
                   variant="outline"
                   className="px-8"
-                  onClick={() => { if (!checkApplyGate()) return; track("application_started", { job_id: jobId }); setApplyDialogOpen(true); }}
+                  onClick={() => { if (!checkApplyGate()) return; trackApplicationStarted({ job_id: jobId }); setApplyDialogOpen(true); }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Apply with Resume

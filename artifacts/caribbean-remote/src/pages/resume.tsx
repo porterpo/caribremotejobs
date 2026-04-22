@@ -146,8 +146,8 @@ function ApplicationsHistorySection() {
       .sort((a, b) => new Date(b.appliedAt!).getTime() - new Date(a.appliedAt!).getTime());
   })();
 
-  if (!isSignedIn && entries.length === 0) return null;
-  if (isSignedIn && !apiLoading && entries.length === 0) return null;
+  const isEmpty = entries.length === 0;
+  const showLoading = apiLoading && isSignedIn;
 
   return (
     <section className="border rounded-xl p-6 bg-card space-y-4">
@@ -161,13 +161,24 @@ function ApplicationsHistorySection() {
         </div>
       </div>
 
-      {apiLoading && isSignedIn ? (
+      {showLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading history…
         </div>
+      ) : isEmpty ? (
+        <div className="text-center py-8 text-sm text-muted-foreground">
+          <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-40" />
+          <p>You haven't applied to any jobs yet.</p>
+          <p className="mt-1">
+            <Link href="/jobs" className="text-primary hover:underline">
+              Browse jobs
+            </Link>{" "}
+            to get started.
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
           {entries.map((entry) => (
             <Link
               key={entry.jobId}
@@ -1150,6 +1161,13 @@ export default function ResumePage() {
             <div className="mt-12 pt-8 border-t">
               <h2 className="text-xl font-semibold mb-4">Preview</h2>
               <ResumePreview form={form} displayName={displayName} />
+            </div>
+          )}
+
+          {/* Application history */}
+          {!isLoading && (
+            <div className="mt-12">
+              <ApplicationsHistorySection />
             </div>
           )}
         </div>

@@ -93,7 +93,8 @@ router.get("/applications/history", requireAuth, async (req, res): Promise<void>
     .leftJoin(jobsTable, eq(analyticsEventsTable.jobId, jobsTable.id))
     .where(and(eq(analyticsEventsTable.userId, userId), eq(analyticsEventsTable.event, "application_started")))
     .groupBy(analyticsEventsTable.jobId, jobsTable.title, jobsTable.companyName)
-    .orderBy(desc(sql`max(${analyticsEventsTable.occurredAt})`));
+    .orderBy(desc(sql`max(${analyticsEventsTable.occurredAt})`))
+    .limit(50);
 
   res.json({
     applications: rows

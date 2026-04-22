@@ -169,17 +169,17 @@ const ANALYTICS_PRESETS: { label: string; getRange: () => { from: string; to: st
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("jobs");
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem("admin_activeTab") ?? "jobs");
   const [page, setPage] = useState(1);
-  const [orderProductType, setOrderProductType] = useState("all");
-  const [orderDateFrom, setOrderDateFrom] = useState("");
-  const [orderDateTo, setOrderDateTo] = useState("");
-  const [subStatusFilter, setSubStatusFilter] = useState("all");
-  const [ordersMissingEmailOnly, setOrdersMissingEmailOnly] = useState(false);
-  const [verifiedPendingOnly, setVerifiedPendingOnly] = useState(false);
-  const [pendingOldestFirst, setPendingOldestFirst] = useState(false);
-  const [subDateFrom, setSubDateFrom] = useState("");
-  const [subDateTo, setSubDateTo] = useState("");
+  const [orderProductType, setOrderProductType] = useState(() => localStorage.getItem("admin_orderProductType") ?? "all");
+  const [orderDateFrom, setOrderDateFrom] = useState(() => localStorage.getItem("admin_orderDateFrom") ?? "");
+  const [orderDateTo, setOrderDateTo] = useState(() => localStorage.getItem("admin_orderDateTo") ?? "");
+  const [subStatusFilter, setSubStatusFilter] = useState(() => localStorage.getItem("admin_subStatusFilter") ?? "all");
+  const [ordersMissingEmailOnly, setOrdersMissingEmailOnly] = useState(() => localStorage.getItem("admin_ordersMissingEmailOnly") === "true");
+  const [verifiedPendingOnly, setVerifiedPendingOnly] = useState(() => localStorage.getItem("admin_verifiedPendingOnly") === "true");
+  const [pendingOldestFirst, setPendingOldestFirst] = useState(() => localStorage.getItem("admin_pendingOldestFirst") === "true");
+  const [subDateFrom, setSubDateFrom] = useState(() => localStorage.getItem("admin_subDateFrom") ?? "");
+  const [subDateTo, setSubDateTo] = useState(() => localStorage.getItem("admin_subDateTo") ?? "");
   const { data: stats } = useGetStats();
 
   const { data: orderStats } = useQuery<OrderStats>({
@@ -190,6 +190,41 @@ export default function Admin() {
       return res.json();
     },
   });
+
+  useEffect(() => {
+    localStorage.setItem("admin_activeTab", activeTab);
+  }, [activeTab]);
+  useEffect(() => {
+    localStorage.setItem("admin_orderProductType", orderProductType);
+  }, [orderProductType]);
+  useEffect(() => {
+    if (orderDateFrom) localStorage.setItem("admin_orderDateFrom", orderDateFrom);
+    else localStorage.removeItem("admin_orderDateFrom");
+  }, [orderDateFrom]);
+  useEffect(() => {
+    if (orderDateTo) localStorage.setItem("admin_orderDateTo", orderDateTo);
+    else localStorage.removeItem("admin_orderDateTo");
+  }, [orderDateTo]);
+  useEffect(() => {
+    localStorage.setItem("admin_subStatusFilter", subStatusFilter);
+  }, [subStatusFilter]);
+  useEffect(() => {
+    localStorage.setItem("admin_ordersMissingEmailOnly", String(ordersMissingEmailOnly));
+  }, [ordersMissingEmailOnly]);
+  useEffect(() => {
+    localStorage.setItem("admin_verifiedPendingOnly", String(verifiedPendingOnly));
+  }, [verifiedPendingOnly]);
+  useEffect(() => {
+    localStorage.setItem("admin_pendingOldestFirst", String(pendingOldestFirst));
+  }, [pendingOldestFirst]);
+  useEffect(() => {
+    if (subDateFrom) localStorage.setItem("admin_subDateFrom", subDateFrom);
+    else localStorage.removeItem("admin_subDateFrom");
+  }, [subDateFrom]);
+  useEffect(() => {
+    if (subDateTo) localStorage.setItem("admin_subDateTo", subDateTo);
+    else localStorage.removeItem("admin_subDateTo");
+  }, [subDateTo]);
   
   // Jobs
   const { data: jobsResponse, isLoading: jobsLoading } = useListJobs({ page, limit: 20 });

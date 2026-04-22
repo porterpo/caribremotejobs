@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "RCxQkzIdRaGz3Fm_4g8Fj"
+uri = "file://artifacts/caribbean-remote/public/og-image.png"
+type = "image"
+title = "CaribRemote social share image"

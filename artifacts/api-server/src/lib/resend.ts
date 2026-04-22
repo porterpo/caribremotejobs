@@ -209,6 +209,47 @@ export async function sendJobAlerts(
   }
 }
 
+export async function sendShareLinkExpiryReminder(params: {
+  email: string;
+  expiresAt: Date;
+}): Promise<boolean> {
+  const appUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+  const expiryLabel = params.expiresAt.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: params.email,
+      subject: "Your CaribbeanRemote resume share link expires soon",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0d9488;">Your resume share link expires soon</h1>
+          <p>Heads up — the share link you created for your CaribbeanRemote resume will expire on <strong>${expiryLabel}</strong>.</p>
+          <p>If employers still need to view your resume after that date, generate a fresh link or extend the expiry from your resume page.</p>
+          <a href="${appUrl}/resume?tab=upload" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 8px 0;">Manage My Share Link</a>
+          <p style="font-size: 14px; color: #6b7280; margin-top: 16px;">If you no longer need a share link, you can ignore this email — it will simply stop working on the date above.</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+        </div>
+      `,
+    });
+    if (error) {
+      logger.error({ error }, "Failed to send share link expiry reminder email");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logger.error({ err }, "Failed to send share link expiry reminder email");
+    return false;
+  }
+}
+
 export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`

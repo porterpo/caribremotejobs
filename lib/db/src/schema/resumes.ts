@@ -31,6 +31,7 @@ export const resumesTable = pgTable("resumes", {
   shareToken: text("share_token").unique(),
   shareTokenCreatedAt: timestamp("share_token_created_at", { withTimezone: true }),
   shareTokenExpiresAt: timestamp("share_token_expires_at", { withTimezone: true }),
+  shareTokenReminderSentAt: timestamp("share_token_reminder_sent_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

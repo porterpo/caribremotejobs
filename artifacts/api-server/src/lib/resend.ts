@@ -208,3 +208,35 @@ export async function sendJobAlerts(
     logger.error({ err }, "Failed to send job alert email");
   }
 }
+
+export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
+  const appUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+    : (process.env.APP_URL ?? "https://caribbeanremote.com");
+  try {
+    const { client, fromEmail } = await getResendClient();
+    await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: "Welcome to CaribbeanRemote Pro!",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0d9488;">You're now a Pro member!</h1>
+          <p>Thank you for upgrading to <strong>CaribbeanRemote Pro</strong>. Your subscription is active and all Pro benefits are unlocked.</p>
+          <h2 style="font-size: 16px; margin-top: 24px;">What's included with Pro:</h2>
+          <ul style="line-height: 1.8;">
+            <li><strong>Unlimited applications</strong> — no weekly cap on job applications</li>
+            <li><strong>Resume share link</strong> — a permanent link employers can always access</li>
+            <li><strong>Application history</strong> — track every job you've applied to</li>
+            <li><strong>Priority access</strong> — be first to see new Caribbean remote listings</li>
+          </ul>
+          <a href="${appUrl}/resume" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px;">Go to My Resume</a>
+          <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #6b7280;">CaribbeanRemote — Remote jobs for Caribbean professionals</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to send Seeker Pro welcome email");
+  }
+}

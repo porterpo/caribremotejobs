@@ -1,7 +1,7 @@
 import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
-import { sendOrderConfirmation } from "./resend";
+import { sendOrderConfirmation, sendSeekerProWelcomeEmail } from "./resend";
 import { logger } from "./logger";
 
 export class WebhookHandlers {
@@ -74,6 +74,14 @@ export class WebhookHandlers {
               },
             });
           logger.info({ clerkUserId }, "Seeker Pro subscription activated via checkout");
+
+          const customerDetails = eventObj?.customer_details as Record<string, unknown> | undefined;
+          const customerEmail = (customerDetails?.email ?? eventObj?.customer_email) as string | undefined;
+          if (customerEmail) {
+            await sendSeekerProWelcomeEmail(customerEmail);
+          } else {
+            logger.warn({ clerkUserId }, "Seeker Pro checkout: no customer email — welcome email skipped");
+          }
         }
       } else if (sessionId) {
         const [updatedOrder] = await db

@@ -1895,6 +1895,20 @@ export default function Admin() {
                       Clear filter
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs self-end"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (subStatusFilter && subStatusFilter !== "all") params.set("status", subStatusFilter);
+                      const url = `${import.meta.env.BASE_URL}api/admin/seeker-subscriptions/export${params.toString() ? `?${params.toString()}` : ""}`;
+                      window.open(url, "_blank");
+                    }}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export CSV
+                  </Button>
                 </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>

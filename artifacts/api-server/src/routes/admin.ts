@@ -424,4 +424,68 @@ router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promis
   res.json(subscriptions);
 });
 
+router.get("/admin/seeker-subscriptions/export", requireAdmin, async (req, res): Promise<void> => {
+  const { status } = req.query as Record<string, string | undefined>;
+
+  const allowedStatuses = ["active", "cancelled", "past_due"];
+  if (status && !allowedStatuses.includes(status)) {
+    res.status(400).json({ error: "Invalid status. Must be one of: active, cancelled, past_due" });
+    return;
+  }
+
+  const conditions: SQL[] = [];
+  if (status) {
+    conditions.push(eq(seekerSubscriptionsTable.status, status));
+  }
+
+  const subscriptions = await db
+    .select({
+      clerkUserId: seekerSubscriptionsTable.clerkUserId,
+      stripeCustomerId: seekerSubscriptionsTable.stripeCustomerId,
+      stripeSubscriptionId: seekerSubscriptionsTable.stripeSubscriptionId,
+      status: seekerSubscriptionsTable.status,
+      currentPeriodEnd: seekerSubscriptionsTable.currentPeriodEnd,
+      createdAt: seekerSubscriptionsTable.createdAt,
+    })
+    .from(seekerSubscriptionsTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(seekerSubscriptionsTable.createdAt));
+
+  const escape = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return "";
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = [
+    "Clerk User ID",
+    "Status",
+    "Current Period End",
+    "Created Date",
+    "Stripe Customer ID",
+    "Stripe Subscription ID",
+  ];
+
+  const rows = subscriptions.map((s) => [
+    escape(s.clerkUserId),
+    escape(s.status),
+    escape(s.currentPeriodEnd ? new Date(s.currentPeriodEnd).toISOString() : null),
+    escape(s.createdAt ? new Date(s.createdAt).toISOString() : null),
+    escape(s.stripeCustomerId),
+    escape(s.stripeSubscriptionId),
+  ]);
+
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="seeker-subscriptions-export.csv"`);
+  res.send(csv);
+});
+
 export default router;

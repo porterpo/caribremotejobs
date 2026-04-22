@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, seekerSubscriptionsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
-import { getUncachableStripeClient } from "../lib/stripeClient";
+import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
 import { getSeekerSubscription } from "../lib/getSeekerSubscription";
 
@@ -18,15 +18,17 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
   const { userId } = req as AuthenticatedRequest;
 
   try {
+    const accountId = await getStripeAccountId();
     const rows = await db.execute(sql`
       SELECT pr.id AS price_id, p.metadata AS product_metadata
       FROM stripe.prices pr
-      JOIN stripe.products p ON pr.product = p.id
+      JOIN stripe.products p ON pr.product = p.id AND p._account_id = pr._account_id
       WHERE p.active = true
         AND pr.active = true
         AND pr.type = 'recurring'
         AND pr.recurring->>'interval' = 'month'
         AND p.metadata->>'type' = 'seeker_pro'
+        AND pr._account_id = ${accountId}
       ORDER BY pr.unit_amount ASC
       LIMIT 1
     `);

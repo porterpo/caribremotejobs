@@ -1,14 +1,15 @@
 import Stripe from "stripe";
 import { StripeSync } from "stripe-replit-sync";
 
-async function getCredentials(): Promise<{
+async function getCredentials(opts?: { needsPublishable?: boolean }): Promise<{
   publishableKey: string;
   secretKey: string;
 }> {
   const envSecret = process.env.STRIPE_SECRET_KEY;
   const envPublishable = process.env.STRIPE_PUBLISHABLE_KEY;
-  if (envSecret && envPublishable) {
-    return { secretKey: envSecret, publishableKey: envPublishable };
+  const needsPublishable = opts?.needsPublishable ?? false;
+  if (envSecret && (!needsPublishable || envPublishable)) {
+    return { secretKey: envSecret, publishableKey: envPublishable ?? "" };
   }
 
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -67,8 +68,21 @@ export async function getUncachableStripeClient(): Promise<Stripe> {
 }
 
 export async function getStripePublishableKey(): Promise<string> {
-  const { publishableKey } = await getCredentials();
+  const { publishableKey } = await getCredentials({ needsPublishable: true });
   return publishableKey;
+}
+
+let _accountIdCache: { secretKey: string; accountId: string } | null = null;
+
+export async function getStripeAccountId(): Promise<string> {
+  const { secretKey } = await getCredentials();
+  if (_accountIdCache && _accountIdCache.secretKey === secretKey) {
+    return _accountIdCache.accountId;
+  }
+  const stripe = new Stripe(secretKey, { apiVersion: "2025-08-27.basil" as never });
+  const account = await stripe.accounts.retrieve();
+  _accountIdCache = { secretKey, accountId: account.id };
+  return account.id;
 }
 
 let _stripeSync: StripeSync | null = null;

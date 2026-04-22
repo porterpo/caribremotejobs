@@ -6,6 +6,7 @@ import { sendOrderConfirmation } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { getEmployerEligibility } from "../lib/employerEligibility";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { getStripeAccountId } from "../lib/stripeClient";
 
 const router: IRouter = Router();
 
@@ -348,15 +349,20 @@ router.get("/admin/order-stats", requireAdmin, async (_req, res): Promise<void> 
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.status, "paid"))
       .groupBy(jobOrdersTable.productType),
-    db.execute(sql`
-      SELECT
-        p.metadata->>'type' AS product_type,
-        pr.unit_amount
-      FROM stripe.products p
-      JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-      WHERE p.active = true
-        AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured')
-    `),
+    (async () => {
+      const accountId = await getStripeAccountId();
+      return db.execute(sql`
+        SELECT
+          p.metadata->>'type' AS product_type,
+          pr.unit_amount
+        FROM stripe.products p
+        JOIN stripe.prices pr
+          ON pr.product = p.id AND pr.active = true AND pr._account_id = p._account_id
+        WHERE p.active = true
+          AND p._account_id = ${accountId}
+          AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured')
+      `);
+    })(),
     db
       .select({ status: seekerSubscriptionsTable.status, count: count() })
       .from(seekerSubscriptionsTable)

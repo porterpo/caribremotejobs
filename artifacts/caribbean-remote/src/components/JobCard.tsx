@@ -6,8 +6,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Building2, MapPin, DollarSign, Clock, Palmtree, ShieldCheck, X, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
+
+const BASE = import.meta.env.BASE_URL;
+
+type ApplicationHistoryResponse = {
+  applications?: Array<{
+    jobId: number;
+    resumeType?: "built" | "pdf" | null;
+    appliedAt?: string | null;
+  }>;
+};
 import type { Job } from "@workspace/api-client-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -83,6 +93,17 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
   const isVerifiedEmployer = job.verifiedEmployer;
   const { isSignedIn } = useUser();
   const queryClient = useQueryClient();
+  const { data: applicationHistory } = useQuery<ApplicationHistoryResponse>({
+    queryKey: ["applications", "history"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/applications/history`);
+      if (!res.ok) throw new Error("Failed to fetch application history");
+      return res.json();
+    },
+    staleTime: 60_000,
+    retry: false,
+    enabled: !!isSignedIn,
+  });
   const resume = isSignedIn
     ? queryClient.getQueryData<{ skills?: string[] | null } | null>(["resume", "me"])
     : null;
@@ -102,12 +123,13 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
     selectedTags ? selectedTags.map((s) => s.toLowerCase()) : []
   );
   const appliedRecord = (() => {
-    try {
-      const records = JSON.parse(localStorage.getItem("cr_applied_jobs") ?? "{}") as Record<string, { resumeType?: "built" | "pdf" | "none"; appliedAt?: string }>;
-      return records[String(job.id)] ?? null;
-    } catch {
-      return null;
-    }
+    if (!isSignedIn || !applicationHistory) return null;
+    const serverMatch = applicationHistory.applications?.find((a) => a.jobId === job.id);
+    if (!serverMatch) return null;
+    return {
+      resumeType: serverMatch.resumeType ?? undefined,
+      appliedAt: serverMatch.appliedAt ?? undefined,
+    } as { resumeType?: "built" | "pdf" | "none"; appliedAt?: string };
   })();
 
   // Promote any active filter tags that would be hidden in overflow

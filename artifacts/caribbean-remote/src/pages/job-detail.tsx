@@ -1025,9 +1025,9 @@ export default function JobDetail() {
               {showQuotaIndicator && (
                 <p className="text-xs text-center text-muted-foreground">
                   {appsRemaining === 0 ? (
-                    <span className="text-destructive font-medium">0 applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro</a></span>
+                    <span className="text-destructive font-medium">{seekerSub!.applicationLimit} of {seekerSub!.applicationLimit} free applications used this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Upgrade to Pro</a></span>
                   ) : (
-                    <span>{appsRemaining} of {seekerSub!.applicationLimit} applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro</a></span>
+                    <span>{effectiveApplyCount} of {seekerSub!.applicationLimit} free applications used this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro</a></span>
                   )}
                 </p>
               )}
@@ -1256,9 +1256,9 @@ export default function JobDetail() {
               {showQuotaIndicator && (
                 <p className="w-full text-xs text-muted-foreground">
                   {appsRemaining === 0 ? (
-                    <span className="text-destructive font-medium">0 applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Upgrade to Pro</a></span>
+                    <span className="text-destructive font-medium">{seekerSub!.applicationLimit} of {seekerSub!.applicationLimit} free applications used this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Upgrade to Pro</a></span>
                   ) : (
-                    <span>{appsRemaining} of {seekerSub!.applicationLimit} applications left this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro for unlimited</a></span>
+                    <span>{effectiveApplyCount} of {seekerSub!.applicationLimit} free applications used this week · <a href={`${BASE}seeker-pro`} className="underline text-primary">Go Pro for unlimited</a></span>
                   )}
                 </p>
               )}

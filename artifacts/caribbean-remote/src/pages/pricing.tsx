@@ -199,7 +199,7 @@ export default function Pricing() {
         )}
 
         <div className="mt-16 text-center text-sm text-muted-foreground">
-          <p>All listings are reviewed by our team within 24 hours. Questions? Contact us at <a href="mailto:hello@caribbeanremote.com" className="underline hover:text-foreground">hello@caribbeanremote.com</a></p>
+          <p>All listings are reviewed by our team within 24 hours. Questions? Contact us at <a href="mailto:hello@caribremote.com" className="underline hover:text-foreground">hello@caribremote.com</a></p>
         </div>
       </div>
 

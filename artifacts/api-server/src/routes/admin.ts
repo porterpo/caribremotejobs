@@ -341,7 +341,7 @@ router.post("/admin/companies/:id/unverify", requireAdmin, async (req, res): Pro
   res.json(company);
 });
 
-router.get("/admin/order-stats", async (_req, res): Promise<void> => {
+router.get("/admin/order-stats", requireAdmin, async (_req, res): Promise<void> => {
   const [orderRows, priceRows, seekerSubRows] = await Promise.all([
     db
       .select({ productType: jobOrdersTable.productType, count: count() })

@@ -160,7 +160,7 @@ export function Navbar() {
             <Briefcase className="h-5 w-5" />
           </div>
           <span className="font-display font-bold text-xl tracking-tight text-foreground">
-            Caribbean<span className="text-primary">Remote</span>
+            CaribRemote<span className="text-primary">.com</span>
           </span>
         </Link>
 
@@ -212,7 +212,7 @@ export function Navbar() {
                   className="font-display font-bold text-xl tracking-tight"
                   onClick={() => setOpen(false)}
                 >
-                  Caribbean<span className="text-primary">Remote</span>
+                  CaribRemote<span className="text-primary">.com</span>
                 </Link>
                 <div className="flex flex-col gap-3">
                   {navigation.map((item) => (

@@ -767,7 +767,25 @@ export default function Admin() {
             <TabsTrigger value="seeker-subscriptions" className="px-6 py-2">
               Seeker Subscriptions
               {(orderStats?.seekerSubscriptionCounts?.past_due ?? 0) > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0">
+                <Badge
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTab("seeker-subscriptions");
+                    setSubStatusFilter("past_due");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab("seeker-subscriptions");
+                      setSubStatusFilter("past_due");
+                    }
+                  }}
+                  title="View past due subscribers"
+                  className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0 cursor-pointer hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                >
                   {orderStats!.seekerSubscriptionCounts!.past_due}
                 </Badge>
               )}

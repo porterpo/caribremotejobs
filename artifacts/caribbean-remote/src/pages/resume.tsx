@@ -817,9 +817,18 @@ function UploadResumeTab({
   );
 }
 
+interface LastApplication {
+  resumeType: string | null;
+  jobId: number | null;
+  jobTitle: string | null;
+  companyName: string | null;
+  occurredAt: string;
+}
+
 export default function ResumePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isSignedIn } = useUser();
   const [activeTab, setActiveTab] = useState<"build" | "upload">("build");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [skillInput, setSkillInput] = useState("");
@@ -836,6 +845,19 @@ export default function ResumePage() {
     staleTime: 30_000,
     retry: false,
   });
+
+  const { data: lastApplicationData } = useQuery<{ lastApplication: LastApplication | null }>({
+    queryKey: ["my-last-application"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/analytics/my-last-application`);
+      if (!res.ok) return { lastApplication: null };
+      return res.json() as Promise<{ lastApplication: LastApplication | null }>;
+    },
+    enabled: !!isSignedIn,
+    staleTime: 60_000,
+  });
+
+  const lastApplication = lastApplicationData?.lastApplication ?? null;
 
   useEffect(() => {
     if (resume) {
@@ -951,6 +973,36 @@ export default function ResumePage() {
               <p className="text-muted-foreground">
                 Build a structured resume or upload a PDF — use either when applying for jobs.
               </p>
+              {lastApplication && lastApplication.resumeType && (
+                <div className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-full px-3 py-1">
+                  {lastApplication.resumeType === "pdf" ? (
+                    <Upload className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  <span>
+                    Last applied with{" "}
+                    <span className="font-medium text-foreground">
+                      {lastApplication.resumeType === "pdf" ? "uploaded PDF" : "built resume"}
+                    </span>
+                    {lastApplication.jobTitle && (
+                      <>
+                        {" "}for{" "}
+                        {lastApplication.jobId ? (
+                          <Link
+                            href={`/jobs/${lastApplication.jobId}`}
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            {lastApplication.jobTitle}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-foreground">{lastApplication.jobTitle}</span>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
             {activeTab === "build" && (
               <Button

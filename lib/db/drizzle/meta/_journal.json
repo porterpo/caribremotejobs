@@ -64,6 +64,13 @@
       "when": 1745700000000,
       "tag": "0008_add_resume_share_token",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1745786400000,
+      "tag": "0009_add_resume_type_to_analytics",
+      "breakpoints": true
     }
   ]
 }

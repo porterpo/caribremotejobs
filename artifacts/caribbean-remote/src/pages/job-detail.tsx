@@ -307,7 +307,7 @@ function ApplyWithResumeDialog({
   onClose: () => void;
   applyUrl: string;
   jobTitle: string;
-  onShowPreview?: (pdfDownloadUrl: string | null) => void;
+  onShowPreview?: (pdfDownloadUrl: string | null, resumeType: "built" | "pdf") => void;
 }) {
   const { data: resume, status } = useQuery<ResumeData | null>({
     queryKey: ["resume", "me"],
@@ -348,14 +348,14 @@ function ApplyWithResumeDialog({
         const res = await fetch(`${BASE}api/resume/pdf-link`);
         if (!res.ok) throw new Error("Failed to get PDF link");
         const { url } = await res.json() as { url: string };
-        onShowPreview(url);
+        onShowPreview(url, "pdf");
       } catch {
-        onShowPreview(null);
+        onShowPreview(null, "pdf");
       } finally {
         setFetchingPdfLink(false);
       }
     } else if (onShowPreview) {
-      onShowPreview(null);
+      onShowPreview(null, "built");
     }
   };
 
@@ -859,10 +859,10 @@ export default function JobDetail() {
           onClose={() => setApplyDialogOpen(false)}
           applyUrl={effectiveApplyUrl}
           jobTitle={job.title}
-          onShowPreview={showPreviewOnApply ? (pdfUrl) => {
-            const rt: ResumeType = pdfUrl !== null ? "pdf" : "built";
+          onShowPreview={showPreviewOnApply ? (pdfUrl, resumeType) => {
+            track("application_started", { job_id: jobId, resume_type: resumeType });
             setPendingPdfUrl(pdfUrl);
-            setPendingResumeType(rt);
+            setPendingResumeType(resumeType);
             setApplyDialogOpen(false);
             setPreviewDialogOpen(true);
           } : undefined}

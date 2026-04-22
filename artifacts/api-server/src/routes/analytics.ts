@@ -65,7 +65,7 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
   const validResumeTypes = ["built", "pdf", "none"];
   const resumeType =
     typeof resume_type === "string" && validResumeTypes.includes(resume_type)
-      ? resume_type
+      ? (resume_type === "none" ? null : resume_type)
       : null;
 
   await db.insert(analyticsEventsTable).values({
@@ -209,6 +209,52 @@ router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> =>
     skillsUpdated: countMap[SKILLS_UPDATED_EVENT] ?? 0,
     eventBreakdown,
     topJobs: perJob,
+  });
+});
+
+router.get("/analytics/my-last-application", async (req, res): Promise<void> => {
+  const auth = getAuth(req);
+  const userId =
+    (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
+
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const [row] = await db
+    .select({
+      resumeType: analyticsEventsTable.resumeType,
+      jobId: analyticsEventsTable.jobId,
+      jobTitle: jobsTable.title,
+      companyName: jobsTable.companyName,
+      occurredAt: analyticsEventsTable.occurredAt,
+    })
+    .from(analyticsEventsTable)
+    .leftJoin(jobsTable, eq(analyticsEventsTable.jobId, jobsTable.id))
+    .where(
+      and(
+        eq(analyticsEventsTable.event, "application_started"),
+        eq(analyticsEventsTable.userId, userId),
+        sql`${analyticsEventsTable.resumeType} is not null`,
+      )
+    )
+    .orderBy(desc(analyticsEventsTable.occurredAt))
+    .limit(1);
+
+  if (!row) {
+    res.json({ lastApplication: null });
+    return;
+  }
+
+  res.json({
+    lastApplication: {
+      resumeType: row.resumeType,
+      jobId: row.jobId,
+      jobTitle: row.jobTitle ?? null,
+      companyName: row.companyName ?? null,
+      occurredAt: row.occurredAt,
+    },
   });
 });
 

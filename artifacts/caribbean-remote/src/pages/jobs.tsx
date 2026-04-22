@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Briefcase, Filter, Sparkles, X, Tag } from "lucide-react";
+import { Search, Briefcase, Filter, Sparkles, X, Tag, AlertTriangle, AlertCircle } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -188,6 +188,37 @@ export default function Jobs() {
     } catch {}
     setNudgeDismissed(true);
   }
+
+  const [limitBannerDismissed, setLimitBannerDismissed] = useState(false);
+
+  const { data: subscriptionData } = useQuery<{
+    isPro: boolean;
+    applicationCount: number;
+    applicationLimit: number | null;
+  }>({
+    queryKey: ["seeker", "subscription"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}api/seeker/subscription`);
+      if (!res.ok) throw new Error("Failed to fetch subscription");
+      return res.json();
+    },
+    enabled: !!isSignedIn,
+    staleTime: 60_000,
+  });
+
+  const showLimitBanner =
+    !limitBannerDismissed &&
+    !!isSignedIn &&
+    !!subscriptionData &&
+    !subscriptionData.isPro &&
+    subscriptionData.applicationLimit !== null &&
+    (subscriptionData.applicationCount >= 2 ||
+      subscriptionData.applicationCount >= subscriptionData.applicationLimit);
+
+  const isAtLimit =
+    !!subscriptionData &&
+    subscriptionData.applicationLimit !== null &&
+    subscriptionData.applicationCount >= subscriptionData.applicationLimit;
 
   const [tagInput, setTagInput] = useState("");
 
@@ -662,6 +693,51 @@ export default function Jobs() {
 
         {/* Job List */}
         <div className="flex-1 w-full min-w-0">
+          {showLimitBanner && (
+            <div
+              className={`mb-6 flex items-start gap-3 rounded-lg border px-4 py-3 ${
+                isAtLimit
+                  ? "border-destructive/30 bg-destructive/5"
+                  : "border-amber-500/30 bg-amber-500/5"
+              }`}
+            >
+              {isAtLimit ? (
+                <AlertCircle className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
+              )}
+              <p className="flex-1 text-sm text-foreground">
+                {isAtLimit ? (
+                  <>
+                    You've used all{" "}
+                    {subscriptionData!.applicationLimit} of your{" "}
+                    {subscriptionData!.applicationLimit} free applications this week.{" "}
+                    <Link href="/seeker-pro" className="font-medium text-primary hover:underline">
+                      Upgrade to Seeker Pro
+                    </Link>{" "}
+                    for unlimited applications.
+                  </>
+                ) : (
+                  <>
+                    You've used {subscriptionData!.applicationCount} of{" "}
+                    {subscriptionData!.applicationLimit} free applications this week.{" "}
+                    <Link href="/seeker-pro" className="font-medium text-primary hover:underline">
+                      Upgrade to Seeker Pro
+                    </Link>{" "}
+                    before you hit your limit.
+                  </>
+                )}
+              </p>
+              <button
+                onClick={() => setLimitBannerDismissed(true)}
+                aria-label="Dismiss"
+                className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {isSignedIn && resumeStatus === "success" && !hasSkills && !nudgeDismissed && (
             <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
               <Sparkles className="h-4 w-4 shrink-0 text-primary" />

@@ -109,6 +109,12 @@ interface OrderStats {
     [key: string]: number;
   };
   totalRevenue: number;
+  seekerSubscriptionCounts?: {
+    active: number;
+    past_due: number;
+    cancelled: number;
+    [key: string]: number;
+  };
   revenueBreakdown: {
     single: number;
     pack: number;
@@ -760,6 +766,11 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="seeker-subscriptions" className="px-6 py-2">
               Seeker Subscriptions
+              {(orderStats?.seekerSubscriptionCounts?.past_due ?? 0) > 0 && (
+                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0">
+                  {orderStats!.seekerSubscriptionCounts!.past_due}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 

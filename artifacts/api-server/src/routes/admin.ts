@@ -342,7 +342,7 @@ router.post("/admin/companies/:id/unverify", requireAdmin, async (req, res): Pro
 });
 
 router.get("/admin/order-stats", async (_req, res): Promise<void> => {
-  const [orderRows, priceRows] = await Promise.all([
+  const [orderRows, priceRows, seekerSubRows] = await Promise.all([
     db
       .select({ productType: jobOrdersTable.productType, count: count() })
       .from(jobOrdersTable)
@@ -357,7 +357,18 @@ router.get("/admin/order-stats", async (_req, res): Promise<void> => {
       WHERE p.active = true
         AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured')
     `),
+    db
+      .select({ status: seekerSubscriptionsTable.status, count: count() })
+      .from(seekerSubscriptionsTable)
+      .groupBy(seekerSubscriptionsTable.status),
   ]);
+
+  const seekerSubscriptionCounts: Record<string, number> = { active: 0, past_due: 0, cancelled: 0 };
+  for (const row of seekerSubRows) {
+    if (row.status) {
+      seekerSubscriptionCounts[row.status] = row.count;
+    }
+  }
 
   const stripePricesByCents: Record<string, number> = {};
   for (const row of priceRows.rows as Array<{ product_type: string; unit_amount: number }>) {
@@ -380,7 +391,7 @@ router.get("/admin/order-stats", async (_req, res): Promise<void> => {
     totalRevenue += revenueCents;
   }
 
-  res.json({ totalPaid, breakdown, totalRevenue, revenueBreakdown });
+  res.json({ totalPaid, breakdown, totalRevenue, revenueBreakdown, seekerSubscriptionCounts });
 });
 
 router.get("/admin/seeker-subscriptions", requireAdmin, async (req, res): Promise<void> => {

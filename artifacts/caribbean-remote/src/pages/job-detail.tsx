@@ -8,7 +8,7 @@ import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload, CheckCircle2, Zap } from "lucide-react";
+import { Building2, MapPin, DollarSign, Clock, Calendar, ArrowLeft, ExternalLink, Palmtree, BellRing, FileText, ChevronRight, Loader2, Sparkles, Copy, Check, Upload, CheckCircle2, Zap, AlertTriangle } from "lucide-react";
 import { computeSkillMatch } from "@/lib/skill-match";
 import { track } from "@/lib/analytics";
 import { SkillMatchBadge } from "@/components/SkillMatchBadge";
@@ -40,6 +40,7 @@ interface ResumeData {
   skills: string[] | null;
   uploadedResumePath: string | null;
   shareToken: string | null;
+  updatedAt: string | null;
 }
 
 // ─── Application history (localStorage) ────────────────────────────────────
@@ -328,6 +329,12 @@ function ApplyWithResumeDialog({
   const hasPdfResume = status === "success" && resume !== null && !!resume.uploadedResumePath;
   const hasBoth = hasBuiltResume && hasPdfResume;
 
+  const THREE_MONTHS_MS = 3 * 30 * 24 * 60 * 60 * 1000;
+  const isPdfStale =
+    hasPdfResume &&
+    !!resume?.updatedAt &&
+    new Date(resume.updatedAt).getTime() < Date.now() - THREE_MONTHS_MS;
+
   const [selectedType, setSelectedType] = useState<"built" | "pdf">("built");
   const [fetchingPdfLink, setFetchingPdfLink] = useState(false);
 
@@ -448,19 +455,33 @@ function ApplyWithResumeDialog({
             )}
 
             {selectedType === "pdf" && hasPdfResume ? (
-              <div className="rounded-lg border bg-card p-5 space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-                    <FileText className="h-5 w-5 text-red-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Your uploaded PDF resume</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      A download link will be included in the application email.
-                      {resume.shareToken && " Your permanent share link will also be included."}
-                    </p>
+              <div className="space-y-2">
+                <div className="rounded-lg border bg-card p-5 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Your uploaded PDF resume</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        A download link will be included in the application email.
+                        {resume.shareToken && " Your permanent share link will also be included."}
+                      </p>
+                    </div>
                   </div>
                 </div>
+                {isPdfStale && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+                    <span>
+                      Your PDF resume is over 3 months old.{" "}
+                      <Link href="/resume?tab=upload" onClick={onClose} className="font-medium underline underline-offset-2 hover:text-amber-900">
+                        Upload a newer version
+                      </Link>{" "}
+                      before applying.
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <>

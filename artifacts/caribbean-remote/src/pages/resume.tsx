@@ -907,7 +907,14 @@ export default function ResumePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isSignedIn } = useUser();
-  const [activeTab, setActiveTab] = useState<"build" | "upload">("build");
+  const [activeTab, setActiveTab] = useState<"build" | "upload">(() => {
+    try {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      return tab === "upload" ? "upload" : "build";
+    } catch {
+      return "build";
+    }
+  });
   const [form, setForm] = useState<FormState>(emptyForm);
   const [skillInput, setSkillInput] = useState("");
   const skillInputRef = useRef<HTMLInputElement>(null);

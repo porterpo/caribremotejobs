@@ -378,6 +378,11 @@ router.get("/resume/shared/:token", async (req: Request, res): Promise<void> => 
   }
 
   if (rows[0].shareTokenExpiresAt && rows[0].shareTokenExpiresAt.getTime() < Date.now()) {
+    const acceptsHtml = req.accepts(["json", "html"]) === "html";
+    if (acceptsHtml) {
+      res.redirect(303, "/share-expired");
+      return;
+    }
     res.status(410).json({ error: "This share link has expired" });
     return;
   }

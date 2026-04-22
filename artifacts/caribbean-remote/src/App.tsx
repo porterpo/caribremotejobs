@@ -24,6 +24,7 @@ import Resume from "@/pages/resume";
 import TagJobs from "@/pages/tag-jobs";
 import TagsIndex from "@/pages/tags-index";
 import SeekerPro from "@/pages/seeker-pro";
+import ShareExpired from "@/pages/share-expired";
 
 const queryClient = new QueryClient();
 
@@ -281,6 +282,7 @@ function ClerkProviderWithRoutes() {
 
             {/* Email token route — stays public; accessed from email links without Clerk session */}
             <Route path="/unsubscribe/:token" component={Unsubscribe} />
+            <Route path="/share-expired" component={ShareExpired} />
 
             <Route component={NotFound} />
           </Switch>

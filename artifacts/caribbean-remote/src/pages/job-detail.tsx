@@ -138,7 +138,7 @@ function buildMailtoPreview(
 
     if (shareUrl) {
       lines.push(``);
-      lines.push(`My resume PDF (permanent link):`);
+      lines.push(`Permanent resume link (no expiry):`);
       lines.push(shareUrl);
     }
   }

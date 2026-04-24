@@ -208,28 +208,6 @@ router.post("/admin/test-email", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/admin/test-email-direct", async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-  const to = typeof body.to === "string" ? body.to.trim() : "";
-  if (!to) {
-    res.status(400).json({ error: "Missing recipient email" });
-    return;
-  }
-
-  try {
-    const result = await sendTestEmail(to);
-    if (result.error) {
-      logger.error({ err: result.error }, "Direct test email failed");
-      res.status(502).json({ error: "Failed to send test email" });
-      return;
-    }
-    res.json({ messageId: result.data?.id ?? null });
-  } catch (err) {
-    logger.error({ err }, "Direct test email failed");
-    res.status(502).json({ error: "Failed to send test email" });
-  }
-});
-
 router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {
   const jobs = await db
     .select()

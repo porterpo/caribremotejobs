@@ -46,3 +46,4 @@ externalPort = 3002
 [userenv]
 
 [userenv.shared]
+ADMIN_USER_IDS = "user_3Cf2E0ybjn7pvwVnCMp7T3syFLH"

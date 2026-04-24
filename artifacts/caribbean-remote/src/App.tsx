@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tan
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { useSeo } from "@/lib/seo";
 
 import Home from "@/pages/home";
 import Jobs from "@/pages/jobs";
@@ -93,6 +94,12 @@ const clerkAppearance = {
 function SignInPage() {
   // To update login providers, app branding, or OAuth settings use the Auth
   // pane in the workspace toolbar. More information can be found in the Replit docs.
+  useSeo({
+    title: "Sign In | CaribRemotejobs.com",
+    description: "Sign in to your CaribRemotejobs account.",
+    canonicalPath: "/sign-in",
+    robots: "noindex,nofollow",
+  });
   const search = useSearch();
   const params = new URLSearchParams(search);
   const redirectPath = params.get("redirect");
@@ -117,6 +124,12 @@ function SignInPage() {
 function SignUpPage() {
   // To update login providers, app branding, or OAuth settings use the Auth
   // pane in the workspace toolbar. More information can be found in the Replit docs.
+  useSeo({
+    title: "Sign Up | CaribRemotejobs.com",
+    description: "Create your CaribRemotejobs account to apply for remote jobs.",
+    canonicalPath: "/sign-up",
+    robots: "noindex,nofollow",
+  });
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-[hsl(190,50%,95%)] to-[hsl(40,33%,98%)] px-4">
       <SignUp

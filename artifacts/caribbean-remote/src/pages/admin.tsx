@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState, useMemo, useEffect } from "react";
+import { useSeo } from "@/lib/seo";
 import {
   ResponsiveContainer,
   BarChart,
@@ -167,6 +168,11 @@ const ANALYTICS_PRESETS: { label: string; getRange: () => { from: string; to: st
 ];
 
 export default function Admin() {
+  useSeo({
+    title: "Admin | CaribRemotejobs.com",
+    description: "Internal admin dashboard.",
+    robots: "noindex,nofollow",
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem("admin_activeTab") ?? "jobs");

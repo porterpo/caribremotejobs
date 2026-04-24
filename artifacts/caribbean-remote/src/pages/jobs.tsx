@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { useSeo } from "@/lib/seo";
 import { useListJobs, getListJobsQueryKey, useListCategories, useListJobTags } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,13 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function Jobs() {
+  useSeo({
+    title: "Browse Remote Jobs | CaribRemotejobs.com",
+    description:
+      "Browse hundreds of remote jobs hiring Caribbean talent. Filter by category, skill, salary, and job type to find your next role.",
+    canonicalPath: "/jobs",
+    robots: "noindex,follow",
+  });
   const [location] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   

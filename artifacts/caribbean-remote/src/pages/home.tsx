@@ -1,4 +1,5 @@
 import { PageLayout } from "@/components/layout/PageLayout";
+import { useSeo } from "@/lib/seo";
 import { useGetStats, useListFeaturedJobs, useListRecentJobs, useListCategories, useGetStatsByCategory } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,12 @@ import { Palmtree, ArrowRight, Briefcase, Globe, Search, ArrowUpRight, BellRing,
 import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
+  useSeo({
+    title: "Remote Jobs for Caribbean Talent | CaribRemotejobs.com",
+    description:
+      "Discover remote jobs hiring Caribbean-based talent. Engineering, design, marketing, support and more — work from the islands you love.",
+    canonicalPath: "/",
+  });
   const { data: stats, isLoading: statsLoading } = useGetStats();
   const { data: featuredJobs, isLoading: featuredLoading } = useListFeaturedJobs();
   const { data: recentJobs, isLoading: recentLoading } = useListRecentJobs();

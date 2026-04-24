@@ -31,6 +31,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { JobCard } from "@/components/JobCard";
 import type { Job } from "@workspace/api-client-react";
+import { useSeo } from "@/lib/seo";
 
 const CATEGORIES = [
   "software-engineering",
@@ -158,6 +159,13 @@ function jobToFormState(job: Job): FormState {
 const cooldownKey = (email: string) => `resendCooldownUntil:${email.toLowerCase()}`;
 
 export default function PostJob() {
+  useSeo({
+    title: "Post a Remote Job | CaribRemotejobs.com",
+    description:
+      "Post your remote role to reach Caribbean-based talent. Submit job details and publish in minutes.",
+    canonicalPath: "/post-job",
+    robots: "noindex,nofollow",
+  });
   const search = useSearch();
   const params = new URLSearchParams(search);
   const sessionId = params.get("sessionId") ?? "";

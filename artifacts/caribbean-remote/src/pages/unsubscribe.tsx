@@ -4,8 +4,14 @@ import { Button } from "@/components/ui/button";
 import { BellOff, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUnsubscribeAlert, getUnsubscribeAlertQueryKey } from "@workspace/api-client-react";
+import { useSeo } from "@/lib/seo";
 
 export default function Unsubscribe() {
+  useSeo({
+    title: "Unsubscribe | CaribRemotejobs.com",
+    description: "Unsubscribe from job alerts.",
+    robots: "noindex,nofollow",
+  });
   const [, params] = useRoute("/unsubscribe/:token");
   const token = params?.token ?? "";
 

@@ -3,8 +3,15 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock } from "lucide-react";
+import { useSeo } from "@/lib/seo";
 
 export default function ShareExpired() {
+  useSeo({
+    title: "Resume Link Expired | CaribRemotejobs.com",
+    description: "This resume share link is no longer valid.",
+    canonicalPath: "/share-expired",
+    robots: "noindex,nofollow",
+  });
   return (
     <PageLayout>
       <div className="flex-1 flex items-center justify-center bg-muted/20 py-20 px-4">

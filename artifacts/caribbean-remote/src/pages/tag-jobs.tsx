@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobs, getListJobsQueryKey } from "@workspace/api-client-react";
+import { useSeo } from "@/lib/seo";
 import { JobCard } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,19 +174,11 @@ export default function TagJobs() {
     ? `Browse ${activeTotal || "all"} remote ${tag} jobs. Find the best remote opportunities requiring ${tag} skills, available to candidates worldwide.`
     : "Browse remote jobs by skill tag.";
 
-  useEffect(() => {
-    document.title = `${pageTitle} | CaribRemotejobs.com`;
-    let metaEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!metaEl) {
-      metaEl = document.createElement("meta");
-      metaEl.name = "description";
-      document.head.appendChild(metaEl);
-    }
-    metaEl.content = metaDescription;
-    return () => {
-      document.title = "CaribRemotejobs.com";
-    };
-  }, [pageTitle, metaDescription]);
+  useSeo({
+    title: `${pageTitle} | CaribRemotejobs.com`,
+    description: metaDescription,
+    canonicalPath: tag ? `/jobs/tag/${encodeURIComponent(tag)}` : "/jobs/tags",
+  });
 
   return (
     <PageLayout>

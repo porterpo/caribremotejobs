@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
+import { useSeo } from "@/lib/seo";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -48,6 +49,12 @@ const formSchema = z.object({
 });
 
 export default function Alerts() {
+  useSeo({
+    title: "Job Alerts | CaribRemotejobs.com",
+    description:
+      "Get email alerts for new remote jobs that match your preferences. Free for all candidates.",
+    canonicalPath: "/alerts",
+  });
   const { toast } = useToast();
   const [isSuccess, setIsSuccess] = useState(false);
   const { data: categories } = useListCategories();

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useSeo } from "@/lib/seo";
 
 interface ProfileData {
   id: number;
@@ -40,6 +41,11 @@ const emptyForm: FormState = {
 const BASE = import.meta.env.BASE_URL;
 
 export default function ProfilePage() {
+  useSeo({
+    title: "My Profile | CaribRemotejobs.com",
+    description: "Manage your CaribRemotejobs profile.",
+    robots: "noindex,nofollow",
+  });
   const search = useSearch();
   const params = new URLSearchParams(search);
   const isOnboarding = params.get("onboarding") === "true";

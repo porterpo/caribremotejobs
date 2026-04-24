@@ -10,6 +10,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Briefcase, Star, Package, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useSeo } from "@/lib/seo";
 
 interface Product {
   id: string;
@@ -48,6 +49,13 @@ function getProductType(metadata: Record<string, string> | null): string {
 }
 
 export default function Pricing() {
+  useSeo({
+    title: "Post a Job — Pricing | CaribRemotejobs.com",
+    description:
+      "Reach Caribbean-based remote talent. Affordable single posts, packs, and unlimited monthly plans for employers.",
+    canonicalPath: "/pricing",
+    robots: "noindex,follow",
+  });
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

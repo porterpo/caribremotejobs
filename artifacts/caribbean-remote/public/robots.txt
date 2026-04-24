@@ -1,0 +1,35 @@
+User-agent: *
+Allow: /
+
+# Block authenticated/admin app routes from public indexing
+Disallow: /admin
+Disallow: /admin/
+Disallow: /profile
+Disallow: /resume
+Disallow: /post-job
+Disallow: /success
+Disallow: /unsubscribe/
+Disallow: /share-expired
+Disallow: /sign-in
+Disallow: /sign-up
+
+# Block sensitive/admin API endpoints, but leave public read APIs and the
+# sitemap crawlable so Googlebot can render JS-driven pages and discover URLs.
+Disallow: /api/admin
+Disallow: /api/admin/
+Disallow: /api/stripe
+Disallow: /api/stripe/
+Disallow: /api/storage
+Disallow: /api/storage/
+Disallow: /api/submit
+Disallow: /api/submit/
+Disallow: /api/profile
+Disallow: /api/profile/
+Disallow: /api/resume
+Disallow: /api/resume/
+Disallow: /api/analytics
+Disallow: /api/analytics/
+Disallow: /api/seeker
+Disallow: /api/seeker/
+
+Sitemap: https://caribremotejobs.com/api/sitemap.xml

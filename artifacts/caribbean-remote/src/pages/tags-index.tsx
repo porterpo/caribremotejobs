@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Tag, ArrowLeft, ArrowDownAZ, TrendingDown } from "lucide-react";
@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { useSeo } from "@/lib/seo";
 
 const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
@@ -44,19 +45,11 @@ export default function TagsIndex() {
   });
   const [sortOrder, setSortOrder] = useState<SortOrder>(readStoredSort);
 
-  useEffect(() => {
-    document.title = `${PAGE_TITLE} | CaribRemotejobs.com`;
-    let metaEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!metaEl) {
-      metaEl = document.createElement("meta");
-      metaEl.name = "description";
-      document.head.appendChild(metaEl);
-    }
-    metaEl.content = META_DESCRIPTION;
-    return () => {
-      document.title = "CaribRemotejobs.com";
-    };
-  }, []);
+  useSeo({
+    title: `${PAGE_TITLE} | CaribRemotejobs.com`,
+    description: META_DESCRIPTION,
+    canonicalPath: "/jobs/tags",
+  });
 
   const sortedTags = useMemo(() => {
     if (!tags) return [];

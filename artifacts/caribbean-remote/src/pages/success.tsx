@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { CheckCircle2, Loader2, AlertCircle, Mail } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useSeo } from "@/lib/seo";
 
 interface JobOrder {
   id: number;
@@ -18,6 +19,12 @@ interface JobOrder {
 type ResendState = "idle" | "loading" | "success" | "error" | "rate_limited";
 
 export default function Success() {
+  useSeo({
+    title: "Order Confirmed | CaribRemotejobs.com",
+    description: "Your job posting order has been received.",
+    canonicalPath: "/success",
+    robots: "noindex,nofollow",
+  });
   const search = useSearch();
   const params = new URLSearchParams(search);
   const sessionId = params.get("session_id");

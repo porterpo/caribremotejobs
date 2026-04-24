@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check, AlertTriangle, Briefcase } from "lucide-react";
+import { useSeo } from "@/lib/seo";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -904,6 +905,11 @@ interface LastApplication {
 }
 
 export default function ResumePage() {
+  useSeo({
+    title: "My Resume | CaribRemotejobs.com",
+    description: "Build and manage your resume on CaribRemotejobs.",
+    robots: "noindex,nofollow",
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isSignedIn } = useUser();

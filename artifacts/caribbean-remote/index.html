@@ -3,19 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <!-- Default meta — keep in sync with src/lib/meta.ts -->
+    <meta name="theme-color" content="#0c8aa3" />
+
+    <!-- Default meta — kept in sync with src/lib/seo.ts. Per-page SEO is set by useSeo. -->
     <title>CaribRemotejobs.com — Remote Jobs for the Caribbean</title>
     <meta name="description" content="Find remote jobs open to Caribbean-based talent. Browse hundreds of roles across engineering, design, marketing, and more." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <link rel="canonical" href="https://caribremotejobs.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="CaribRemotejobs.com" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://caribremotejobs.com/" />
     <meta property="og:title" content="CaribRemotejobs.com — Remote Jobs for the Caribbean" />
     <meta property="og:description" content="Find remote jobs open to Caribbean-based talent. Browse hundreds of roles across engineering, design, marketing, and more." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="https://caribremotejobs.com/og-image.png" />
+    <meta property="og:image:width" content="1408" />
+    <meta property="og:image:height" content="768" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:title" content="CaribRemotejobs.com — Remote Jobs for the Caribbean" />
+    <meta name="twitter:description" content="Find remote jobs open to Caribbean-based talent. Browse hundreds of roles across engineering, design, marketing, and more." />
+    <meta name="twitter:image" content="https://caribremotejobs.com/og-image.png" />
+
+    <!-- Icons & Manifest -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Site-level structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CaribRemotejobs.com",
+      "url": "https://caribremotejobs.com/",
+      "description": "Remote job board for Caribbean-based talent.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://caribremotejobs.com/jobs?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "CaribRemotejobs.com",
+      "url": "https://caribremotejobs.com/",
+      "logo": "https://caribremotejobs.com/logo.svg",
+      "email": "hello@caribremotejobs.com",
+      "sameAs": []
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

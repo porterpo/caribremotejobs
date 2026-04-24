@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Zap, BellRing, Loader2, Sparkles, Globe, Shield, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useSeo } from "@/lib/seo";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -59,6 +60,12 @@ const BENEFITS = [
 ];
 
 export default function SeekerPro() {
+  useSeo({
+    title: "Seeker Pro — Unlimited Applications | CaribRemotejobs.com",
+    description:
+      "Upgrade to Seeker Pro for unlimited applications, advanced filters, and priority job alerts.",
+    canonicalPath: "/seeker-pro",
+  });
   const { isSignedIn, isLoaded } = useUser();
   const [, navigate] = useLocation();
   const { toast } = useToast();

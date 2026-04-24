@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from "@/lib/meta";
+import { useState, useEffect, useMemo } from "react";
+import { useSeo, SITE_URL, SITE_NAME } from "@/lib/seo";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useGetJob, getGetJobQueryKey, useListJobs } from "@workspace/api-client-react";
@@ -747,38 +747,64 @@ export default function JobDetail() {
       ? job.tags.split(',').map(t => t.trim()).filter(tag => tag && !skillMatch.matchedSkills.includes(tag))
       : [];
 
-  useEffect(() => {
-    if (!job) return;
-
+  const seoData = useMemo(() => {
+    if (!job) return null;
     const location = job.locationRestrictions || "Remote";
-    const pageTitle = `${job.title} at ${job.companyName} | CaribRemotejobs.com`;
-    const pageDescription = `${job.title} — ${job.companyName} · ${location}. Apply for this remote role on CaribRemotejobs.com.`;
+    const title = `${job.title} at ${job.companyName} | ${SITE_NAME}`;
+    const description = `${job.title} — ${job.companyName} · ${location}. Apply for this remote role on ${SITE_NAME}.`;
+    const canonicalPath = `/jobs/${job.id}`;
 
-    const prevTitle = document.title;
-
-    function upsertMeta(key: "name" | "property", keyValue: string, content: string): HTMLMetaElement {
-      let el = document.querySelector(`meta[${key}="${keyValue}"]`) as HTMLMetaElement | null;
-      if (!el) {
-        el = document.createElement("meta");
-        el.setAttribute(key, keyValue);
-        document.head.appendChild(el);
-      }
-      el.setAttribute("content", content);
-      return el;
-    }
-
-    document.title = pageTitle;
-    const descEl = upsertMeta("name", "description", pageDescription);
-    const ogTitleEl = upsertMeta("property", "og:title", pageTitle);
-    const ogDescEl = upsertMeta("property", "og:description", pageDescription);
-
-    return () => {
-      document.title = prevTitle;
-      descEl.setAttribute("content", DEFAULT_DESCRIPTION);
-      ogTitleEl.setAttribute("content", DEFAULT_TITLE);
-      ogDescEl.setAttribute("content", DEFAULT_DESCRIPTION);
+    const employmentTypeMap: Record<string, string> = {
+      "full-time": "FULL_TIME",
+      "part-time": "PART_TIME",
+      contract: "CONTRACTOR",
+      internship: "INTERN",
+      temporary: "TEMPORARY",
     };
+    const employmentType = employmentTypeMap[job.jobType?.toLowerCase()] ?? "OTHER";
+
+    const jsonLd: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      title: job.title,
+      description: job.description,
+      datePosted: new Date(job.postedAt).toISOString(),
+      employmentType,
+      hiringOrganization: {
+        "@type": "Organization",
+        name: job.companyName,
+        ...(job.companyLogo ? { logo: job.companyLogo } : {}),
+      },
+      jobLocationType: "TELECOMMUTE",
+      applicantLocationRequirements: {
+        "@type": "Country",
+        name: job.locationRestrictions || "Worldwide",
+      },
+      directApply: false,
+      url: `${SITE_URL}${canonicalPath}`,
+    };
+    if (typeof job.salaryMin === "number" || typeof job.salaryMax === "number") {
+      jsonLd.baseSalary = {
+        "@type": "MonetaryAmount",
+        currency: "USD",
+        value: {
+          "@type": "QuantitativeValue",
+          ...(typeof job.salaryMin === "number" ? { minValue: job.salaryMin } : {}),
+          ...(typeof job.salaryMax === "number" ? { maxValue: job.salaryMax } : {}),
+          unitText: "YEAR",
+        },
+      };
+    }
+    return { title, description, canonicalPath, jsonLd };
   }, [job]);
+
+  useSeo({
+    title: seoData?.title,
+    description: seoData?.description,
+    canonicalPath: seoData?.canonicalPath,
+    ogType: "article",
+    jsonLd: seoData?.jsonLd ?? null,
+  });
 
   if (isLoading) {
     return (

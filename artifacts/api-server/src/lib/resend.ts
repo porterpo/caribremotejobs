@@ -1,10 +1,16 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
 
-const SMTP_HOST = process.env.BLUEHOST_SMTP_HOST ?? "sh00876.bluehost.com";
-const SMTP_PORT = Number(process.env.BLUEHOST_SMTP_PORT ?? 465);
-const SMTP_USER = process.env.BLUEHOST_SMTP_USER ?? "hello@caribremotejobs.com";
-const SMTP_PASS = process.env.BLUEHOST_SMTP_PASSWORD;
+const SMTP_HOST =
+  process.env.TITAN_SMTP_HOST ??
+  process.env.BLUEHOST_SMTP_HOST ??
+  "smtp.titan.email";
+const SMTP_PORT = Number(process.env.TITAN_SMTP_PORT ?? process.env.BLUEHOST_SMTP_PORT ?? 465);
+const SMTP_USER =
+  process.env.TITAN_SMTP_USER ??
+  process.env.BLUEHOST_SMTP_USER ??
+  "hello@caribremotejobs.com";
+const SMTP_PASS = process.env.TITAN_SMTP_PASSWORD ?? process.env.BLUEHOST_SMTP_PASSWORD;
 const FROM_EMAIL =
   process.env.MAIL_FROM ?? `CaribRemotejobs <${SMTP_USER}>`;
 
@@ -13,7 +19,7 @@ let transporter: Transporter | null = null;
 function getTransporter(): Transporter {
   if (transporter) return transporter;
   if (!SMTP_PASS) {
-    throw new Error("BLUEHOST_SMTP_PASSWORD is not configured");
+    throw new Error("SMTP password is not configured");
   }
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
@@ -68,7 +74,7 @@ export async function sendTestEmail(to: string): Promise<SendResult> {
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #0d9488;">It works!</h1>
-        <p>This is a test email from <strong>CaribRemotejobs.com</strong> sent through your Bluehost mailbox.</p>
+        <p>This is a test email from <strong>CaribRemotejobs.com</strong> sent through your mailbox.</p>
         <p style="font-size: 12px; color: #6b7280;">If you received this, your outgoing email is configured correctly.</p>
       </div>
     `,

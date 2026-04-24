@@ -186,7 +186,7 @@ router.post("/admin/orders/:id/resend-email", async (req, res): Promise<void> =>
   res.json({ confirmationEmailSentAt: sentAt.toISOString() });
 });
 
-router.post("/admin/test-email", async (req, res): Promise<void> => {
+router.post("/admin/test-email", requireAdmin, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
   const to = typeof body.to === "string" ? body.to.trim() : "";
   if (!to) {

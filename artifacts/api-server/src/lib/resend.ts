@@ -127,7 +127,7 @@ export async function sendOrderConfirmation(params: {
   const productLabel = productLabels[params.productType] ?? params.productType;
 
   try {
-    await client.emails.send({
+    const { error } = await client.emails.send({
       from: fromEmail,
       to: params.email,
       subject: "Your CaribRemotejobs.com order is confirmed",
@@ -158,6 +158,10 @@ export async function sendOrderConfirmation(params: {
         </div>
       `,
     });
+    if (error) {
+      logger.error({ err: error }, "Failed to send order confirmation email");
+      throw error;
+    }
   } catch (err) {
     logger.error({ err }, "Failed to send order confirmation email");
     throw err;

@@ -71,7 +71,24 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 - Stripe is configured via direct API keys in Replit Secrets (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`), not the Replit Stripe connector.
 - `artifacts/api-server/src/lib/stripeClient.ts` reads these env vars first; if both are present it uses them and skips the connector lookup. Connector code remains as a fallback.
+- Account ID cache is keyed by secret key so rotating keys auto-invalidates the cached account.
 - To rotate keys: update the secrets in the Secrets tab and restart the `artifacts/api-server: API Server` workflow.
+- **Live products** (created via Stripe API on 2026-04-24, all with `metadata.type` set):
+  - Single Job Post — $49 (`type=single`)
+  - 3-Pack Job Posts — $129 (`type=pack`)
+  - Monthly Unlimited — $299/mo (`type=monthly`)
+  - Featured Upgrade — $99 (`type=featured`)
+  - Seeker Pro — $19/mo (`type=seeker_pro`)
+
+## Email (Titan SMTP)
+
+- Outbound email goes through Titan SMTP (`smtp.titan.email:465`), not Resend or Bluehost.
+- `artifacts/api-server/src/lib/resend.ts` uses nodemailer; the exported `getResendClient()` API is preserved so call sites are unchanged.
+- Required secrets: `TITAN_SMTP_PASSWORD` (mailbox `hello@caribremotejobs.com`).
+- Optional overrides: `TITAN_SMTP_HOST`, `TITAN_SMTP_PORT`, `TITAN_SMTP_USER`, `MAIL_FROM`.
+- DNS: SPF includes `spf.titan.email`; DKIM `default._domainkey` is set; DMARC is published.
+- Admin test endpoint: `POST /api/admin/test-email` with `{ "to": "addr" }` — gated by `requireAdmin`.
+- `sendOrderConfirmation` checks the SMTP send result and throws on failure so checkout/webhook/admin-resend flows surface errors instead of silently succeeding.
 
 ## Key Commands
 

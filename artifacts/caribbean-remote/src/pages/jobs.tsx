@@ -304,12 +304,12 @@ export default function Jobs() {
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
-    query: { enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
+    query: { queryKey: getListJobsQueryKey(normalQueryParams), enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: BEST_MATCH_FETCH_LIMIT };
   const { data: allJobsResponse, isLoading: isLoadingAllJobs, isError: isAllJobsError } = useListJobs(allJobsQueryParams, {
-    query: { enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
+    query: { queryKey: getListJobsQueryKey(allJobsQueryParams), enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const isLoading = needsAllJobs

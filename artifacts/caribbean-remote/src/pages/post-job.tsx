@@ -99,6 +99,7 @@ function formToPreviewJob(form: FormState, now: Date, logoPreviewUrl?: string | 
     companyLogo: logoPreviewUrl ?? null,
     companyId: null,
     caribbeanFriendly: false,
+    verifiedEmployer: false,
     entryLevel: false,
     category: form.category || "other",
     jobType: form.jobType,

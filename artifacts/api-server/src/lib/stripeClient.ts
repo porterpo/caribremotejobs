@@ -80,7 +80,7 @@ export async function getStripeAccountId(): Promise<string> {
     return _accountIdCache.accountId;
   }
   const stripe = new Stripe(secretKey, { apiVersion: "2025-08-27.basil" as never });
-  const account = await stripe.accounts.retrieve();
+  const account = await (stripe.accounts.retrieve as unknown as () => Promise<{ id: string }>)();
   _accountIdCache = { secretKey, accountId: account.id };
   return account.id;
 }

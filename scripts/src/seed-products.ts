@@ -63,7 +63,7 @@ async function seedProducts() {
       unit_amount: product.price,
       currency: "usd",
       ...(product.recurring
-        ? { recurring: { interval: (product as { recurringInterval?: string }).recurringInterval ?? "month" } }
+        ? { recurring: { interval: ((product as { recurringInterval?: "day" | "week" | "month" | "year" }).recurringInterval ?? "month") } }
         : {}),
     });
 

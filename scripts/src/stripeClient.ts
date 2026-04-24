@@ -38,7 +38,7 @@ async function getCredentials(): Promise<{ secretKey: string }> {
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { items?: Array<{ settings?: { secret?: string } }> };
   const settings = data.items?.[0]?.settings;
 
   if (!settings?.secret) {

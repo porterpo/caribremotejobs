@@ -49,7 +49,14 @@ export class WebhookHandlers {
             try {
               const stripe = await getUncachableStripeClient();
               const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-              currentPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+              const subAny = stripeSub as unknown as {
+                current_period_end?: number;
+                items?: { data?: Array<{ current_period_end?: number }> };
+              };
+              const periodEndSec =
+                subAny.current_period_end ??
+                subAny.items?.data?.[0]?.current_period_end;
+              if (periodEndSec) currentPeriodEnd = new Date(periodEndSec * 1000);
             } catch (subErr) {
               logger.warn({ subErr }, "Could not fetch subscription currentPeriodEnd at checkout — will be set by subscription event");
             }

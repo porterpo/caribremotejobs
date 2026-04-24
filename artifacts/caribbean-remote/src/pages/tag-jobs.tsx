@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { useListJobs } from "@workspace/api-client-react";
+import { useListJobs, getListJobsQueryKey } from "@workspace/api-client-react";
 import { JobCard } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,12 +70,12 @@ export default function TagJobs() {
 
   const normalQueryParams = { ...filterParams, page, limit: PAGE_SIZE };
   const { data: jobsResponse, isLoading: isLoadingNormal } = useListJobs(normalQueryParams, {
-    query: { enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
+    query: { queryKey: getListJobsQueryKey(normalQueryParams), enabled: !needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const allJobsQueryParams = { ...filterParams, page: 1, limit: 9999 };
   const { data: allJobsResponse, isLoading: isLoadingAllJobs, isError: isAllJobsError } = useListJobs(allJobsQueryParams, {
-    query: { enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
+    query: { queryKey: getListJobsQueryKey(allJobsQueryParams), enabled: needsAllJobs, staleTime: JOBS_STALE_TIME_MS },
   });
 
   const isLoading = needsAllJobs

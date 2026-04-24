@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db, analyticsEventsTable, jobsTable, adminPreferencesTable } from "@workspace/db";
-import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
-import { requireAuth } from "../middlewares/requireAuth";
+import { and, eq, gte, lte, sql, desc, type SQL } from "drizzle-orm";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
 const router = Router();
 
 router.get("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.userId;
+  const userId = (req as AuthenticatedRequest).userId;
   const [preference] = await db
     .select({
       analyticsDateFrom: adminPreferencesTable.analyticsDateFrom,
@@ -23,7 +23,7 @@ router.get("/admin/preferences/analytics-date-range", requireAuth, async (req, r
 });
 
 router.put("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.userId;
+  const userId = (req as AuthenticatedRequest).userId;
   const body = req.body as { analyticsDateFrom?: string | null; analyticsDateTo?: string | null };
   const analyticsDateFrom = typeof body.analyticsDateFrom === "string" && body.analyticsDateFrom ? body.analyticsDateFrom : null;
   const analyticsDateTo = typeof body.analyticsDateTo === "string" && body.analyticsDateTo ? body.analyticsDateTo : null;
@@ -80,7 +80,7 @@ router.post("/analytics/track", async (req, res): Promise<void> => {
 });
 
 router.get("/applications/history", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.userId;
+  const userId = (req as AuthenticatedRequest).userId;
   const rows = await db
     .select({
       jobId: analyticsEventsTable.jobId,
@@ -118,7 +118,7 @@ router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> =>
 
   const { dateFrom, dateTo } = req.query as { dateFrom?: string; dateTo?: string };
 
-  const dateConditions = [];
+  const dateConditions: SQL[] = [];
   if (dateFrom) {
     const from = new Date(dateFrom);
     if (!isNaN(from.getTime())) {
@@ -266,7 +266,7 @@ router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
   const granularity = granularityParam === "week" ? "week" : "day";
   const eventList = typeof event === "string" && event.length > 0 ? event.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
-  const conditions = [];
+  const conditions: SQL[] = [];
   if (dateFrom) {
     const from = new Date(dateFrom);
     if (!isNaN(from.getTime())) {

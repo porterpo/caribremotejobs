@@ -10,6 +10,13 @@ const router: IRouter = Router();
 router.get("/stripe/products", async (_req, res): Promise<void> => {
   try {
     const accountId = await getStripeAccountId();
+    const sanity = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM stripe.products) AS total_products,
+        (SELECT COUNT(*) FROM stripe.products WHERE _account_id = ${accountId}) AS account_products,
+        (SELECT COUNT(*) FROM stripe.products WHERE _account_id = ${accountId} AND active = true AND metadata->>'type' IN ('single','pack','monthly','featured','seeker_pro')) AS matching_products
+    `);
+    logger.info({ accountId, sanity: sanity.rows[0] }, "stripe.products: diagnostic");
     const rows = await db.execute(sql`
       SELECT
         p.id AS product_id,

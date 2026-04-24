@@ -954,23 +954,13 @@ export default function JobDetail() {
 
           <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
             <div className="flex gap-6 items-start">
-              {job.companyId ? (
-                <Link href={`/companies/${job.companyId}`} className="h-20 w-20 rounded-xl bg-white border flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-2 hover:ring-2 hover:ring-primary/30 transition-shadow">
-                  {job.companyLogo ? (
-                    <img src={job.companyLogo} alt={job.companyName} className="max-h-full max-w-full object-contain" />
-                  ) : (
-                    <Building2 className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </Link>
-              ) : (
-                <div className="h-20 w-20 rounded-xl bg-white border flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-2">
-                  {job.companyLogo ? (
-                    <img src={job.companyLogo} alt={job.companyName} className="max-h-full max-w-full object-contain" />
-                  ) : (
-                    <Building2 className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-              )}
+              <div className="h-20 w-20 rounded-xl bg-white border flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-2">
+                {job.companyLogo ? (
+                  <img src={job.companyLogo} alt={job.companyName} className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <Building2 className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
               <div>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {job.featured && (
@@ -990,10 +980,10 @@ export default function JobDetail() {
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-foreground">{job.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground">
-                  <Link href={job.companyId ? `/companies/${job.companyId}` : '#'} className="flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors">
+                  <span className="flex items-center gap-1.5 font-medium text-foreground">
                     <Building2 className="h-4 w-4" />
                     {job.companyName}
-                  </Link>
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" />
                     {job.locationRestrictions || "Anywhere"}

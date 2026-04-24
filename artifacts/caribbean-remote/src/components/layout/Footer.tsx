@@ -18,7 +18,7 @@ export function Footer() {
             <h3 className="font-semibold mb-4 text-foreground">Platform</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/jobs" className="hover:text-primary transition-colors">Browse Jobs</Link></li>
-              <li><Link href="/companies" className="hover:text-primary transition-colors">Companies</Link></li>
+              <li><Link href="/jobs/tags" className="hover:text-primary transition-colors">Browse Tags</Link></li>
               <li><Link href="/alerts" className="hover:text-primary transition-colors">Job Alerts</Link></li>
             </ul>
           </div>

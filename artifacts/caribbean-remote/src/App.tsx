@@ -11,8 +11,6 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Jobs from "@/pages/jobs";
 import JobDetail from "@/pages/job-detail";
-import Companies from "@/pages/companies";
-import CompanyDetail from "@/pages/company-detail";
 import Alerts from "@/pages/alerts";
 import Admin from "@/pages/admin";
 import Unsubscribe from "@/pages/unsubscribe";
@@ -253,12 +251,6 @@ function ClerkProviderWithRoutes() {
             <Route path="/jobs/tags" component={TagsIndex} />
             <Route path="/jobs/tag/:tagname" component={TagJobs} />
             <Route path="/jobs/:id" component={JobDetail} />
-            <Route path="/companies">
-              {() => <ProtectedRoute component={Companies} />}
-            </Route>
-            <Route path="/companies/:id">
-              {() => <ProtectedRoute component={CompanyDetail} />}
-            </Route>
             <Route path="/alerts" component={Alerts} />
             <Route path="/seeker-pro" component={SeekerPro} />
             <Route path="/admin">

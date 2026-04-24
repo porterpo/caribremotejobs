@@ -183,18 +183,13 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row gap-4 items-start">
           {job.companyId ? (
-            <Link
-              href={`/companies/${job.companyId}`}
-              className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white hover:ring-2 hover:ring-primary/30 transition-shadow"
-              aria-label={`View ${job.companyName} profile`}
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white">
               {job.companyLogo ? (
                 <img src={job.companyLogo} alt={`${job.companyName} logo`} className="h-full w-full object-contain p-1" />
               ) : (
                 <Building2 className="h-6 w-6 text-muted-foreground" />
               )}
-            </Link>
+            </div>
           ) : (
             <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/50 overflow-hidden relative z-20 bg-white">
               {job.companyLogo ? (

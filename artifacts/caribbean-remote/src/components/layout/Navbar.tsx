@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Building2, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag, Zap } from "lucide-react";
+import { Briefcase, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag, Zap } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -147,7 +147,6 @@ export function Navbar() {
   const navigation = [
     { name: "Jobs", href: "/jobs", icon: Briefcase },
     { name: "Browse Tags", href: "/jobs/tags", icon: Tag },
-    { name: "Companies", href: "/companies", icon: Building2 },
     { name: "Alerts", href: "/alerts", icon: BellRing },
     { name: "Post a Job", href: "/pricing", icon: DollarSign },
   ];

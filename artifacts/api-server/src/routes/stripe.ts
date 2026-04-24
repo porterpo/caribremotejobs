@@ -10,7 +10,6 @@ const router: IRouter = Router();
 router.get("/stripe/products", async (_req, res): Promise<void> => {
   try {
     const accountId = await getStripeAccountId();
-    logger.info({ accountId }, "stripe.products: resolved accountId");
     const rows = await db.execute(sql`
       SELECT
         p.id AS product_id,

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
-import { sendOrderConfirmation } from "../lib/resend";
+import { sendOrderConfirmation, sendTestEmail } from "../lib/resend";
 import { logger } from "../lib/logger";
 import { getEmployerEligibility } from "../lib/employerEligibility";
 import { requireAdmin } from "../middlewares/requireAdmin";
@@ -184,6 +184,28 @@ router.post("/admin/orders/:id/resend-email", async (req, res): Promise<void> =>
     .where(eq(jobOrdersTable.id, id));
 
   res.json({ confirmationEmailSentAt: sentAt.toISOString() });
+});
+
+router.post("/admin/test-email", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const to = typeof body.to === "string" ? body.to.trim() : "";
+  if (!to) {
+    res.status(400).json({ error: "Missing recipient email" });
+    return;
+  }
+
+  try {
+    const result = await sendTestEmail(to);
+    if (result.error) {
+      logger.error({ err: result.error }, "Test email failed");
+      res.status(502).json({ error: "Failed to send test email" });
+      return;
+    }
+    res.json({ messageId: result.data?.id ?? null });
+  } catch (err) {
+    logger.error({ err }, "Test email failed");
+    res.status(502).json({ error: "Failed to send test email" });
+  }
 });
 
 router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {

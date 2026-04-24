@@ -15,6 +15,7 @@ import analyticsRouter from "./analytics";
 import seekerRouter from "./seeker";
 import sitemapRouter from "./sitemap";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -25,7 +26,7 @@ router.use(companiesRouter);
 router.use(categoriesRouter);
 router.use(alertsRouter);
 router.use(statsRouter);
-router.use("/admin", requireAuth);
+router.use("/admin", requireAuth, requireAdmin);
 router.use(adminRouter);
 router.use(stripeRouter);
 router.use(storageRouter);

@@ -8,6 +8,7 @@ import {
   UpdateCompanyParams,
   UpdateCompanyBody,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -47,7 +48,7 @@ router.get("/companies", async (req, res): Promise<void> => {
   res.json(companies);
 });
 
-router.post("/companies", async (req, res): Promise<void> => {
+router.post("/companies", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateCompanyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -103,7 +104,7 @@ router.get("/companies/:id", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.patch("/companies/:id", async (req, res): Promise<void> => {
+router.patch("/companies/:id", requireAdmin, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = UpdateCompanyParams.safeParse({ id: rawId });
   if (!params.success) {

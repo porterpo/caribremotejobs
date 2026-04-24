@@ -9,6 +9,7 @@ import {
   UpdateJobBody,
   DeleteJobParams,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -95,14 +96,20 @@ router.get("/jobs/tag-counts", async (req, res): Promise<void> => {
   const andWhere = and(...baseConditions, ...tagSqlConditions.map((c) => c as ReturnType<typeof eq>));
   const orWhere = and(...baseConditions, or(...tagSqlConditions) as ReturnType<typeof eq>);
 
-  let andCountQuery = db.select({ count: count() }).from(jobsTable).$dynamic().where(andWhere);
-  let orCountQuery = db.select({ count: count() }).from(jobsTable).$dynamic().where(orWhere);
+  const searchWhere = params.search
+    ? ilike(jobsTable.title, `%${params.search}%`)
+    : undefined;
 
-  if (params.search) {
-    const searchWhere = ilike(jobsTable.title, `%${params.search}%`);
-    andCountQuery = andCountQuery.where(searchWhere);
-    orCountQuery = orCountQuery.where(searchWhere);
-  }
+  let andCountQuery = db
+    .select({ count: count() })
+    .from(jobsTable)
+    .$dynamic()
+    .where(searchWhere ? and(andWhere, searchWhere) : andWhere);
+  let orCountQuery = db
+    .select({ count: count() })
+    .from(jobsTable)
+    .$dynamic()
+    .where(searchWhere ? and(orWhere, searchWhere) : orWhere);
 
   const [andResult, orResult] = await Promise.all([andCountQuery, orCountQuery]);
 
@@ -191,6 +198,13 @@ router.get("/jobs", async (req, res): Promise<void> => {
     verifiedEmployer: sql<boolean>`COALESCE(${companiesTable.verifiedEmployer}, false)`,
   };
 
+  const searchWhere = params.search
+    ? ilike(jobsTable.title, `%${params.search}%`)
+    : undefined;
+  const combinedWhere = where && searchWhere
+    ? and(where, searchWhere)
+    : (where ?? searchWhere);
+
   let baseQuery = db
     .select(jobCols)
     .from(jobsTable)
@@ -198,15 +212,9 @@ router.get("/jobs", async (req, res): Promise<void> => {
     .$dynamic();
   let countQuery = db.select({ count: count() }).from(jobsTable).$dynamic();
 
-  if (where) {
-    baseQuery = baseQuery.where(where);
-    countQuery = countQuery.where(where);
-  }
-
-  if (params.search) {
-    const searchWhere = ilike(jobsTable.title, `%${params.search}%`);
-    baseQuery = baseQuery.where(searchWhere);
-    countQuery = countQuery.where(searchWhere);
+  if (combinedWhere) {
+    baseQuery = baseQuery.where(combinedWhere);
+    countQuery = countQuery.where(combinedWhere);
   }
 
   const [jobs, countResult] = await Promise.all([
@@ -229,7 +237,7 @@ router.get("/jobs", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/jobs", async (req, res): Promise<void> => {
+router.post("/jobs", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateJobBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -296,7 +304,7 @@ router.get("/jobs/:id", async (req, res): Promise<void> => {
   res.json(job);
 });
 
-router.patch("/jobs/:id", async (req, res): Promise<void> => {
+router.patch("/jobs/:id", requireAdmin, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = UpdateJobParams.safeParse({ id: rawId });
   if (!params.success) {
@@ -324,7 +332,7 @@ router.patch("/jobs/:id", async (req, res): Promise<void> => {
   res.json(job);
 });
 
-router.delete("/jobs/:id", async (req, res): Promise<void> => {
+router.delete("/jobs/:id", requireAdmin, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = DeleteJobParams.safeParse({ id: rawId });
   if (!params.success) {

@@ -46,4 +46,3 @@ externalPort = 3002
 [userenv]
 
 [userenv.shared]
-BLUEHOST_SMTP_PASSWORD = "242intheflesh"

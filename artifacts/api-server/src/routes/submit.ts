@@ -205,7 +205,7 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.put("/jobs/update", async (req, res): Promise<void> => {
+router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();

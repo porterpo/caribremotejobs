@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/requireAuth";
 import { getAuth } from "@clerk/express";
 import { getSeekerSubscription } from "../lib/getSeekerSubscription";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
@@ -58,7 +59,7 @@ router.post("/alerts", async (req, res): Promise<void> => {
   res.status(201).json(alert);
 });
 
-router.get("/alerts", requireAuth, async (_req, res): Promise<void> => {
+router.get("/alerts", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
   const alerts = await db
     .select()
     .from(alertsTable)
@@ -66,7 +67,7 @@ router.get("/alerts", requireAuth, async (_req, res): Promise<void> => {
   res.json(alerts);
 });
 
-router.delete("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/alerts/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = DeleteAlertParams.safeParse({ id: raw });
   if (!params.success) {

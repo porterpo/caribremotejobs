@@ -28,6 +28,7 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 | H3 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace in-memory resend cooldown with shared store (Redis/Postgres TTL). |
 | H4 | HIGH | Open | Backend Lead | 2026-05-01 | Wrap order-consumption flow in transaction + row lock and add idempotency guards. |
 | H1 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace permissive CORS with explicit allowlist for production frontend origins. |
+| H5 | HIGH | Open | Backend Lead | 2026-05-01 | Persist idempotency keys (user + product + time window) on checkout/session creation; short-circuit duplicates. |
 
 ## Detailed Findings
 
@@ -200,3 +201,86 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 4. Restricted alerts list/delete to admin in `artifacts/api-server/src/routes/alerts.ts` (`GET /alerts`, `DELETE /alerts/:id`).
 5. Added `requireAuth` to `PUT /jobs/update` in `artifacts/api-server/src/routes/submit.ts`.
 6. Previously corrected search+filter composition for jobs list/count/tag-count in `artifacts/api-server/src/routes/jobs.ts` (single combined where path).
+
+## Audit Process Framework
+
+This section consolidates the process specification for the audit lifecycle. The Remediation Ledger (`REMEDIATION_LEDGER_2026-04-24.md`) is the per-cycle intake artifact; this framework section is the canonical process spec for Phases 1–5 going forward.
+
+### Phase Definitions and Handoff Contract (R6)
+
+| Phase | Name | Inputs | Exit Criteria |
+|---|---|---|---|
+| 0 | Intake | Reviewer comments, prior audit artifacts | Ledger built; every comment classified `in-scope-this-cycle` or `deferred`; scope frozen. |
+| 0.5 | Scope Freeze | Phase 0 ledger | `In-Scope This Cycle` and `Explicitly Out of Scope` lists recorded; reviewer-visible deferred list recorded. |
+| 1 | Process Hardening | Phase 0 ledger | All R-item Done Criteria met with evidence anchor in this audit doc; Phase 1 Completion Matrix populated. |
+| 2 | Remediation | This audit doc + ledger | Each commit cluster lands with verification evidence per Gate Rules. |
+| 3 | Verification | Verification Specs (below) | Every primary security check passes; functional regression check passes; new findings logged per New-Finding Handling Rule. |
+| 4 | Owner & Date Assignment | Open-finding list | Every open finding has named owner + target date. |
+| 5 | Peer Review & Sign-Off | Phases 1–4 evidence | Reviewer validates checklist; sign-off recorded per Phase 5 Peer Review Checklist. |
+
+**Handoff contract (R6):** The Remediation Ledger produced in Phase 0 is the **authoritative input to Phase 1**. Phase 1 cannot begin until the ledger's `Gate to Phase 1` checklist is satisfied. The ledger's `Phase 1 Acceptance Criteria` table defines the Done Criteria that this audit doc must satisfy to exit Phase 1.
+
+### Verification Specs (Phase 3) (R1, R7)
+
+Each row defines the input, expected response, and pass condition for a Phase 3 check. Rows are explicitly classified as **primary security check** or **functional regression guard**.
+
+| Check | Classification | Command/Input | Expected Response | Pass Condition |
+|---|---|---|---|---|
+| Auth guard matrix | Primary security check | Issue requests as (a) unauthenticated, (b) authenticated non-admin, (c) authenticated admin against every privileged route in `routes/jobs.ts`, `routes/companies.ts`, `routes/admin.ts`, `routes/alerts.ts`, `routes/submit.ts`. | `401` for (a) where auth required; `403` for (b) where admin required; `2xx` for (c) on permitted routes. | Persona × route response matrix matches expected status for every cell; zero policy bypasses. |
+| IDOR / session access | Primary security check | User A authenticated; attempts `GET /stripe/session/:id` and `PUT /jobs/update` using a `sessionId` belonging to User B. Also issue requests with random/invalid session IDs. | No cross-user data disclosure; non-disclosing generic error (e.g., `404` for unknown, `403` for foreign-owned). | Zero responses contain another user's order data; error responses do not differentiate between "not found" and "not yours" in a way that enables enumeration. |
+| CORS behavior | Primary security check | Preflight (`OPTIONS`) and credentialed requests from (a) allowlisted production origin, (b) allowlisted staging origin, (c) non-allowlisted origin. | Permissive `Access-Control-Allow-Origin` + `Access-Control-Allow-Credentials: true` only for (a) and (b); no permissive CORS headers for (c). | Non-allowlisted origin receives no permissive CORS response and credentialed requests are rejected by the browser. |
+| Stripe session endpoint | Primary security check | `GET /stripe/session/:id` as (a) owner, (b) authenticated non-owner, (c) unauthenticated. | (a) `2xx` with minimized payload (only fields the UI requires); (b) `403` or `404` with no sensitive payload; (c) `401`. | Non-owner and unauthenticated personas are denied with no order PII in body or headers. |
+| Jobs search/count regression | Functional regression guard (non-primary security check) | Combined filter + free-text search queries against `GET /jobs`, `GET /jobs/count`, `GET /jobs/tag-count`. | List length and aggregate counts logically consistent for the same predicate set. | No mismatch between returned jobs and total/count outputs across at least 5 representative predicate combinations. |
+
+### Gate Rules (R2)
+
+- **Incremental verification (Phase 2):** Each commit cluster in Phase 2 lands with its own pass/fail evidence. Reviewers may sign off on a cluster's verification incrementally; later clusters are not blocked by earlier clusters as long as each cluster's own checks pass.
+- **Final promotion gate (Phase 4/5):** Promotion to Phase 4 or Phase 5 is **blocked while any in-scope check has an unresolved ❌ failure**. ⚠️ environment-limited results (e.g., a check that cannot be executed because staging is unavailable) are allowed only with explicit documentation of the limitation and a backlog item to re-run the check once the limitation is removed.
+
+### Owner & Date Requirements (Phase 4) (R3)
+
+**Rule:** Every open finding must have a named owner and target date populated before Phase 5 sign-off. The `Launch-Blocking Next Steps` table at the top of this document is the authoritative source. As of this Phase 1 commit, that table covers C3, C5, H1, H2, H3, H4, and H5 (the H5 row was added in Phase 1 to close a coverage gap identified by R3).
+
+Open findings without owner/date assignment block Phase 5 promotion.
+
+### Phase 5 Peer Review Checklist (R4)
+
+A peer reviewer must validate **all three** of the following before Phase 5 sign-off:
+
+1. **Resolution-matrix completeness** — every in-scope reviewer comment from the Phase 0 ledger maps to an entry in this audit doc.
+2. **Evidence sufficiency** — each mapped item carries a file/line citation or command output proving the change/check landed.
+3. **CRITICAL status correctness** — every CRITICAL finding's status is one of `Verified Fixed`, `Open`, or `Needs Verification`, and the status is supported by the evidence cited.
+
+**Recorded sign-off** must take one of these two forms:
+
+- An explicit written reviewer approval comment on the pull request, **or**
+- A designated sign-off note attached to the resolution-matrix artifact (the Phase 1 Completion Matrix below, or the equivalent matrix produced in later phases).
+
+### PR Claim Truthfulness Rule (R5)
+
+Any PR claim without a linked verification reference is labeled **Unverified** and listed explicitly in the PR body; it cannot be presented as completed. Unverified claims are tracked, not silently omitted, and remain Unverified until evidence is attached.
+
+### New-Finding Handling Rule (Phase 2 and Phase 3) (R8)
+
+If a new issue is discovered during implementation **(Phase 2)** or verification **(Phase 3)**:
+
+1. Log it as `new-finding` in the deferred list of the active Remediation Ledger.
+2. Do **not** fix it in the current cycle unless scope is explicitly re-approved by the reviewer.
+3. Assign owner + target date in the follow-up backlog before the cycle closes.
+
+This rule applies symmetrically to Phase 2 and Phase 3 discoveries; Phase 3 is not a back door for in-cycle scope expansion.
+
+## Phase 1 Completion Matrix
+
+This matrix is the artifact a Phase 5 reviewer scans to validate Phase 1 evidence sufficiency (per Phase 5 Peer Review Checklist item 2). Every R-item from the Phase 0 ledger maps to a concrete anchor in this document.
+
+| R-ID | Done Criteria (from ledger) | Evidence Anchor in This Document | Status |
+|---|---|---|---|
+| R1 | Each Phase 3 check has explicit input, expected response, and pass/fail condition. | `Audit Process Framework → Verification Specs (Phase 3)` table; every row populates Command/Input, Expected Response, and Pass Condition columns. | ✅ Met |
+| R2 | Plan allows incremental verification per commit cluster; Phase 4+ remains blocked on unresolved failures. | `Audit Process Framework → Gate Rules` section; both bullets stated. | ✅ Met |
+| R3 | Every open finding has named owner + target date, with C3 and C5 explicitly populated. | `Launch-Blocking Next Steps` table at top of document; C3, C5, H1, H2, H3, H4, H5 all populated. | ✅ Met |
+| R4 | Reviewer gate defines what is reviewed and what counts as recorded sign-off. | `Audit Process Framework → Phase 5 Peer Review Checklist`; three validation items + two sign-off forms enumerated. | ✅ Met |
+| R5 | PR narrative rule explicitly labels unsupported claims as Unverified. | `Audit Process Framework → PR Claim Truthfulness Rule`. | ✅ Met |
+| R6 | Phase handoff explicitly states ledger is authoritative input to Phase 1. | `Audit Process Framework → Phase Definitions and Handoff Contract`; handoff contract paragraph after the phase table. | ✅ Met |
+| R7 | Jobs search/count check labeled as functional regression guard (non-primary security check). | `Audit Process Framework → Verification Specs (Phase 3)` table; Classification column on the Jobs search/count row. | ✅ Met |
+| R8 | New findings discovered during Phase 3 follow same log-and-defer process as Phase 2. | `Audit Process Framework → New-Finding Handling Rule (Phase 2 and Phase 3)`. | ✅ Met |

@@ -22,8 +22,8 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 
 | ID | Severity | Status | Owner | Target date | Required outcome |
 |---|---|---|---|---|---|
-| C3 | CRITICAL | Open | Backend Lead | 2026-04-29 | Add `clerk_user_id` ownership to `job_orders`, enforce owner checks on all session/order endpoints, and add anti-enumeration controls. |
-| C5 | CRITICAL | Open | Backend Lead | 2026-04-29 | Require auth + ownership on `/stripe/session/:id`; return minimal fields only. |
+| C3 | CRITICAL | Fix Applied, Needs Verification | Backend Lead | 2026-04-29 | Add `clerk_user_id` ownership to `job_orders`, enforce owner checks on all session/order endpoints, and add anti-enumeration controls. |
+| C5 | CRITICAL | Fix Applied, Needs Verification | Backend Lead | 2026-04-29 | Require auth + ownership on `/stripe/session/:id`; return minimal fields only. |
 | H2 | HIGH | Open | Platform/DevOps | 2026-04-30 | Deploy distributed rate limiting and edge throttles for abuse-prone endpoints. |
 | H3 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace in-memory resend cooldown with shared store (Redis/Postgres TTL). |
 | H4 | HIGH | Open | Backend Lead | 2026-05-01 | Wrap order-consumption flow in transaction + row lock and add idempotency guards. |
@@ -53,14 +53,19 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### C3) Order/session IDOR and ownership model weakness
 - **Severity:** CRITICAL
 - **Category:** Authentication & Authorization / API Security
-- **Status:** **Open**
-- **File/Endpoint:** `artifacts/api-server/src/routes/submit.ts` (`PUT /jobs/update`, `POST /jobs/feature`, `POST /jobs/submit`), `artifacts/api-server/src/routes/stripe.ts` (`GET /stripe/session/:id`), `lib/db/src/schema/job-orders.ts`
-- **Issue:** `job_orders` has no owner identity column; `sessionId` acts as a de facto access token.
-- **Real-world risk:** Blast radius includes:
+- **Status:** **Fix Applied, Needs Verification**
+- **File/Endpoint:** `artifacts/api-server/src/routes/submit.ts` (`PUT /jobs/update`, `POST /jobs/feature`, `POST /jobs/submit`), `artifacts/api-server/src/routes/stripe.ts` (`POST /stripe/checkout`, `GET /stripe/session/:id`, `POST /stripe/resend-confirmation`), `lib/db/src/schema/job-orders.ts`
+- **Issue:** `job_orders` had no owner identity column; `sessionId` acted as a de facto access token.
+- **Real-world risk:** Blast radius previously included:
   - cross-account order reads if session ids leak via logs, browser history, support channels;
   - probing/enumeration attempts against session endpoint for order discovery and PII exposure;
   - unauthorized edits/feature applications when session id is known.
-- **Fix:** Add immutable owner binding (`clerk_user_id`), enforce owner checks (`order.clerkUserId === req.userId`) everywhere, and add anti-enumeration controls (rate limits + generic error responses + telemetry alerts).
+- **Fix applied (Phase 2 cluster C3):**
+  - Added nullable `clerk_user_id text` column to `job_orders` schema (`lib/db/src/schema/job-orders.ts`) with index in migration `lib/db/drizzle/0012_add_clerk_user_id_to_job_orders.sql`.
+  - `POST /stripe/checkout` now requires `requireAuth` and persists `clerkUserId = req.userId` on order creation.
+  - `GET /stripe/session/:id`, `POST /stripe/resend-confirmation`, `POST /jobs/submit`, `POST /jobs/feature`, and `PUT /jobs/update` now load the order then return `404 Order not found` whenever `order.clerkUserId !== req.userId` (anti-enumeration: same response shape for "not found" and "not yours").
+  - Existing pre-migration rows have `clerk_user_id = NULL`, which deny-by-default under the new check; legacy guest orders cannot be acted on through the protected endpoints.
+- **Verification required (Phase 3):** Run the IDOR/session access spec from `Audit Process Framework → Verification Specs (Phase 3)` against staging.
 
 ### C4) Alerts tenant boundary violation
 - **Severity:** CRITICAL
@@ -74,11 +79,15 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### C5) Public order data exposure endpoint
 - **Severity:** CRITICAL
 - **Category:** Data Protection & Privacy / API Security
-- **Status:** **Open**
+- **Status:** **Fix Applied, Needs Verification**
 - **File/Endpoint:** `artifacts/api-server/src/routes/stripe.ts` (`GET /stripe/session/:id`)
-- **Issue:** Returns order by session id without auth/ownership check.
+- **Issue:** Previously returned order by session id without auth/ownership check.
 - **Real-world risk:** PII leakage and reconnaissance for account takeover/order hijacking paths.
-- **Fix:** Require auth, enforce ownership, reduce response to minimally required fields, and add endpoint-specific rate limit.
+- **Fix applied (Phase 2 cluster C3):**
+  - Endpoint now requires `requireAuth` and rejects callers whose `req.userId` does not match `order.clerkUserId` (returns `404` to avoid distinguishing "not found" from "not yours").
+  - Response payload reduced to only fields the success/post-job pages consume (`id`, `email`, `productType`, `status`, `jobsRemaining`, `jobId`); internal timestamps and `stripeSessionId` are no longer echoed.
+- **Outstanding (deferred to H2):** endpoint-specific rate limit will be added with the distributed-rate-limit rollout.
+- **Verification required (Phase 3):** Run the Stripe session endpoint spec from `Audit Process Framework → Verification Specs (Phase 3)` against staging.
 
 ### H1) Overly permissive CORS with credentials
 - **Severity:** HIGH
@@ -205,6 +214,8 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 5. Added `requireAuth` to `PUT /jobs/update` in `artifacts/api-server/src/routes/submit.ts`.
 6. Previously corrected search+filter composition for jobs list/count/tag-count in `artifacts/api-server/src/routes/jobs.ts` (single combined where path).
 7. Phase 2 cluster H1 — replaced permissive CORS with explicit allowlist gated by `ALLOWED_ORIGINS` env var; production startup hard-fails when unset (`artifacts/api-server/src/app.ts`).
+8. Phase 2 cluster C3 — added `clerk_user_id` column to `job_orders` (`lib/db/src/schema/job-orders.ts`, migration `lib/db/drizzle/0012_add_clerk_user_id_to_job_orders.sql`); `POST /stripe/checkout` now requires auth and persists owner; `GET /stripe/session/:id`, `POST /stripe/resend-confirmation`, `POST /jobs/submit`, `POST /jobs/feature`, `PUT /jobs/update` enforce `order.clerkUserId === req.userId` and return `404` on mismatch.
+9. Phase 2 cluster C5 — `GET /stripe/session/:id` response minimized to UI-required fields only; `requireAuth` + owner check applied (see item 8).
 
 ## Audit Process Framework
 

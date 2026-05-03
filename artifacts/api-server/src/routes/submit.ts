@@ -53,31 +53,78 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
   }
 
   try {
-    const [order] = await db
-      .select()
-      .from(jobOrdersTable)
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(jobOrdersTable)
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId))
+        .for("update");
 
-    if (!order || order.clerkUserId !== userId) {
+      if (!order || order.clerkUserId !== userId) {
+        return { kind: "not_found" as const };
+      }
+      if (order.status !== "paid") {
+        return { kind: "not_paid" as const };
+      }
+      if (order.jobsRemaining <= 0) {
+        return { kind: "no_slots" as const };
+      }
+      if (order.productType === "featured" && order.jobId !== null) {
+        return { kind: "featured_already_used" as const };
+      }
+
+      const isFeatured = order.productType === "featured";
+
+      const [job] = await tx
+        .insert(jobsTable)
+        .values({
+          title,
+          companyName,
+          companyLogo: companyLogo ?? null,
+          category,
+          jobType,
+          description,
+          applyUrl,
+          salaryMin: salaryMin ?? null,
+          salaryMax: salaryMax ?? null,
+          locationRestrictions: locationRestrictions ?? null,
+          source: "employer",
+          caribbeanFriendly: true,
+          featured: isFeatured,
+          approved: false,
+          entryLevel: false,
+          postedAt: new Date(),
+        })
+        .returning();
+
+      await tx
+        .update(jobOrdersTable)
+        .set({ jobsRemaining: order.jobsRemaining - 1, jobId: job.id })
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+      return {
+        kind: "ok" as const,
+        job,
+        email: order.email,
+        jobsRemaining: order.jobsRemaining - 1,
+      };
+    });
+
+    if (result.kind === "not_found") {
       res.status(404).json({ error: "Order not found" });
       return;
     }
-
-    if (order.status !== "paid") {
+    if (result.kind === "not_paid") {
       res.status(402).json({
         error: "Payment not confirmed yet. Please wait a moment and try again.",
       });
       return;
     }
-
-    if (order.jobsRemaining <= 0) {
-      res
-        .status(403)
-        .json({ error: "No job slots remaining on this order." });
+    if (result.kind === "no_slots") {
+      res.status(403).json({ error: "No job slots remaining on this order." });
       return;
     }
-
-    if (order.productType === "featured" && order.jobId !== null) {
+    if (result.kind === "featured_already_used") {
       res.status(400).json({
         error:
           "This Featured Upgrade order was already used. Use the featured upgrade endpoint to apply it to an existing job.",
@@ -85,41 +132,12 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    const isFeatured = order.productType === "featured";
-
-    const [job] = await db
-      .insert(jobsTable)
-      .values({
-        title,
-        companyName,
-        companyLogo: companyLogo ?? null,
-        category,
-        jobType,
-        description,
-        applyUrl,
-        salaryMin: salaryMin ?? null,
-        salaryMax: salaryMax ?? null,
-        locationRestrictions: locationRestrictions ?? null,
-        source: "employer",
-        caribbeanFriendly: true,
-        featured: isFeatured,
-        approved: false,
-        entryLevel: false,
-        postedAt: new Date(),
-      })
-      .returning();
-
-    await db
-      .update(jobOrdersTable)
-      .set({ jobsRemaining: order.jobsRemaining - 1, jobId: job.id })
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
-
-    if (order.email) {
+    if (result.email) {
       const emailSent = await sendJobSubmissionConfirmation({
-        email: order.email,
+        email: result.email,
         sessionId,
-        jobTitle: job.title,
-        companyName: job.companyName,
+        jobTitle: result.job.title,
+        companyName: result.job.companyName,
       });
       if (emailSent) {
         await db
@@ -129,7 +147,7 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
       }
     }
 
-    res.status(201).json({ job, jobsRemaining: order.jobsRemaining - 1 });
+    res.status(201).json({ job: result.job, jobsRemaining: result.jobsRemaining });
   } catch (err) {
     logger.error({ err }, "Error submitting job");
     res.status(500).json({ error: "Failed to submit job" });
@@ -153,52 +171,67 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
   }
 
   try {
-    const [order] = await db
-      .select()
-      .from(jobOrdersTable)
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(jobOrdersTable)
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId))
+        .for("update");
 
-    if (!order || order.clerkUserId !== userId) {
-      res.status(404).json({ error: "Order not found" });
+      if (!order || order.clerkUserId !== userId) {
+        return { kind: "not_found" as const };
+      }
+      if (order.productType !== "featured") {
+        return { kind: "wrong_product" as const };
+      }
+      if (order.status !== "paid") {
+        return { kind: "not_paid" as const };
+      }
+      if (order.jobsRemaining <= 0) {
+        return { kind: "already_used" as const };
+      }
+
+      const [job] = await tx
+        .select()
+        .from(jobsTable)
+        .where(eq(jobsTable.id, jobId))
+        .for("update");
+
+      if (!job) {
+        return { kind: "job_not_found" as const };
+      }
+
+      await tx
+        .update(jobsTable)
+        .set({ featured: true })
+        .where(eq(jobsTable.id, jobId));
+
+      await tx
+        .update(jobOrdersTable)
+        .set({ jobsRemaining: 0, jobId })
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+      return { kind: "ok" as const };
+    });
+
+    if (result.kind === "not_found" || result.kind === "job_not_found") {
+      res.status(404).json({ error: result.kind === "not_found" ? "Order not found" : "Job not found" });
       return;
     }
-
-    if (order.productType !== "featured") {
+    if (result.kind === "wrong_product") {
       res.status(400).json({ error: "This order is not a Featured Upgrade" });
       return;
     }
-
-    if (order.status !== "paid") {
+    if (result.kind === "not_paid") {
       res.status(402).json({
         error: "Payment not confirmed yet. Please wait a moment and try again.",
       });
       return;
     }
-
-    if (order.jobsRemaining <= 0) {
+    if (result.kind === "already_used") {
       res.status(403).json({ error: "This featured upgrade has already been used." });
       return;
     }
-
-    const [job] = await db
-      .select()
-      .from(jobsTable)
-      .where(eq(jobsTable.id, jobId));
-
-    if (!job) {
-      res.status(404).json({ error: "Job not found" });
-      return;
-    }
-
-    await db
-      .update(jobsTable)
-      .set({ featured: true })
-      .where(eq(jobsTable.id, jobId));
-
-    await db
-      .update(jobOrdersTable)
-      .set({ jobsRemaining: 0, jobId })
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
     res.json({ success: true, jobId, message: "Job has been featured for 30 days." });
   } catch (err) {
@@ -254,72 +287,83 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
   }
 
   try {
-    const [order] = await db
-      .select()
-      .from(jobOrdersTable)
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(jobOrdersTable)
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId))
+        .for("update");
 
-    if (!order || order.clerkUserId !== userId) {
-      res.status(404).json({ error: "Order not found" });
+      if (!order || order.clerkUserId !== userId) {
+        return { kind: "not_found" as const };
+      }
+      if (order.status !== "paid") {
+        return { kind: "not_paid" as const };
+      }
+      if (order.productType === "featured") {
+        return { kind: "wrong_product" as const };
+      }
+      if (!order.jobId) {
+        return { kind: "no_job_yet" as const };
+      }
+
+      const [existingJob] = await tx
+        .select()
+        .from(jobsTable)
+        .where(eq(jobsTable.id, order.jobId))
+        .for("update");
+
+      if (!existingJob) {
+        return { kind: "job_not_found" as const };
+      }
+      if (existingJob.approved) {
+        return { kind: "already_approved" as const };
+      }
+
+      const [updatedJob] = await tx
+        .update(jobsTable)
+        .set({
+          title,
+          companyName,
+          category,
+          jobType,
+          description,
+          applyUrl,
+          salaryMin: salaryMin ?? null,
+          salaryMax: salaryMax ?? null,
+          locationRestrictions: locationRestrictions ?? null,
+          ...(companyLogo !== undefined ? { companyLogo } : {}),
+        })
+        .where(eq(jobsTable.id, order.jobId))
+        .returning();
+
+      return { kind: "ok" as const, job: updatedJob };
+    });
+
+    if (result.kind === "not_found" || result.kind === "job_not_found") {
+      res.status(404).json({ error: result.kind === "not_found" ? "Order not found" : "Job not found" });
       return;
     }
-
-    if (order.status !== "paid") {
+    if (result.kind === "not_paid") {
       res.status(402).json({
         error: "Payment not confirmed yet. Please wait a moment and try again.",
       });
       return;
     }
-
-    if (order.productType === "featured") {
-      res.status(400).json({
-        error: "Featured upgrade orders cannot be used to edit job content.",
-      });
+    if (result.kind === "wrong_product") {
+      res.status(400).json({ error: "Featured upgrade orders cannot be used to edit job content." });
+      return;
+    }
+    if (result.kind === "no_job_yet") {
+      res.status(400).json({ error: "No job has been submitted for this order yet. Please use the submit endpoint." });
+      return;
+    }
+    if (result.kind === "already_approved") {
+      res.status(409).json({ error: "This job has already been approved and can no longer be edited." });
       return;
     }
 
-    if (!order.jobId) {
-      res.status(400).json({
-        error: "No job has been submitted for this order yet. Please use the submit endpoint.",
-      });
-      return;
-    }
-
-    const [existingJob] = await db
-      .select()
-      .from(jobsTable)
-      .where(eq(jobsTable.id, order.jobId));
-
-    if (!existingJob) {
-      res.status(404).json({ error: "Job not found" });
-      return;
-    }
-
-    if (existingJob.approved) {
-      res.status(409).json({
-        error: "This job has already been approved and can no longer be edited.",
-      });
-      return;
-    }
-
-    const [updatedJob] = await db
-      .update(jobsTable)
-      .set({
-        title,
-        companyName,
-        category,
-        jobType,
-        description,
-        applyUrl,
-        salaryMin: salaryMin ?? null,
-        salaryMax: salaryMax ?? null,
-        locationRestrictions: locationRestrictions ?? null,
-        ...(companyLogo !== undefined ? { companyLogo } : {}),
-      })
-      .where(eq(jobsTable.id, order.jobId))
-      .returning();
-
-    res.json({ job: updatedJob });
+    res.json({ job: result.job });
   } catch (err) {
     logger.error({ err }, "Error updating job");
     res.status(500).json({ error: "Failed to update job" });

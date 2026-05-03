@@ -26,9 +26,9 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 | C5 | CRITICAL | Fix Applied, Needs Verification | Backend Lead | 2026-04-29 | Require auth + ownership on `/stripe/session/:id`; return minimal fields only. |
 | H2 | HIGH | Open | Platform/DevOps | 2026-04-30 | Deploy distributed rate limiting and edge throttles for abuse-prone endpoints. |
 | H3 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace in-memory resend cooldown with shared store (Redis/Postgres TTL). |
-| H4 | HIGH | Open | Backend Lead | 2026-05-01 | Wrap order-consumption flow in transaction + row lock and add idempotency guards. |
+| H4 | HIGH | Fix Applied, Needs Verification | Backend Lead | 2026-05-01 | Wrap order-consumption flow in transaction + row lock and add idempotency guards. |
 | H1 | HIGH | Fix Applied, Needs Verification | Platform/DevOps | 2026-04-30 | Replace permissive CORS with explicit allowlist for production frontend origins. |
-| H5 | HIGH | Open | Backend Lead | 2026-05-01 | Persist idempotency keys (user + product + time window) on checkout/session creation; short-circuit duplicates. |
+| H5 | HIGH | Fix Applied, Needs Verification | Backend Lead | 2026-05-01 | Persist idempotency keys (user + product + time window) on checkout/session creation; short-circuit duplicates. |
 
 ## Detailed Findings
 
@@ -126,23 +126,30 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### H4) Transactional integrity gap in order→job flow
 - **Severity:** HIGH
 - **Category:** Database Integrity / Stability
-- **Status:** **Open**
+- **Status:** **Fix Applied, Needs Verification**
 - **File/Endpoint:** `artifacts/api-server/src/routes/submit.ts`
-- **Issue:** Job insert and credit decrement are separate operations without transaction/row lock.
+- **Issue:** Job insert and credit decrement were separate operations without transaction/row lock.
 - **Real-world risk (worst-case):**
   - double-spend of credits (`jobsRemaining` decremented inconsistently);
   - duplicate postings from concurrent retries;
   - paid order linked to wrong/inconsistent job state under race.
-- **Fix:** DB transaction with `SELECT ... FOR UPDATE` on order row, in-transaction balance checks, and idempotency key enforcement.
+- **Fix applied (Phase 2 cluster H4):**
+  - `POST /jobs/submit`, `POST /jobs/feature`, and `PUT /jobs/update` now run their order-load + state-validation + write steps inside `db.transaction(async (tx) => ...)` with `.for("update")` row locks on the `job_orders` row (and on the `jobs` row for the feature/update flows).
+  - All re-validation (status, `jobsRemaining`, `productType`, `jobId`, `approved`) happens inside the transaction after the lock is acquired, eliminating the prior TOCTOU window.
+  - Email side-effects are sent only after the transaction commits successfully.
+- **Verification required (Phase 3):** Concurrent-request stress test on `POST /jobs/submit` with the same `sessionId` to confirm `jobsRemaining` cannot go negative and only one job row is inserted.
 
 ### H5) Missing idempotency around checkout/session creation
 - **Severity:** HIGH
 - **Category:** API Security / Stability
-- **Status:** **Open**
+- **Status:** **Fix Applied, Needs Verification**
 - **File/Endpoint:** `artifacts/api-server/src/routes/stripe.ts`
-- **Issue:** Client retries can create duplicate pending order/session objects.
+- **Issue:** Client retries could create duplicate pending order/session objects.
 - **Real-world risk:** inconsistent billing/order state and support overhead.
-- **Fix:** persist idempotency keys (user + product + time window) and short-circuit duplicates.
+- **Fix applied (Phase 2 cluster H5):**
+  - `POST /stripe/checkout` derives `idempotencyKey = checkout:${userId}:${priceId}:${10minBucket}` and passes it to `stripe.checkout.sessions.create(..., { idempotencyKey })`. Stripe returns the same `Session` for repeated calls within the window, so duplicate clicks no longer mint new sessions.
+  - The matching `job_orders` insert uses Drizzle `.onConflictDoNothing({ target: jobOrdersTable.stripeSessionId })`, so the existing row is preserved and the unique constraint absorbs concurrent inserts safely.
+- **Verification required (Phase 3):** Issue rapid duplicate `POST /stripe/checkout` calls with the same `priceId` and confirm only one Stripe Session and one `job_orders` row exist.
 
 ### M1) Unauthenticated job update endpoint (historical)
 - **Severity:** MEDIUM
@@ -216,6 +223,8 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 7. Phase 2 cluster H1 — replaced permissive CORS with explicit allowlist gated by `ALLOWED_ORIGINS` env var; production startup hard-fails when unset (`artifacts/api-server/src/app.ts`).
 8. Phase 2 cluster C3 — added `clerk_user_id` column to `job_orders` (`lib/db/src/schema/job-orders.ts`, migration `lib/db/drizzle/0012_add_clerk_user_id_to_job_orders.sql`); `POST /stripe/checkout` now requires auth and persists owner; `GET /stripe/session/:id`, `POST /stripe/resend-confirmation`, `POST /jobs/submit`, `POST /jobs/feature`, `PUT /jobs/update` enforce `order.clerkUserId === req.userId` and return `404` on mismatch.
 9. Phase 2 cluster C5 — `GET /stripe/session/:id` response minimized to UI-required fields only; `requireAuth` + owner check applied (see item 8).
+10. Phase 2 cluster H4 — order-consumption flows in `submit.ts` (`POST /jobs/submit`, `POST /jobs/feature`, `PUT /jobs/update`) wrapped in `db.transaction` with `.for("update")` row locks on `job_orders` (and on `jobs` for feature/update); state re-validated post-lock; email side-effects deferred until after commit.
+11. Phase 2 cluster H5 — `POST /stripe/checkout` passes a deterministic `idempotencyKey` (user + priceId + 10-minute bucket) to Stripe's session create, and the matching `job_orders` insert uses `.onConflictDoNothing` on `stripe_session_id`.
 
 ## Audit Process Framework
 

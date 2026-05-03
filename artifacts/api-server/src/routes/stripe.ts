@@ -135,27 +135,36 @@ router.post("/stripe/checkout", requireAuth, async (req, res): Promise<void> => 
     const stripe = await getUncachableStripeClient();
     const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
 
-    const session = await stripe.checkout.sessions.create({
-      customer_email: email,
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: isRecurring ? "subscription" : "payment",
-      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
-      metadata: { productType, email },
-    });
+    const idempotencyWindowMs = 10 * 60 * 1000;
+    const idempotencyKey = `checkout:${userId}:${priceId}:${Math.floor(Date.now() / idempotencyWindowMs)}`;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        customer_email: email,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: isRecurring ? "subscription" : "payment",
+        success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/pricing`,
+        metadata: { productType, email, clerkUserId: userId },
+      },
+      { idempotencyKey },
+    );
 
     const jobsRemaining =
       productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
 
-    await db.insert(jobOrdersTable).values({
-      email,
-      clerkUserId: userId,
-      stripeSessionId: session.id,
-      productType,
-      status: "pending",
-      jobsRemaining,
-    });
+    await db
+      .insert(jobOrdersTable)
+      .values({
+        email,
+        clerkUserId: userId,
+        stripeSessionId: session.id,
+        productType,
+        status: "pending",
+        jobsRemaining,
+      })
+      .onConflictDoNothing({ target: jobOrdersTable.stripeSessionId });
 
     res.json({ url: session.url });
   } catch (err) {

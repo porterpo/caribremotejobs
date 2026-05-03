@@ -3,7 +3,6 @@ import type { Plugin, ViteDevServer, PreviewServer, Connect } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ServerResponse } from "node:http";
@@ -121,7 +120,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    runtimeErrorOverlay(),
     jobSeoPlugin(),
   ],
   define: {

@@ -3,11 +3,12 @@ import { db, jobsTable, jobOrdersTable } from "@workspace/db";
 import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
-import { requireAuth } from "../middlewares/requireAuth";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
 router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();
@@ -57,7 +58,7 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
@@ -136,6 +137,7 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();
@@ -156,7 +158,7 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
@@ -206,6 +208,7 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();
@@ -256,7 +259,7 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }

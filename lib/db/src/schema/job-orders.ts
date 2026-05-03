@@ -10,6 +10,7 @@ import { jobsTable } from "./jobs";
 export const jobOrdersTable = pgTable("job_orders", {
   id: serial("id").primaryKey(),
   email: text("email").notNull(),
+  clerkUserId: text("clerk_user_id"),
   stripeSessionId: text("stripe_session_id").notNull().unique(),
   productType: text("product_type").notNull(),
   status: text("status").notNull().default("pending"),

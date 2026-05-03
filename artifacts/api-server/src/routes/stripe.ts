@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
 import { sendOrderConfirmation } from "../lib/resend";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -82,7 +83,8 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
   }
 });
 
-router.post("/stripe/checkout", async (req, res): Promise<void> => {
+router.post("/stripe/checkout", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
   const { priceId, email } = req.body as {
     priceId: string;
     email: string;
@@ -148,6 +150,7 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
 
     await db.insert(jobOrdersTable).values({
       email,
+      clerkUserId: userId,
       stripeSessionId: session.id,
       productType,
       status: "pending",
@@ -161,20 +164,36 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/stripe/session/:id", async (req, res): Promise<void> => {
-  const sessionId = req.params.id;
+router.get("/stripe/session/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
+  const sessionId = String(req.params.id);
   try {
     const [order] = await db
-      .select()
+      .select({
+        id: jobOrdersTable.id,
+        email: jobOrdersTable.email,
+        productType: jobOrdersTable.productType,
+        status: jobOrdersTable.status,
+        jobsRemaining: jobOrdersTable.jobsRemaining,
+        jobId: jobOrdersTable.jobId,
+        clerkUserId: jobOrdersTable.clerkUserId,
+      })
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
 
-    res.json(order);
+    res.json({
+      id: order.id,
+      email: order.email,
+      productType: order.productType,
+      status: order.status,
+      jobsRemaining: order.jobsRemaining,
+      jobId: order.jobId,
+    });
   } catch (err) {
     logger.error({ err }, "Error fetching session");
     res.status(500).json({ error: "Failed to fetch session" });
@@ -184,7 +203,8 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
 const resendTimestamps = new Map<string, number>();
 const RESEND_COOLDOWN_MS = 60_000;
 
-router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
+router.post("/stripe/resend-confirmation", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as AuthenticatedRequest).userId;
   const { sessionId } = req.body as { sessionId?: string };
 
   if (!sessionId) {
@@ -207,7 +227,7 @@ router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }

@@ -1,7 +1,7 @@
 // CLEAN_BUILD_FORCE: 1746403581234
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
-import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, useClerk, useAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation, useSearch } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -150,12 +150,12 @@ function ProtectedRoute({ component: Component }: { component: ComponentType }) 
   const [location] = useLocation();
   return (
     <>
-      <SignedIn>
+      <Show when="signed-in">
         <Component />
-      </SignedIn>
-      <SignedOut>
+      </Show>
+      <Show when="signed-out">
         <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />
-      </SignedOut>
+      </Show>
     </>
   );
 }
@@ -163,12 +163,12 @@ function ProtectedRoute({ component: Component }: { component: ComponentType }) 
 function HomeRoute() {
   return (
     <>
-      <SignedIn>
+      <Show when="signed-in">
         <Redirect to="/jobs" />
-      </SignedIn>
-      <SignedOut>
+      </Show>
+      <Show when="signed-out">
         <Redirect to="/sign-in" />
-      </SignedOut>
+      </Show>
     </>
   );
 }

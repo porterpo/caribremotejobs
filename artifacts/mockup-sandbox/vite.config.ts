@@ -19,7 +19,19 @@ function getRequiredPort(): number {
   return port;
 }
 
-export default defineConfig(async ({ command }) => {
+// Top-level await is valid in ES modules (module: esnext, target: es2022).
+// This keeps the defineConfig callback synchronous, satisfying Vite 7.x's
+// UserConfigFnObject type which does not accept async callbacks.
+const cartographerPlugin =
+  process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+    ? await import("@replit/vite-plugin-cartographer").then((m) =>
+        m.cartographer({
+          root: path.resolve(import.meta.dirname, ".."),
+        }),
+      )
+    : null;
+
+export default defineConfig(({ command }) => {
   const isServe = command === "serve";
 
   const port = isServe ? getRequiredPort() : undefined;
@@ -38,16 +50,7 @@ export default defineConfig(async ({ command }) => {
       react(),
       tailwindcss(),
       runtimeErrorOverlay(),
-      ...(process.env.NODE_ENV !== "production" &&
-      process.env.REPL_ID !== undefined
-        ? [
-            await import("@replit/vite-plugin-cartographer").then((m) =>
-              m.cartographer({
-                root: path.resolve(import.meta.dirname, ".."),
-              }),
-            ),
-          ]
-        : []),
+      ...(cartographerPlugin ? [cartographerPlugin] : []),
     ],
     resolve: {
       alias: {

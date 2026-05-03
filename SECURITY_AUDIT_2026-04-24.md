@@ -246,7 +246,7 @@ This section consolidates the process specification for the audit lifecycle. The
 
 ### Verification Specs (Phase 3) (R1, R7)
 
-Each row defines the input, expected response, and pass condition for a Phase 3 check. Rows are explicitly classified as **primary security check** or **functional regression guard**.
+Each row defines the input, expected response, and pass condition for a Phase 3 check. Rows are explicitly classified as **primary security check** or **functional regression guard**. Executable runbook: `docs/PHASE_3_VERIFICATION_RUNBOOK.md` (one section per row, plus concurrency and idempotency checks for H4 and H5).
 
 | Check | Classification | Command/Input | Expected Response | Pass Condition |
 |---|---|---|---|---|

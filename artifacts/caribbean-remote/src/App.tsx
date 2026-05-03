@@ -1,3 +1,4 @@
+// V4 Force-rebuild: Strict empty-string stripping for Clerk v6.
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, useClerk, useAuth } from "@clerk/react";
@@ -29,8 +30,10 @@ import ShareExpired from "@/pages/share-expired";
 const queryClient = new QueryClient();
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const proxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
-const domain = import.meta.env.VITE_CLERK_DOMAIN || undefined;
+const rawProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const rawDomain = import.meta.env.VITE_CLERK_DOMAIN;
+const proxyUrl = rawProxyUrl && rawProxyUrl.trim() !== "" ? rawProxyUrl : undefined;
+const domain = rawDomain && rawDomain.trim() !== "" ? rawDomain : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {

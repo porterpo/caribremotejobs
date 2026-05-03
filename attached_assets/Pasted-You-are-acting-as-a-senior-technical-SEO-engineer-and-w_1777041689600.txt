@@ -1,0 +1,72 @@
+You are acting as a senior technical SEO engineer and web auditor.
+
+Your task is to audit this entire website and ensure it is 100 percent public ready for search engines, social sharing, and discoverability.
+
+Perform a full technical and on-page SEO inspection and fix or generate anything missing.
+
+Audit and optimize the following:
+
+1. Meta Foundation
+
+* Unique title tag for every page, optimized for keywords and under 60 characters
+* Meta description for every page, compelling and under 155 characters
+* Proper canonical tags
+* Robots meta tags configured correctly
+* Ensure no accidental noindex or nofollow directives
+
+2. Open Graph and Social
+
+* og:title
+* og:description
+* og:image with correct dimensions
+* og:url
+* Twitter card tags
+* Ensure share previews render correctly
+
+3. Technical SEO
+
+* Generate sitemap.xml dynamically
+* Validate and configure robots.txt
+* Ensure clean semantic HTML structure
+* Proper heading hierarchy, one H1 per page
+* Alt tags for all images
+* Structured data schema markup where applicable
+* Favicon properly linked with multiple sizes
+* Apple touch icon configured
+* Manifest.json if applicable
+
+4. Performance and Indexability
+
+* Check page speed issues
+* Ensure mobile responsiveness
+* Ensure crawlability
+* Remove duplicate content
+* Validate internal linking structure
+
+5. Content Optimization
+
+* Identify primary keyword for each page
+* Optimize headings naturally
+* Ensure content is not keyword stuffed
+* Improve clarity and search intent alignment
+
+6. Deployment Readiness
+
+* Verify correct production domain in metadata
+* Ensure no localhost references
+* Ensure correct HTTPS enforcement
+* Ensure no development scripts or debug logs exposed
+
+Output requirements:
+
+* Provide a detailed audit report
+* Then provide exact code changes needed
+* Then implement the fixes
+
+Do not skip anything. Treat this like preparing a website for public launch and search engine indexing.
+
+---
+
+That prompt turns Cursor into a ruthless pre launch inspector.
+
+If you want to go even deeper, we can create a “Launch Protocol” prompt that also checks analytics, Google Search Console setup, structured schema validation, and brand search dominance. That is where you stop hoping to be found and start engineering discoverability.

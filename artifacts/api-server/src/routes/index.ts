@@ -1,0 +1,39 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import jobsRouter from "./jobs";
+import companiesRouter from "./companies";
+import categoriesRouter from "./categories";
+import alertsRouter from "./alerts";
+import statsRouter from "./stats";
+import adminRouter from "./admin";
+import stripeRouter from "./stripe";
+import submitRouter from "./submit";
+import storageRouter from "./storage";
+import profileRouter from "./profile";
+import resumeRouter from "./resume";
+import analyticsRouter from "./analytics";
+import seekerRouter from "./seeker";
+import sitemapRouter from "./sitemap";
+import { requireAuth } from "../middlewares/requireAuth";
+import { requireAdmin } from "../middlewares/requireAdmin";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(jobsRouter);
+router.use(submitRouter);
+router.use(companiesRouter);
+router.use(categoriesRouter);
+router.use(alertsRouter);
+router.use(statsRouter);
+router.use("/admin", requireAuth, requireAdmin);
+router.use(adminRouter);
+router.use(stripeRouter);
+router.use(storageRouter);
+router.use(profileRouter);
+router.use(resumeRouter);
+router.use(analyticsRouter);
+router.use(seekerRouter);
+router.use(sitemapRouter);
+
+export default router;

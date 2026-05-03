@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation, useSearch } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -149,12 +149,12 @@ function ProtectedRoute({ component: Component }: { component: ComponentType }) 
   const [location] = useLocation();
   return (
     <>
-      <Show when="signed-in">
+      <SignedIn>
         <Component />
-      </Show>
-      <Show when="signed-out">
+      </SignedIn>
+      <SignedOut>
         <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />
-      </Show>
+      </SignedOut>
     </>
   );
 }
@@ -162,12 +162,12 @@ function ProtectedRoute({ component: Component }: { component: ComponentType }) 
 function HomeRoute() {
   return (
     <>
-      <Show when="signed-in">
+      <SignedIn>
         <Redirect to="/jobs" />
-      </Show>
-      <Show when="signed-out">
+      </SignedIn>
+      <SignedOut>
         <Home />
-      </Show>
+      </SignedOut>
     </>
   );
 }

@@ -19,7 +19,7 @@ function getRequiredPort(): number {
   return port;
 }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(async ({ command }) => {
   const isServe = command === "serve";
 
   const port = isServe ? getRequiredPort() : undefined;

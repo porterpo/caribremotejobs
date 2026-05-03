@@ -1,4 +1,4 @@
-// Force Rebuild #5
+// CLEAN_BUILD_FORCE: 1746403581234
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, useClerk, useAuth } from "@clerk/react";
@@ -26,13 +26,12 @@ import TagsIndex from "@/pages/tags-index";
 import SeekerPro from "@/pages/seeker-pro";
 import ShareExpired from "@/pages/share-expired";
 
-// V3 Force-rebuild: Explicitly stripping empty strings.
 const queryClient = new QueryClient();
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const rawProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const pUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const sanitizedProxy = pUrl && pUrl.trim() !== "" ? pUrl : undefined;
 const rawDomain = import.meta.env.VITE_CLERK_DOMAIN;
-const proxyUrl = rawProxyUrl && rawProxyUrl.trim() !== "" ? rawProxyUrl : undefined;
 const domain = rawDomain && rawDomain.trim() !== "" ? rawDomain : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -235,8 +234,8 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL || undefined}
-      domain={import.meta.env.VITE_CLERK_DOMAIN || undefined}
+      proxyUrl={sanitizedProxy}
+      domain={domain}
       appearance={clerkAppearance}
       localization={{
         signIn: {

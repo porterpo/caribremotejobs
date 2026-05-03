@@ -134,6 +134,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@workspace/api-client-react": path.resolve(import.meta.dirname, "src/api-client"),
     },
     dedupe: ["react", "react-dom"],
   },

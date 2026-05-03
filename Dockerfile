@@ -4,6 +4,10 @@ WORKDIR /app
 
 RUN npm install -g pnpm@9
 
+# Changing CACHEBUST in Railway env vars invalidates all layers below
+ARG CACHEBUST=1
+RUN echo "cache-bust=$CACHEBUST"
+
 COPY . .
 
 RUN pnpm install --frozen-lockfile
@@ -11,12 +15,11 @@ RUN pnpm install --frozen-lockfile
 ARG VITE_CLERK_PUBLISHABLE_KEY=""
 ARG VITE_CLERK_PROXY_URL=""
 ARG VITE_CLERK_DOMAIN=""
-ARG CACHEBUST=1
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PROXY_URL=$VITE_CLERK_PROXY_URL
 ENV VITE_CLERK_DOMAIN=$VITE_CLERK_DOMAIN
 
-RUN echo "cache-bust=$CACHEBUST" && pnpm run build
+RUN pnpm run build
 
 EXPOSE 8080
 

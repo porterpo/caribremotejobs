@@ -1,4 +1,4 @@
-// V4 Force-rebuild: Strict empty-string stripping for Clerk v6.
+// Force Rebuild #5
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, useClerk, useAuth } from "@clerk/react";
@@ -235,8 +235,8 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={proxyUrl || undefined}
-      domain={domain || undefined}
+      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL || undefined}
+      domain={import.meta.env.VITE_CLERK_DOMAIN || undefined}
       appearance={clerkAppearance}
       localization={{
         signIn: {

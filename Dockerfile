@@ -2,7 +2,7 @@ FROM node:20-slim
 
 WORKDIR /app
 
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@9.15.9
 
 # Changing CACHEBUST in Railway env vars invalidates all layers below
 ARG CACHEBUST=1

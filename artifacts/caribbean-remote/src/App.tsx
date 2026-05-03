@@ -1,3 +1,4 @@
+// trigger rebuild
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";

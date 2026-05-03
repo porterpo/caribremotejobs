@@ -25,13 +25,12 @@ import TagsIndex from "@/pages/tags-index";
 import SeekerPro from "@/pages/seeker-pro";
 import ShareExpired from "@/pages/share-expired";
 
+// V3 Force-rebuild: Explicitly stripping empty strings.
 const queryClient = new QueryClient();
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const _proxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
-const _domain = import.meta.env.VITE_CLERK_DOMAIN || undefined;
-const clerkProxyUrl = _proxyUrl === "" ? undefined : _proxyUrl;
-const clerkDomain = _domain === "" ? undefined : _domain;
+const proxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
+const domain = import.meta.env.VITE_CLERK_DOMAIN || undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
@@ -233,8 +232,8 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
-      domain={clerkDomain}
+      proxyUrl={proxyUrl || undefined}
+      domain={domain || undefined}
       appearance={clerkAppearance}
       localization={{
         signIn: {

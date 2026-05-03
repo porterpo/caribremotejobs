@@ -230,7 +230,7 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      proxyUrl={clerkProxyUrl || undefined}
       appearance={clerkAppearance}
       localization={{
         signIn: {

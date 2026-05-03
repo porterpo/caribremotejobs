@@ -168,7 +168,7 @@ function HomeRoute() {
         <Redirect to="/jobs" />
       </SignedIn>
       <SignedOut>
-        <Home />
+        <Redirect to="/sign-in" />
       </SignedOut>
     </>
   );

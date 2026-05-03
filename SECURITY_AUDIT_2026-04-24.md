@@ -27,7 +27,7 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 | H2 | HIGH | Open | Platform/DevOps | 2026-04-30 | Deploy distributed rate limiting and edge throttles for abuse-prone endpoints. |
 | H3 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace in-memory resend cooldown with shared store (Redis/Postgres TTL). |
 | H4 | HIGH | Open | Backend Lead | 2026-05-01 | Wrap order-consumption flow in transaction + row lock and add idempotency guards. |
-| H1 | HIGH | Open | Platform/DevOps | 2026-04-30 | Replace permissive CORS with explicit allowlist for production frontend origins. |
+| H1 | HIGH | Fix Applied, Needs Verification | Platform/DevOps | 2026-04-30 | Replace permissive CORS with explicit allowlist for production frontend origins. |
 | H5 | HIGH | Open | Backend Lead | 2026-05-01 | Persist idempotency keys (user + product + time window) on checkout/session creation; short-circuit duplicates. |
 
 ## Detailed Findings
@@ -83,14 +83,17 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### H1) Overly permissive CORS with credentials
 - **Severity:** HIGH
 - **Category:** Secrets & Configuration / API Security
-- **Status:** **Open**
+- **Status:** **Fix Applied, Needs Verification**
 - **File/Endpoint:** `artifacts/api-server/src/app.ts`
-- **Issue:** `cors({ credentials: true, origin: true })` reflects arbitrary origins while allowing credentials.
+- **Issue:** `cors({ credentials: true, origin: true })` reflected arbitrary origins while allowing credentials.
 - **Real-world risk:** If cookie/session auth is accepted by browser context, malicious origins can induce credentialed cross-origin calls and broaden CSRF/exfiltration risk.
-- **Concrete remediation:**
-  - introduce `ALLOWED_ORIGINS` env var and hard fail startup when unset in production;
-  - only allow known production UI origins (e.g., `https://caribremotejobs.com`, `https://www.caribremotejobs.com`, plus staging domains);
-  - set `credentials: true` only for allowlisted origins.
+- **Fix applied (Phase 2 cluster H1):**
+  - `ALLOWED_ORIGINS` env var read at module load; comma-separated list of allowed origins.
+  - Production startup hard-fails if `ALLOWED_ORIGINS` is unset (`NODE_ENV === "production"` check in `app.ts`).
+  - `cors()` now uses an `origin` callback that allows the request only when the request's `Origin` header is in the allowlist; non-allowlisted origins receive no permissive CORS response.
+  - Same-origin / non-browser requests (no `Origin` header) continue to pass.
+  - In non-production environments with no allowlist configured, the previous reflective behavior is retained for local development convenience.
+- **Verification required (Phase 3):** Run the CORS check in `Audit Process Framework → Verification Specs (Phase 3)` against staging with `ALLOWED_ORIGINS` configured.
 
 ### H2) Missing global rate limiting / abuse controls
 - **Severity:** HIGH
@@ -201,6 +204,7 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 4. Restricted alerts list/delete to admin in `artifacts/api-server/src/routes/alerts.ts` (`GET /alerts`, `DELETE /alerts/:id`).
 5. Added `requireAuth` to `PUT /jobs/update` in `artifacts/api-server/src/routes/submit.ts`.
 6. Previously corrected search+filter composition for jobs list/count/tag-count in `artifacts/api-server/src/routes/jobs.ts` (single combined where path).
+7. Phase 2 cluster H1 — replaced permissive CORS with explicit allowlist gated by `ALLOWED_ORIGINS` env var; production startup hard-fails when unset (`artifacts/api-server/src/app.ts`).
 
 ## Audit Process Framework
 

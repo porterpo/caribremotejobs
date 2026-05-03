@@ -1,11 +1,44 @@
 import express, { type Express } from "express";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const allowedOriginsRaw = process.env.ALLOWED_ORIGINS?.trim();
+
+if (isProduction && !allowedOriginsRaw) {
+  throw new Error(
+    "ALLOWED_ORIGINS environment variable is required in production but was not provided.",
+  );
+}
+
+const allowedOrigins = allowedOriginsRaw
+  ? allowedOriginsRaw.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+
+const corsOptions: CorsOptions = {
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.length === 0 && !isProduction) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+};
 
 const app: Express = express();
 
@@ -31,7 +64,7 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
+app.use(cors(corsOptions));
 
 app.post(
   "/api/stripe/webhook",

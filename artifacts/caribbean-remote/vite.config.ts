@@ -9,6 +9,12 @@ import type { ServerResponse } from "node:http";
 
 const port = Number(process.env.PORT ?? 5173);
 const basePath = process.env.BASE_PATH ?? "/";
+const apiTarget = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
+
+const apiProxy = {
+  "/api": { target: apiTarget, changeOrigin: true },
+  "/clerk-proxy": { target: apiTarget, changeOrigin: true },
+};
 
 function escapeHtml(str: string): string {
   return str
@@ -147,6 +153,7 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: apiProxy,
     fs: {
       strict: true,
       deny: ["**/.*"],
@@ -156,5 +163,6 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: apiProxy,
   },
 });

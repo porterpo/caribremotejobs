@@ -1,5 +1,16 @@
 const isProduction = process.env.NODE_ENV === "production";
 
+function deriveBaseUrl(): string | undefined {
+  // Railway automatically injects RAILWAY_PUBLIC_DOMAIN
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  if (railwayDomain) return `https://${railwayDomain}`;
+
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  if (replitDomain) return `https://${replitDomain}`;
+
+  return undefined;
+}
+
 function readBaseUrl(): string {
   const raw = process.env.APP_BASE_URL?.trim();
 
@@ -23,28 +34,22 @@ function readBaseUrl(): string {
     return raw.replace(/\/+$/, "");
   }
 
-  if (isProduction) {
-    throw new Error("APP_BASE_URL is required in production");
-  }
-
-  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-  if (replitDomain) {
-    return `https://${replitDomain}`;
-  }
+  const derived = deriveBaseUrl();
+  if (derived) return derived;
 
   throw new Error(
-    "APP_BASE_URL is required (or REPLIT_DOMAINS in dev fallback)",
+    "APP_BASE_URL is required (set it in Railway environment variables, or REPLIT_DOMAINS in dev)",
   );
 }
 
-function readAllowedOrigins(): readonly string[] {
+function readAllowedOrigins(appBaseUrl: string): readonly string[] {
   const raw = process.env.ALLOWED_ORIGINS?.trim();
 
   if (!raw) {
-    if (isProduction) {
-      throw new Error("ALLOWED_ORIGINS is required in production");
-    }
-    return [];
+    // Fall back to allowing only the app's own origin so the server can start.
+    // Set ALLOWED_ORIGINS explicitly for multi-origin deployments.
+    const origin = new URL(appBaseUrl).origin;
+    return Object.freeze([origin]);
   }
 
   const list = raw
@@ -72,10 +77,12 @@ function readAllowedOrigins(): readonly string[] {
   return Object.freeze(list);
 }
 
+const appBaseUrl = readBaseUrl();
+
 export const env = Object.freeze({
   isProduction,
-  appBaseUrl: readBaseUrl(),
-  allowedOrigins: readAllowedOrigins(),
+  appBaseUrl,
+  allowedOrigins: readAllowedOrigins(appBaseUrl),
 });
 
 export function isAllowedOrigin(origin: string): boolean {

@@ -1,4 +1,4 @@
-// UI_FIX_DEPLOY: 2026-05-04T02:00:00.000Z
+// UI_FIX_DEPLOY: 2026-05-05T00:00:00.000Z
 import { useEffect, useRef, Component, type ReactNode, type ErrorInfo } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
@@ -100,7 +100,7 @@ const clerkAppearance = {
     borderRadius: "0.5rem",
   },
   elements: {
-    rootBox: "w-full",
+    rootBox: "mx-auto",
     cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
@@ -146,7 +146,7 @@ function SignInPage() {
       : undefined;
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
+    <div className="flex h-screen items-center justify-center bg-slate-50 px-4">
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
@@ -168,7 +168,7 @@ function SignUpPage() {
     robots: "noindex,nofollow",
   });
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
+    <div className="flex h-screen items-center justify-center bg-slate-50 px-4">
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}

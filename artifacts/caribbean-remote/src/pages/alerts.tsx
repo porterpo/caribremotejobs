@@ -17,11 +17,66 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { BellRing, Palmtree, CheckCircle2, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { useSeo } from "@/lib/seo";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+      remove: (id: string) => void;
+      reset: (id: string) => void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+
+function useTurnstile(enabled: boolean) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  const reset = useCallback(() => {
+    setToken(null);
+    if (widgetIdRef.current != null) {
+      window.turnstile?.reset(widgetIdRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || !TURNSTILE_SITE_KEY || !containerRef.current) return;
+
+    const render = () => {
+      if (!containerRef.current || widgetIdRef.current != null) return;
+      widgetIdRef.current = window.turnstile!.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (t: string) => setToken(t),
+        "expired-callback": () => setToken(null),
+        "error-callback": () => setToken(null),
+      });
+    };
+
+    if (window.turnstile) {
+      render();
+    } else {
+      const script = document.querySelector('script[src*="turnstile"]');
+      script?.addEventListener("load", render);
+    }
+
+    return () => {
+      if (widgetIdRef.current != null) {
+        window.turnstile?.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
+  }, [enabled]);
+
+  return { containerRef, token, reset };
+}
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -63,6 +118,10 @@ export default function Alerts() {
   const { isSignedIn, isLoaded } = useUser();
   const isPro = sub?.isPro ?? false;
 
+  // Show CAPTCHA only for anonymous users when a site key is configured
+  const showCaptcha = isLoaded && !isSignedIn && !!TURNSTILE_SITE_KEY;
+  const { containerRef: captchaRef, token: captchaToken, reset: resetCaptcha } = useTurnstile(showCaptcha);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -74,6 +133,15 @@ export default function Alerts() {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (showCaptcha && !captchaToken) {
+      toast({
+        title: "Please complete the CAPTCHA",
+        description: "Verify you're human before subscribing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createAlert.mutate(
       {
         data: {
@@ -81,13 +149,15 @@ export default function Alerts() {
           categories: values.categories?.length ? values.categories.join(",") : undefined,
           jobTypes: values.jobTypes?.length ? values.jobTypes.join(",") : undefined,
           keywords: values.keywords || undefined,
+          captchaToken: captchaToken ?? undefined,
         },
       },
       {
         onSuccess: () => {
           setIsSuccess(true);
         },
-        onError: (error) => {
+        onError: () => {
+          resetCaptcha();
           toast({
             title: "Error creating alert",
             description: "Something went wrong. Please try again.",
@@ -298,7 +368,15 @@ export default function Alerts() {
                           />
                         </div>
 
-                        <Button type="submit" className="w-full h-14 text-base" disabled={createAlert.isPending}>
+                        {showCaptcha && (
+                          <div ref={captchaRef} className="flex justify-center" />
+                        )}
+
+                        <Button
+                          type="submit"
+                          className="w-full h-14 text-base"
+                          disabled={createAlert.isPending || (showCaptcha && !captchaToken)}
+                        >
                           {createAlert.isPending ? "Subscribing..." : "Subscribe to Alerts"}
                         </Button>
                       </form>

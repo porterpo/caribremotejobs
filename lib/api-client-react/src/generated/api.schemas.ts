@@ -181,6 +181,7 @@ export interface CreateAlertBody {
   jobTypes?: string | null;
   /** @nullable */
   keywords?: string | null;
+  captchaToken?: string;
 }
 
 export interface UnsubscribeResponse {

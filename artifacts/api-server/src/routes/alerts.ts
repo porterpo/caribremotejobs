@@ -9,6 +9,25 @@ import { getAuth } from "@clerk/express";
 import { getSeekerSubscription } from "../lib/getSeekerSubscription";
 import { requireAdmin } from "../middlewares/requireAdmin";
 
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY;
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+async function verifyTurnstile(token: string): Promise<boolean> {
+  const body = new URLSearchParams({ secret: TURNSTILE_SECRET!, response: token });
+  try {
+    const res = await fetch(TURNSTILE_VERIFY_URL, {
+      method: "POST",
+      body,
+      signal: AbortSignal.timeout(5_000),
+    });
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch (err) {
+    logger.error({ err }, "Turnstile verification request failed");
+    return false;
+  }
+}
+
 const router: IRouter = Router();
 
 router.post("/alerts", async (req, res): Promise<void> => {
@@ -27,6 +46,22 @@ router.post("/alerts", async (req, res): Promise<void> => {
       res.status(403).json({ error: "Seeker Pro subscription required for job alerts" });
       return;
     }
+  } else {
+    // Anonymous request — require CAPTCHA
+    if (!TURNSTILE_SECRET) {
+      logger.warn("TURNSTILE_SECRET_KEY not set; CAPTCHA verification skipped");
+    } else {
+      const { captchaToken } = parsed.data;
+      if (!captchaToken) {
+        res.status(422).json({ error: "CAPTCHA token required" });
+        return;
+      }
+      const valid = await verifyTurnstile(captchaToken);
+      if (!valid) {
+        res.status(422).json({ error: "CAPTCHA verification failed" });
+        return;
+      }
+    }
   }
 
   // Check existing subscription
@@ -35,7 +70,6 @@ router.post("/alerts", async (req, res): Promise<void> => {
     .from(alertsTable)
     .where(eq(alertsTable.email, parsed.data.email));
 
-  // TODO: add CAPTCHA to prevent bot-driven email amplification
   if (existing.length > 0) {
     res.status(201).json({ success: true });
     return;

@@ -370,6 +370,7 @@ export const CreateAlertBody = zod.object({
   categories: zod.string().nullish(),
   jobTypes: zod.string().nullish(),
   keywords: zod.string().nullish(),
+  captchaToken: zod.string().optional(),
 });
 
 /**

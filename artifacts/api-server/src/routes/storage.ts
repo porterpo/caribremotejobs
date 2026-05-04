@@ -10,17 +10,19 @@ import { requireAuth } from "../middlewares/requireAuth";
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
+// SVG excluded: can contain <script> tags → stored XSS risk if served from same origin
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/gif",
   "image/webp",
-  "image/svg+xml",
 ];
+
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 const ALLOWED_RESUME_TYPES = ["application/pdf"];
 
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -30,7 +32,12 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   const { name, size, contentType } = parsed.data;
 
   if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
-    res.status(400).json({ error: "Only image files are allowed (JPEG, PNG, GIF, WebP, SVG)" });
+    res.status(400).json({ error: "Only image files are allowed (JPEG, PNG, GIF, WebP)" });
+    return;
+  }
+
+  if (size > MAX_IMAGE_SIZE) {
+    res.status(400).json({ error: "Image must be smaller than 2MB" });
     return;
   }
 
@@ -101,6 +108,9 @@ router.get("/storage/logos/:objectId", async (req: Request, res: Response) => {
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // Prevent script execution for any legacy SVG that may exist in storage
+    res.setHeader("Content-Security-Policy", "default-src 'none'");
+    res.setHeader("X-Content-Type-Options", "nosniff");
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);

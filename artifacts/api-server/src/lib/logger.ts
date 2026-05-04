@@ -8,6 +8,11 @@ export const logger = pino({
     "req.headers.authorization",
     "req.headers.cookie",
     "res.headers['set-cookie']",
+    "password",
+    "token",
+    "secret",
+    "email",
+    "stripe_session_id",
   ],
   ...(isProduction
     ? {}
@@ -18,3 +23,10 @@ export const logger = pino({
         },
       }),
 });
+
+export function safeError(err: unknown): Record<string, unknown> {
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message, stack: err.stack };
+  }
+  return { message: String(err) };
+}

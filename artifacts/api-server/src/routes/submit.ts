@@ -3,7 +3,7 @@ import { db, jobsTable, jobOrdersTable } from "@workspace/db";
 import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
-import { requireAuth } from "../middlewares/requireAuth";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -51,6 +51,8 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const { userId } = req as AuthenticatedRequest;
+
   try {
     const [order] = await db
       .select()
@@ -59,6 +61,11 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
 
     if (!order) {
       res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
@@ -85,37 +92,52 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
     }
 
     const isFeatured = order.productType === "featured";
+    const orderEmail = order.email;
 
-    const [job] = await db
-      .insert(jobsTable)
-      .values({
-        title,
-        companyName,
-        companyLogo: companyLogo ?? null,
-        category,
-        jobType,
-        description,
-        applyUrl,
-        salaryMin: salaryMin ?? null,
-        salaryMax: salaryMax ?? null,
-        locationRestrictions: locationRestrictions ?? null,
-        source: "employer",
-        caribbeanFriendly: true,
-        featured: isFeatured,
-        approved: false,
-        entryLevel: false,
-        postedAt: new Date(),
-      })
-      .returning();
+    const { job, jobsRemaining } = await db.transaction(async (tx) => {
+      const [lockedOrder] = await tx
+        .select({ jobsRemaining: jobOrdersTable.jobsRemaining })
+        .from(jobOrdersTable)
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId))
+        .for("update");
 
-    await db
-      .update(jobOrdersTable)
-      .set({ jobsRemaining: order.jobsRemaining - 1, jobId: job.id })
-      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+      if (!lockedOrder || lockedOrder.jobsRemaining <= 0) {
+        throw new Error("No job slots remaining on this order.");
+      }
 
-    if (order.email) {
+      const [job] = await tx
+        .insert(jobsTable)
+        .values({
+          title,
+          companyName,
+          companyLogo: companyLogo ?? null,
+          category,
+          jobType,
+          description,
+          applyUrl,
+          salaryMin: salaryMin ?? null,
+          salaryMax: salaryMax ?? null,
+          locationRestrictions: locationRestrictions ?? null,
+          source: "employer",
+          caribbeanFriendly: true,
+          featured: isFeatured,
+          approved: false,
+          entryLevel: false,
+          postedAt: new Date(),
+        })
+        .returning();
+
+      await tx
+        .update(jobOrdersTable)
+        .set({ jobsRemaining: lockedOrder.jobsRemaining - 1, jobId: job.id })
+        .where(eq(jobOrdersTable.stripeSessionId, sessionId));
+
+      return { job, jobsRemaining: lockedOrder.jobsRemaining - 1 };
+    });
+
+    if (orderEmail) {
       const emailSent = await sendJobSubmissionConfirmation({
-        email: order.email,
+        email: orderEmail,
         sessionId,
         jobTitle: job.title,
         companyName: job.companyName,
@@ -128,7 +150,7 @@ router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
       }
     }
 
-    res.status(201).json({ job, jobsRemaining: order.jobsRemaining - 1 });
+    res.status(201).json({ job, jobsRemaining });
   } catch (err) {
     logger.error({ err }, "Error submitting job");
     res.status(500).json({ error: "Failed to submit job" });
@@ -150,6 +172,8 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const { userId } = req as AuthenticatedRequest;
+
   try {
     const [order] = await db
       .select()
@@ -158,6 +182,11 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
 
     if (!order) {
       res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
@@ -250,6 +279,8 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const { userId } = req as AuthenticatedRequest;
+
   try {
     const [order] = await db
       .select()
@@ -258,6 +289,11 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
 
     if (!order) {
       res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
@@ -349,14 +385,8 @@ router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
       .limit(1);
 
     if (recentResend) {
-      const elapsed = Date.now() - recentResend.editLinkResendAt!.getTime();
-      const secondsLeft = Math.ceil((EDIT_LINK_RESEND_COOLDOWN_MS - elapsed) / 1000);
-      res.setHeader("Retry-After", String(secondsLeft));
-      res.status(429).json({
-        error: "rate_limited",
-        secondsLeft,
-        message: `Please wait ${secondsLeft} second${secondsLeft !== 1 ? "s" : ""} before requesting another edit link.`,
-      });
+      // Always 200 to prevent email enumeration — rate limit is silently enforced
+      res.json({ success: true });
       return;
     }
 

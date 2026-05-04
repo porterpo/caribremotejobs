@@ -1,5 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
+import { env } from "./env";
 
 const SMTP_HOST =
   process.env.TITAN_SMTP_HOST ??
@@ -113,9 +114,7 @@ export async function sendOrderConfirmation(params: {
   jobsRemaining: number;
 }): Promise<void> {
   const { client, fromEmail } = await getResendClient();
-  const appUrl = process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribremotejobs.com");
+  const appUrl = env.appBaseUrl;
   const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
 
   const productLabels: Record<string, string> = {
@@ -176,9 +175,7 @@ export async function sendJobSubmissionConfirmation(params: {
 }): Promise<boolean> {
   try {
     const { client, fromEmail } = await getResendClient();
-    const appUrl = process.env.REPLIT_DOMAINS
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : (process.env.APP_URL ?? "https://caribremotejobs.com");
+    const appUrl = env.appBaseUrl;
     const editUrl = `${appUrl}/post-job?sessionId=${encodeURIComponent(params.sessionId)}`;
 
     const { data, error } = await client.emails.send({
@@ -252,9 +249,7 @@ export async function sendShareLinkExpiryReminder(params: {
   email: string;
   expiresAt: Date;
 }): Promise<boolean> {
-  const appUrl = process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribremotejobs.com");
+  const appUrl = env.appBaseUrl;
   const expiryLabel = params.expiresAt.toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -290,9 +285,7 @@ export async function sendShareLinkExpiryReminder(params: {
 }
 
 export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
-  const appUrl = process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : (process.env.APP_URL ?? "https://caribremotejobs.com");
+  const appUrl = env.appBaseUrl;
   try {
     const { client, fromEmail } = await getResendClient();
     await client.emails.send({

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startScheduler } from "./lib/scheduler";
+import { env } from "./lib/env";
 
 const rawPort = process.env["PORT"];
 
@@ -28,13 +29,10 @@ async function initStripe() {
     const { getStripeSync } = await import("./lib/stripeClient");
     const stripeSync = await getStripeSync();
 
-    const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
-    if (domain) {
-      await stripeSync.findOrCreateManagedWebhook(
-        `https://${domain}/api/stripe/webhook`,
-      );
-      logger.info("Stripe webhook configured");
-    }
+    await stripeSync.findOrCreateManagedWebhook(
+      `${env.appBaseUrl}/api/stripe/webhook`,
+    );
+    logger.info("Stripe webhook configured");
 
     stripeSync.syncBackfill().then(() => {
       logger.info("Stripe data synced");

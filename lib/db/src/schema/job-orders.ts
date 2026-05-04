@@ -15,6 +15,7 @@ export const jobOrdersTable = pgTable("job_orders", {
   status: text("status").notNull().default("pending"),
   jobsRemaining: integer("jobs_remaining").notNull().default(1),
   jobId: integer("job_id").references(() => jobsTable.id, { onDelete: "set null" }),
+  clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

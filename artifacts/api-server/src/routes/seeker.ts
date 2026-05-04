@@ -5,6 +5,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
 import { getSeekerSubscription } from "../lib/getSeekerSubscription";
+import { env } from "../lib/env";
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
 
     const priceId = (rows.rows[0] as Record<string, unknown>).price_id as string;
     const stripe = await getUncachableStripeClient();
-    const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
+    const baseUrl = env.appBaseUrl;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -81,7 +82,7 @@ router.post("/stripe/seeker-portal", requireAuth, async (req, res): Promise<void
 
   try {
     const stripe = await getUncachableStripeClient();
-    const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
+    const baseUrl = env.appBaseUrl;
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,

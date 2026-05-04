@@ -4,6 +4,8 @@ import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
 import { sendOrderConfirmation } from "../lib/resend";
+import { env } from "../lib/env";
+import { getAuth } from "@clerk/express";
 
 const router: IRouter = Router();
 
@@ -130,18 +132,25 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
       return;
     }
 
-    const stripe = await getUncachableStripeClient();
-    const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
+    const auth = getAuth(req);
+    const clerkUserId =
+      (auth?.sessionClaims?.userId as string | undefined) ?? auth?.userId ?? null;
 
-    const session = await stripe.checkout.sessions.create({
-      customer_email: email,
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: isRecurring ? "subscription" : "payment",
-      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
-      metadata: { productType, email },
-    });
+    const stripe = await getUncachableStripeClient();
+    const baseUrl = env.appBaseUrl;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        customer_email: email,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: isRecurring ? "subscription" : "payment",
+        success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/pricing`,
+        metadata: { productType, email },
+      },
+      { idempotencyKey: `checkout-${email}-${priceId}` }
+    );
 
     const jobsRemaining =
       productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
@@ -152,6 +161,7 @@ router.post("/stripe/checkout", async (req, res): Promise<void> => {
       productType,
       status: "pending",
       jobsRemaining,
+      clerkUserId,
     });
 
     res.json({ url: session.url });
@@ -174,7 +184,8 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    res.json(order);
+    const { email: _email, clerkUserId: _clerk, ...safeOrder } = order;
+    res.json(safeOrder);
   } catch (err) {
     logger.error({ err }, "Error fetching session");
     res.status(500).json({ error: "Failed to fetch session" });

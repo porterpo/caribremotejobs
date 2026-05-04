@@ -35,8 +35,9 @@ router.post("/alerts", async (req, res): Promise<void> => {
     .from(alertsTable)
     .where(eq(alertsTable.email, parsed.data.email));
 
+  // TODO: add CAPTCHA to prevent bot-driven email amplification
   if (existing.length > 0) {
-    res.status(409).json({ error: "Email already subscribed" });
+    res.status(201).json({ success: true });
     return;
   }
 

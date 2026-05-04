@@ -1,13 +1,31 @@
 import express, { type Express } from "express";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+import { env, isAllowedOrigin } from "./lib/env";
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
+
+const corsOptions: CorsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+};
 
 app.use(
   pinoHttp({
@@ -31,7 +49,13 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
+app.use(cors(corsOptions));
+
+if (env.allowedOrigins.length === 0) {
+  logger.warn(
+    "ALLOWED_ORIGINS is empty; CORS will reject every cross-origin request",
+  );
+}
 
 app.post(
   "/api/stripe/webhook",

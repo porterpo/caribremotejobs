@@ -10,12 +10,12 @@ import { getStripeAccountId } from "../lib/stripeClient";
 
 const router: IRouter = Router();
 
-router.post("/admin/sync-jobs", async (req, res): Promise<void> => {
+router.post("/admin/sync-jobs", requireAdmin, async (req, res): Promise<void> => {
   const result = await runJobSync();
   res.json(result);
 });
 
-router.get("/admin/orders", async (req, res): Promise<void> => {
+router.get("/admin/orders", requireAdmin, async (req, res): Promise<void> => {
   const { productType, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
 
   const allowedTypes = ["single", "pack", "monthly", "featured"];
@@ -58,7 +58,7 @@ router.get("/admin/orders", async (req, res): Promise<void> => {
   res.json(orders);
 });
 
-router.get("/admin/orders/export", async (req, res): Promise<void> => {
+router.get("/admin/orders/export", requireAdmin, async (req, res): Promise<void> => {
   const { productType, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
 
   const allowedTypes = ["single", "pack", "monthly", "featured"];
@@ -142,7 +142,7 @@ router.get("/admin/orders/export", async (req, res): Promise<void> => {
   res.send(csv);
 });
 
-router.post("/admin/orders/:id/resend-email", async (req, res): Promise<void> => {
+router.post("/admin/orders/:id/resend-email", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!id || isNaN(id)) {
     res.status(400).json({ error: "Invalid order id" });
@@ -208,7 +208,7 @@ router.post("/admin/test-email", requireAdmin, async (req, res): Promise<void> =
   }
 });
 
-router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {
+router.get("/admin/pending-jobs", requireAdmin, async (_req, res): Promise<void> => {
   const jobs = await db
     .select()
     .from(jobsTable)
@@ -217,7 +217,7 @@ router.get("/admin/pending-jobs", async (_req, res): Promise<void> => {
   res.json(jobs);
 });
 
-router.post("/admin/jobs/:id/approve", async (req, res): Promise<void> => {
+router.post("/admin/jobs/:id/approve", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const body = req.body as Record<string, unknown>;
 

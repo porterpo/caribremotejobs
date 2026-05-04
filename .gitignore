@@ -68,3 +68,15 @@ build/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Security audit documents (contain vulnerability details — keep private)
+SECURITY_AUDIT_*.md
+REMEDIATION_LEDGER_*.md
+
+# Claude Code tooling
+.claude/
+.claude-flow/
+.agents/
+.swarm/
+memory/
+.mcp.json

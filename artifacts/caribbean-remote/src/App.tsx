@@ -1,3 +1,4 @@
+// CLEAN_BUILD_FORCE: 1746403581234
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
@@ -28,7 +29,10 @@ import ShareExpired from "@/pages/share-expired";
 const queryClient = new QueryClient();
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const pUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const sanitizedProxy = pUrl && pUrl.trim() !== "" ? pUrl : undefined;
+const rawDomain = import.meta.env.VITE_CLERK_DOMAIN;
+const domain = rawDomain && rawDomain.trim() !== "" ? rawDomain : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
@@ -163,7 +167,7 @@ function HomeRoute() {
         <Redirect to="/jobs" />
       </Show>
       <Show when="signed-out">
-        <Home />
+        <Redirect to="/sign-in" />
       </Show>
     </>
   );
@@ -230,7 +234,8 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      proxyUrl={sanitizedProxy}
+      domain={domain}
       appearance={clerkAppearance}
       localization={{
         signIn: {

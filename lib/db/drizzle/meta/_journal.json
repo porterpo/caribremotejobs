@@ -71,6 +71,34 @@
       "when": 1745786400000,
       "tag": "0009_add_resume_type_to_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1746000000000,
+      "tag": "0010_add_share_token_created_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1746086400000,
+      "tag": "0011_add_share_token_expires_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1746172800000,
+      "tag": "0012_add_share_token_reminder_sent_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1746259200000,
+      "tag": "0013_add_job_submission_email_sent_at",
+      "breakpoints": true
     }
   ]
 }

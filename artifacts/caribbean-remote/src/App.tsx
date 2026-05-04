@@ -1,5 +1,5 @@
-// UI_FIX_DEPLOY: 2026-05-04T01:00:00.000Z
-import { useEffect, useRef } from "react";
+// UI_FIX_DEPLOY: 2026-05-04T02:00:00.000Z
+import { useEffect, useRef, Component, type ReactNode, type ErrorInfo } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
@@ -25,6 +25,39 @@ import TagJobs from "@/pages/tag-jobs";
 import TagsIndex from "@/pages/tags-index";
 import SeekerPro from "@/pages/seeker-pro";
 import ShareExpired from "@/pages/share-expired";
+
+interface ErrorBoundaryState { error: Error | null }
+class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[AppErrorBoundary]", error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-8 text-center">
+          <div>
+            <p className="text-lg font-semibold text-destructive mb-2">Something went wrong</p>
+            <p className="text-sm text-muted-foreground mb-4">{this.state.error.message}</p>
+            <button
+              className="text-sm text-primary underline"
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const queryClient = new QueryClient();
 
@@ -146,17 +179,25 @@ function SignUpPage() {
   );
 }
 
+function AuthLoading() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
+}
+
 function ProtectedRoute({ component: Component }: { component: ComponentType }) {
   const [location] = useLocation();
   const { isSignedIn, isLoaded } = useAuth();
-  if (!isLoaded) return null;
+  if (!isLoaded) return <AuthLoading />;
   if (!isSignedIn) return <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />;
   return <Component />;
 }
 
 function HomeRoute() {
   const { isSignedIn, isLoaded } = useAuth();
-  if (!isLoaded) return null;
+  if (!isLoaded) return <AuthLoading />;
   return <Redirect to={isSignedIn ? "/jobs" : "/sign-in"} />;
 }
 
@@ -292,9 +333,11 @@ function ClerkProviderWithRoutes() {
 
 function App() {
   return (
-    <WouterRouter base={basePath}>
-      <ClerkProviderWithRoutes />
-    </WouterRouter>
+    <AppErrorBoundary>
+      <WouterRouter base={basePath}>
+        <ClerkProviderWithRoutes />
+      </WouterRouter>
+    </AppErrorBoundary>
   );
 }
 

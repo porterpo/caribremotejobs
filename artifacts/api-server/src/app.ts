@@ -7,6 +7,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
 import { env, isAllowedOrigin } from "./lib/env";
+import { apiLimiter } from "./lib/rate-limit";
 
 const app: Express = express();
 
@@ -82,6 +83,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(clerkMiddleware());
 
-app.use("/api", router);
+app.use("/api", apiLimiter, router);
 
 export default app;

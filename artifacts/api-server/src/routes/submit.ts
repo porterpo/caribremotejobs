@@ -4,10 +4,11 @@ import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/resend";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { submitLimiter } from "../lib/rate-limit";
 
 const router: IRouter = Router();
 
-router.post("/jobs/submit", requireAuth, async (req, res): Promise<void> => {
+router.post("/jobs/submit", requireAuth, submitLimiter, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
 
   const sessionId = String(body.sessionId ?? "").trim();

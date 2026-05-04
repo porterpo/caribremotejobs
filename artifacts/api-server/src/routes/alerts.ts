@@ -8,6 +8,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { getAuth } from "@clerk/express";
 import { getSeekerSubscription } from "../lib/getSeekerSubscription";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { alertsLimiter } from "../lib/rate-limit";
 
 const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY;
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -30,7 +31,7 @@ async function verifyTurnstile(token: string): Promise<boolean> {
 
 const router: IRouter = Router();
 
-router.post("/alerts", async (req, res): Promise<void> => {
+router.post("/alerts", alertsLimiter, async (req, res): Promise<void> => {
   const parsed = CreateAlertBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

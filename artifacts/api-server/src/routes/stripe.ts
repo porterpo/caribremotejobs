@@ -6,6 +6,7 @@ import { logger } from "../lib/logger";
 import { sendOrderConfirmation } from "../lib/resend";
 import { env } from "../lib/env";
 import { getAuth } from "@clerk/express";
+import { checkoutLimiter, resendLimiter } from "../lib/rate-limit";
 
 const router: IRouter = Router();
 
@@ -84,7 +85,7 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
   }
 });
 
-router.post("/stripe/checkout", async (req, res): Promise<void> => {
+router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void> => {
   const { priceId, email } = req.body as {
     priceId: string;
     email: string;
@@ -195,7 +196,7 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
 const resendTimestamps = new Map<string, number>();
 const RESEND_COOLDOWN_MS = 60_000;
 
-router.post("/stripe/resend-confirmation", async (req, res): Promise<void> => {
+router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Promise<void> => {
   const { sessionId } = req.body as { sessionId?: string };
 
   if (!sessionId) {

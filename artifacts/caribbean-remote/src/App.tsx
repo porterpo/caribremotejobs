@@ -1,7 +1,7 @@
-// UI_FIX_DEPLOY: 2026-05-04T00:00:00.000Z
+// UI_FIX_DEPLOY: 2026-05-04T01:00:00.000Z
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation, useSearch } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -148,29 +148,16 @@ function SignUpPage() {
 
 function ProtectedRoute({ component: Component }: { component: ComponentType }) {
   const [location] = useLocation();
-  return (
-    <>
-      <Show when="signed-in">
-        <Component />
-      </Show>
-      <Show when="signed-out">
-        <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />
-      </Show>
-    </>
-  );
+  const { isSignedIn, isLoaded } = useAuth();
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Redirect to={`/sign-in?redirect=${encodeURIComponent(location)}`} />;
+  return <Component />;
 }
 
 function HomeRoute() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/jobs" />
-      </Show>
-      <Show when="signed-out">
-        <Redirect to="/sign-in" />
-      </Show>
-    </>
-  );
+  const { isSignedIn, isLoaded } = useAuth();
+  if (!isLoaded) return null;
+  return <Redirect to={isSignedIn ? "/jobs" : "/sign-in"} />;
 }
 
 const SKILLS_NUDGE_DISMISSED_KEY = "cr_skills_nudge_dismissed";

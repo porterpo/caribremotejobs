@@ -16,6 +16,7 @@
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
+    "express-rate-limit": "^7",
     "drizzle-orm": "^0.45.2",
     "express": "^5",
     "google-auth-library": "^10.6.2",

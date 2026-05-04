@@ -1,4 +1,4 @@
-// CLEAN_BUILD_FORCE: 1746403581234
+// UI_FIX_DEPLOY: 2026-05-04T00:00:00.000Z
 import { useEffect, useRef } from "react";
 import { type ComponentType } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
@@ -54,7 +54,7 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: "hsl(190, 90%, 35%)",
+    colorPrimary: "#008080",
     colorForeground: "hsl(220, 40%, 15%)",
     colorMutedForeground: "hsl(215, 16%, 47%)",
     colorDanger: "hsl(0, 84%, 60%)",
@@ -75,16 +75,16 @@ const clerkAppearance = {
     headerSubtitle: "text-[hsl(215,16%,47%)]",
     socialButtonsBlockButtonText: "text-[hsl(220,40%,15%)] font-medium",
     formFieldLabel: "text-[hsl(220,40%,15%)] font-medium",
-    footerActionLink: "text-[hsl(190,90%,35%)] font-medium",
+    footerActionLink: "text-[#008080] font-medium",
     footerActionText: "text-[hsl(215,16%,47%)]",
     dividerText: "text-[hsl(215,16%,47%)]",
-    identityPreviewEditButton: "text-[hsl(190,90%,35%)]",
+    identityPreviewEditButton: "text-[#008080]",
     formFieldSuccessText: "text-green-600",
     alertText: "text-[hsl(220,40%,15%)]",
     logoBox: "justify-center",
     logoImage: "h-12 w-12",
     socialButtonsBlockButton: "border border-[hsl(210,20%,80%)] bg-white",
-    formButtonPrimary: "bg-[hsl(190,90%,35%)] text-white font-semibold",
+    formButtonPrimary: "bg-[#008080] text-white font-semibold",
     formFieldInput: "border-[hsl(210,20%,80%)] bg-white text-[hsl(220,40%,15%)]",
     footerAction: "bg-[hsl(40,20%,96%)]",
     dividerLine: "bg-[hsl(210,20%,80%)]",
@@ -113,7 +113,7 @@ function SignInPage() {
       : undefined;
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-[hsl(190,50%,95%)] to-[hsl(40,33%,98%)] px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
@@ -135,7 +135,7 @@ function SignUpPage() {
     robots: "noindex,nofollow",
   });
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-[hsl(190,50%,95%)] to-[hsl(40,33%,98%)] px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}

@@ -28,6 +28,9 @@ export const jobOrdersTable = pgTable("job_orders", {
   editLinkResendAt: timestamp("edit_link_resend_at", {
     withTimezone: true,
   }),
+  lastResendAt: timestamp("last_resend_at", {
+    withTimezone: true,
+  }),
 });
 
 export type JobOrder = typeof jobOrdersTable.$inferSelect;

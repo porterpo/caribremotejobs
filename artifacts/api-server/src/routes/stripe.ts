@@ -193,7 +193,6 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
   }
 });
 
-const resendTimestamps = new Map<string, number>();
 const RESEND_COOLDOWN_MS = 60_000;
 
 router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Promise<void> => {
@@ -201,15 +200,6 @@ router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Prom
 
   if (!sessionId) {
     res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-
-  const now = Date.now();
-  const lastSent = resendTimestamps.get(sessionId);
-  if (lastSent !== undefined && now - lastSent < RESEND_COOLDOWN_MS) {
-    const secondsLeft = Math.ceil((RESEND_COOLDOWN_MS - (now - lastSent)) / 1000);
-    res.setHeader("Retry-After", String(secondsLeft));
-    res.status(429).json({ error: "rate_limited", secondsLeft });
     return;
   }
 
@@ -229,7 +219,18 @@ router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Prom
       return;
     }
 
-    resendTimestamps.set(sessionId, now);
+    const now = Date.now();
+    if (order.lastResendAt !== null && now - order.lastResendAt.getTime() < RESEND_COOLDOWN_MS) {
+      const secondsLeft = Math.ceil((RESEND_COOLDOWN_MS - (now - order.lastResendAt.getTime())) / 1000);
+      res.setHeader("Retry-After", String(secondsLeft));
+      res.status(429).json({ error: "rate_limited", secondsLeft });
+      return;
+    }
+
+    await db
+      .update(jobOrdersTable)
+      .set({ lastResendAt: new Date() })
+      .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
     await sendOrderConfirmation({
       email: order.email,
@@ -240,7 +241,6 @@ router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Prom
 
     res.json({ success: true });
   } catch (err) {
-    resendTimestamps.delete(sessionId);
     logger.error({ err }, "Error resending order confirmation");
     res.status(500).json({ error: "Failed to resend confirmation email" });
   }

@@ -3,10 +3,11 @@ import { getAuth } from "@clerk/express";
 import { db, analyticsEventsTable, jobsTable, adminPreferencesTable } from "@workspace/db";
 import { and, eq, gte, lte, sql, desc, type SQL } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router = Router();
 
-router.get("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
+router.get("/admin/preferences/analytics-date-range", requireAdmin, async (req, res): Promise<void> => {
   const userId = (req as AuthenticatedRequest).userId;
   const [preference] = await db
     .select({
@@ -22,7 +23,7 @@ router.get("/admin/preferences/analytics-date-range", requireAuth, async (req, r
   });
 });
 
-router.put("/admin/preferences/analytics-date-range", requireAuth, async (req, res): Promise<void> => {
+router.put("/admin/preferences/analytics-date-range", requireAdmin, async (req, res): Promise<void> => {
   const userId = (req as AuthenticatedRequest).userId;
   const body = req.body as { analyticsDateFrom?: string | null; analyticsDateTo?: string | null };
   const analyticsDateFrom = typeof body.analyticsDateFrom === "string" && body.analyticsDateFrom ? body.analyticsDateFrom : null;
@@ -109,7 +110,7 @@ router.get("/applications/history", requireAuth, async (req, res): Promise<void>
   });
 });
 
-router.get("/analytics/summary", requireAuth, async (req, res): Promise<void> => {
+router.get("/analytics/summary", requireAdmin, async (req, res): Promise<void> => {
   const EVENT_NAME = "skills_nudge_clicked";
   const SKILLS_ADDED_EVENT = "skills_added";
   const SKILLS_UPDATED_EVENT = "skills_updated";
@@ -259,7 +260,7 @@ router.get("/analytics/my-last-application", async (req, res): Promise<void> => 
   });
 });
 
-router.get("/analytics/trend", requireAuth, async (req, res): Promise<void> => {
+router.get("/analytics/trend", requireAdmin, async (req, res): Promise<void> => {
   const { dateFrom, dateTo, event, granularity: granularityParam } = req.query as {
     dateFrom?: string; dateTo?: string; event?: string; granularity?: string;
   };

@@ -20,6 +20,14 @@ import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL;
 
+const SOURCE_MAP: Record<string, { name: string; url: string }> = {
+  remotive: { name: "Remotive", url: "https://remotive.com" },
+  weworkremotely: { name: "We Work Remotely", url: "https://weworkremotely.com" },
+  remoteok: { name: "Remote OK", url: "https://remoteok.com" },
+  himalayas: { name: "Himalayas", url: "https://himalayas.app" },
+  workingnomads: { name: "Working Nomads", url: "https://www.workingnomads.com" },
+};
+
 interface ResumeData {
   id: number;
   summary: string | null;
@@ -1171,8 +1179,23 @@ export default function JobDetail() {
           {/* Main Content */}
           <div className="md:col-span-2 space-y-10">
             <div>
-              <h2 className="text-2xl font-bold mb-6">Job Description</h2>
-              <div 
+              <h2 className="text-2xl font-bold mb-3">Job Description</h2>
+              {SOURCE_MAP[job.source] && (
+                <p className="text-xs text-muted-foreground mb-5 flex items-center gap-1">
+                  Originally posted on{" "}
+                  <a
+                    href={SOURCE_MAP[job.source].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {SOURCE_MAP[job.source].name}
+                  </a>
+                  <ExternalLink className="h-3 w-3 inline" />
+                  . Description reproduced for discoverability; apply via the button above.
+                </p>
+              )}
+              <div
                 className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80"
                 dangerouslySetInnerHTML={{ __html: job.description.replace(/\n/g, '<br />') }}
               />
@@ -1364,6 +1387,23 @@ export default function JobDetail() {
                     <div className="text-sm text-muted-foreground capitalize">{job.jobType.replace('-', ' ')}</div>
                   </div>
                 </div>
+
+                {SOURCE_MAP[job.source] && (
+                  <div className="flex items-start gap-3">
+                    <ExternalLink className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-sm font-medium">Source</div>
+                      <a
+                        href={SOURCE_MAP[job.source].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {SOURCE_MAP[job.source].name}
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

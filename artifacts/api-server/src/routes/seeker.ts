@@ -39,14 +39,14 @@ router.post("/stripe/seeker-checkout", requireAuth, async (req, res): Promise<vo
 
     const priceId = (rows.rows[0] as Record<string, unknown>).price_id as string;
     const stripe = await getUncachableStripeClient();
-    const baseUrl = env.appBaseUrl;
+    const frontendUrl = env.frontendUrl;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${baseUrl}/seeker-pro?success=1`,
-      cancel_url: `${baseUrl}/seeker-pro?canceled=1`,
+      success_url: `${frontendUrl}/seeker-pro?success=1`,
+      cancel_url: `${frontendUrl}/seeker-pro?canceled=1`,
       metadata: { clerkUserId: userId, productType: "seeker_pro" },
       subscription_data: {
         metadata: { clerkUserId: userId },
@@ -80,11 +80,11 @@ router.post("/stripe/seeker-portal", requireAuth, async (req, res): Promise<void
 
   try {
     const stripe = await getUncachableStripeClient();
-    const baseUrl = env.appBaseUrl;
+    const frontendUrl = env.frontendUrl;
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
-      return_url: `${baseUrl}/seeker-pro`,
+      return_url: `${frontendUrl}/seeker-pro`,
     });
 
     res.json({ url: session.url });

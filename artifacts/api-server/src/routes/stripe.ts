@@ -134,15 +134,15 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
       (auth?.sessionClaims?.userId as string | undefined) ?? auth?.userId ?? null;
 
     const stripe = await getUncachableStripeClient();
-    const baseUrl = env.appBaseUrl;
+    const frontendUrl = env.frontendUrl;
 
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: isRecurring ? "subscription" : "payment",
-      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
+      success_url: `${frontendUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/pricing`,
       metadata: { productType, email },
     });
 

@@ -8,6 +8,7 @@ import { logger } from "../lib/logger";
 import { getEmployerEligibility } from "../lib/employerEligibility";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { getStripeAccountId } from "../lib/stripeClient";
+import { generateJobSummary } from "../lib/summaryGenerator";
 
 const TestEmailSchema = z.object({
   to: z.string().email("Missing or invalid recipient email"),
@@ -22,6 +23,46 @@ const router: IRouter = Router();
 router.post("/admin/sync-jobs", requireAdmin, async (req, res): Promise<void> => {
   const result = await runJobSync();
   res.json(result);
+});
+
+router.get("/admin/test-summary", requireAdmin, async (_req, res): Promise<void> => {
+  const sampleTitle = "Senior Full-Stack Engineer";
+  const sampleCompany = "Acme Corp";
+  const sampleDescription = `
+We are looking for a Senior Full-Stack Engineer to join our fully remote team.
+You will design and build scalable web applications using React, Node.js, and PostgreSQL.
+
+Responsibilities:
+- Architect and implement new product features end-to-end
+- Review pull requests and mentor junior engineers
+- Collaborate with product managers and designers
+- Write unit and integration tests
+
+Requirements:
+- 5+ years of experience with JavaScript/TypeScript
+- Strong knowledge of React and Node.js
+- Experience with relational databases (PostgreSQL preferred)
+- Comfort working across time zones in an async-first culture
+- Caribbean or Latin America based applicants strongly encouraged
+
+Nice to have:
+- Experience with Kubernetes or Docker
+- Familiarity with AWS or GCP
+  `.trim();
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    res.status(503).json({ error: "ANTHROPIC_API_KEY is not set in this environment" });
+    return;
+  }
+
+  const summary = await generateJobSummary(sampleTitle, sampleCompany, sampleDescription);
+
+  if (!summary) {
+    res.status(502).json({ error: "Summary generation failed — check server logs" });
+    return;
+  }
+
+  res.json({ title: sampleTitle, company: sampleCompany, summary });
 });
 
 router.get("/admin/orders", requireAdmin, async (req, res): Promise<void> => {

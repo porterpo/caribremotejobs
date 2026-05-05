@@ -1,21 +1,10 @@
-import { File } from "@google-cloud/storage";
+import { HeadObjectCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
+import { r2Client } from "./r2Client";
 
-const ACL_POLICY_METADATA_KEY = "custom:aclPolicy";
-
-// Can be flexibly defined according to the use case.
-//
-// Examples:
-// - USER_LIST: the users from a list stored in the database;
-// - EMAIL_DOMAIN: the users whose email is in a specific domain;
-// - GROUP_MEMBER: the users who are members of a specific group;
-// - SUBSCRIBER: the users who are subscribers of a specific service / content
-//   creator.
 export enum ObjectAccessGroupType {}
 
 export interface ObjectAccessGroup {
   type: ObjectAccessGroupType;
-  // The logic id that identifies qualified group members. Format depends on the
-  // ObjectAccessGroupType — e.g. a user-list DB id, an email domain, a group id.
   id: string;
 }
 
@@ -29,17 +18,18 @@ export interface ObjectAclRule {
   permission: ObjectPermission;
 }
 
-// Stored as object custom metadata under "custom:aclPolicy" (JSON string).
 export interface ObjectAclPolicy {
   owner: string;
   visibility: "public" | "private";
   aclRules?: Array<ObjectAclRule>;
 }
 
-function isPermissionAllowed(
-  requested: ObjectPermission,
-  granted: ObjectPermission,
-): boolean {
+export interface R2Ref {
+  key: string;
+  bucket: string;
+}
+
+function isPermissionAllowed(requested: ObjectPermission, granted: ObjectPermission): boolean {
   if (requested === ObjectPermission.READ) {
     return [ObjectPermission.READ, ObjectPermission.WRITE].includes(granted);
   }
@@ -51,47 +41,34 @@ abstract class BaseObjectAccessGroup implements ObjectAccessGroup {
     public readonly type: ObjectAccessGroupType,
     public readonly id: string,
   ) {}
-
   public abstract hasMember(userId: string): Promise<boolean>;
 }
 
-function createObjectAccessGroup(
-  group: ObjectAccessGroup,
-): BaseObjectAccessGroup {
-  switch (group.type) {
-    // Implement per access group type, e.g.:
-    // case "USER_LIST":
-    //   return new UserListAccessGroup(group.id);
-    default:
-      throw new Error(`Unknown access group type: ${group.type}`);
-  }
+function createObjectAccessGroup(_group: ObjectAccessGroup): BaseObjectAccessGroup {
+  throw new Error(`Unknown access group type: ${_group.type}`);
 }
 
-export async function setObjectAclPolicy(
-  objectFile: File,
-  aclPolicy: ObjectAclPolicy,
-): Promise<void> {
-  const [exists] = await objectFile.exists();
-  if (!exists) {
-    throw new Error(`Object not found: ${objectFile.name}`);
-  }
-
-  await objectFile.setMetadata({
-    metadata: {
-      [ACL_POLICY_METADATA_KEY]: JSON.stringify(aclPolicy),
-    },
-  });
+export async function setObjectAclPolicy(object: R2Ref, aclPolicy: ObjectAclPolicy): Promise<void> {
+  const head = await r2Client.send(new HeadObjectCommand({ Bucket: object.bucket, Key: object.key }));
+  await r2Client.send(new CopyObjectCommand({
+    Bucket: object.bucket,
+    Key: object.key,
+    CopySource: `${object.bucket}/${object.key}`,
+    ContentType: head.ContentType,
+    Metadata: { ...head.Metadata, aclpolicy: JSON.stringify(aclPolicy) },
+    MetadataDirective: "REPLACE",
+  }));
 }
 
-export async function getObjectAclPolicy(
-  objectFile: File,
-): Promise<ObjectAclPolicy | null> {
-  const [metadata] = await objectFile.getMetadata();
-  const aclPolicy = metadata?.metadata?.[ACL_POLICY_METADATA_KEY];
-  if (!aclPolicy) {
+export async function getObjectAclPolicy(object: R2Ref): Promise<ObjectAclPolicy | null> {
+  try {
+    const head = await r2Client.send(new HeadObjectCommand({ Bucket: object.bucket, Key: object.key }));
+    const raw = head.Metadata?.aclpolicy;
+    if (!raw) return null;
+    return JSON.parse(raw) as ObjectAclPolicy;
+  } catch {
     return null;
   }
-  return JSON.parse(aclPolicy as string);
 }
 
 export async function canAccessObject({
@@ -100,30 +77,20 @@ export async function canAccessObject({
   requestedPermission,
 }: {
   userId?: string;
-  objectFile: File;
+  objectFile: R2Ref;
   requestedPermission: ObjectPermission;
 }): Promise<boolean> {
   const aclPolicy = await getObjectAclPolicy(objectFile);
-  if (!aclPolicy) {
-    return false;
-  }
+  if (!aclPolicy) return false;
 
-  if (
-    aclPolicy.visibility === "public" &&
-    requestedPermission === ObjectPermission.READ
-  ) {
+  if (aclPolicy.visibility === "public" && requestedPermission === ObjectPermission.READ) {
     return true;
   }
 
-  if (!userId) {
-    return false;
-  }
+  if (!userId) return false;
+  if (aclPolicy.owner === userId) return true;
 
-  if (aclPolicy.owner === userId) {
-    return true;
-  }
-
-  for (const rule of aclPolicy.aclRules || []) {
+  for (const rule of aclPolicy.aclRules ?? []) {
     const accessGroup = createObjectAccessGroup(rule.group);
     if (
       (await accessGroup.hasMember(userId)) &&

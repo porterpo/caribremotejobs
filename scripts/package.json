@@ -6,9 +6,12 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed-products": "tsx ./src/seed-products.ts",
+    "backfill-summaries": "tsx ./src/backfill-summaries.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.54.0",
+    "@workspace/db": "workspace:*",
     "stripe": "*"
   },
   "devDependencies": {

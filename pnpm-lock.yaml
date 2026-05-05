@@ -535,6 +535,12 @@ importers:
 
   scripts:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.54.0
+        version: 0.54.0
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../lib/db
       stripe:
         specifier: '*'
         version: 22.0.2(@types/node@25.3.5)

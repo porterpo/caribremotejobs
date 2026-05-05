@@ -114,7 +114,7 @@ export async function sendOrderConfirmation(params: {
   jobsRemaining: number;
 }): Promise<void> {
   const { client, fromEmail } = await getResendClient();
-  const appUrl = env.appBaseUrl;
+  const appUrl = env.frontendUrl;
   const postJobUrl = `${appUrl}/post-job?orderId=${params.orderId}`;
 
   const productLabels: Record<string, string> = {
@@ -175,7 +175,7 @@ export async function sendJobSubmissionConfirmation(params: {
 }): Promise<boolean> {
   try {
     const { client, fromEmail } = await getResendClient();
-    const appUrl = env.appBaseUrl;
+    const appUrl = env.frontendUrl;
     const editUrl = `${appUrl}/post-job?sessionId=${encodeURIComponent(params.sessionId)}`;
 
     const { data, error } = await client.emails.send({
@@ -249,7 +249,7 @@ export async function sendShareLinkExpiryReminder(params: {
   email: string;
   expiresAt: Date;
 }): Promise<boolean> {
-  const appUrl = env.appBaseUrl;
+  const appUrl = env.frontendUrl;
   const expiryLabel = params.expiresAt.toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -285,7 +285,7 @@ export async function sendShareLinkExpiryReminder(params: {
 }
 
 export async function sendSeekerProWelcomeEmail(email: string): Promise<void> {
-  const appUrl = env.appBaseUrl;
+  const appUrl = env.frontendUrl;
   try {
     const { client, fromEmail } = await getResendClient();
     await client.emails.send({

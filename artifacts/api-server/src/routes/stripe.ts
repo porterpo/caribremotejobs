@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db, jobOrdersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
@@ -7,6 +8,15 @@ import { sendOrderConfirmation } from "../lib/resend";
 import { env } from "../lib/env";
 import { getAuth } from "@clerk/express";
 import { checkoutLimiter, resendLimiter } from "../lib/rate-limit";
+
+const CheckoutSchema = z.object({
+  priceId: z.string().min(1, "priceId is required"),
+  email: z.string().email("A valid email address is required"),
+});
+
+const ResendConfirmationSchema = z.object({
+  sessionId: z.string().min(1, "sessionId is required"),
+});
 
 const router: IRouter = Router();
 
@@ -86,15 +96,12 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
 });
 
 router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void> => {
-  const { priceId, email } = req.body as {
-    priceId: string;
-    email: string;
-  };
-
-  if (!priceId || !email) {
-    res.status(400).json({ error: "priceId and email are required" });
+  const parsed = CheckoutSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
+  const { priceId, email } = parsed.data;
 
   try {
     const accountId = await getStripeAccountId();
@@ -196,12 +203,12 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
 const RESEND_COOLDOWN_MS = 60_000;
 
 router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Promise<void> => {
-  const { sessionId } = req.body as { sessionId?: string };
-
-  if (!sessionId) {
-    res.status(400).json({ error: "sessionId is required" });
+  const parsed = ResendConfirmationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
+  const { sessionId } = parsed.data;
 
   try {
     const [order] = await db

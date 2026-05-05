@@ -85,6 +85,9 @@ importers:
       stripe-replit-sync:
         specifier: '*'
         version: 1.0.0(stripe@22.0.2(@types/node@25.3.5))
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10

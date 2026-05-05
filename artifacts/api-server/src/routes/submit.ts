@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db, jobsTable, jobOrdersTable } from "@workspace/db";
 import { eq, and, isNotNull, isNull, ne, sql, gt } from "drizzle-orm";
 import { logger } from "../lib/logger";
@@ -6,51 +7,40 @@ import { sendJobSubmissionConfirmation, sendOrderConfirmation } from "../lib/res
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { submitLimiter } from "../lib/rate-limit";
 
+const JobFieldsSchema = z.object({
+  sessionId: z.string().min(1, "sessionId is required"),
+  title: z.string().min(3, "Job title must be at least 3 characters").max(200),
+  companyName: z.string().min(1, "Company name is required").max(200),
+  companyLogo: z.string().url("Invalid company logo URL").nullish(),
+  category: z.string().min(1, "Category is required"),
+  jobType: z.string().min(1).default("full-time"),
+  description: z.string().min(50, "Description must be at least 50 characters"),
+  applyUrl: z.string().url("A valid apply URL is required"),
+  salaryMin: z.number().positive().nullish(),
+  salaryMax: z.number().positive().nullish(),
+  locationRestrictions: z.string().nullish(),
+});
+
+const FeatureJobSchema = z.object({
+  sessionId: z.string().min(1, "sessionId is required"),
+  jobId: z.coerce.number().int().positive("jobId is required"),
+});
+
+const UpdateJobSchema = JobFieldsSchema;
+
+const ResendEditLinkSchema = z.object({
+  email: z.string().email("A valid email address is required"),
+});
+
 const router: IRouter = Router();
 
 router.post("/jobs/submit", requireAuth, submitLimiter, async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-
-  const sessionId = String(body.sessionId ?? "").trim();
-  const title = String(body.title ?? "").trim();
-  const companyName = String(body.companyName ?? "").trim();
-  const companyLogo = body.companyLogo ? String(body.companyLogo).trim() : null;
-  const category = String(body.category ?? "").trim();
-  const jobType = String(body.jobType ?? "full-time").trim();
-  const description = String(body.description ?? "").trim();
-  const applyUrl = String(body.applyUrl ?? "").trim();
-  const salaryMin = body.salaryMin ? Number(body.salaryMin) : null;
-  const salaryMax = body.salaryMax ? Number(body.salaryMax) : null;
-  const locationRestrictions = body.locationRestrictions
-    ? String(body.locationRestrictions).trim()
-    : null;
-
-  if (!sessionId) {
-    res.status(400).json({ error: "sessionId is required" });
+  const parsed = JobFieldsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
-  if (!title || title.length < 3) {
-    res.status(400).json({ error: "Job title must be at least 3 characters" });
-    return;
-  }
-  if (!companyName) {
-    res.status(400).json({ error: "Company name is required" });
-    return;
-  }
-  if (!category) {
-    res.status(400).json({ error: "Category is required" });
-    return;
-  }
-  if (!description || description.length < 50) {
-    res
-      .status(400)
-      .json({ error: "Description must be at least 50 characters" });
-    return;
-  }
-  if (!applyUrl || !/^https?:\/\/.+/.test(applyUrl)) {
-    res.status(400).json({ error: "A valid apply URL is required" });
-    return;
-  }
+  const { sessionId, title, companyName, companyLogo, category, jobType, description, applyUrl, salaryMin, salaryMax, locationRestrictions } = parsed.data;
 
   const { userId } = req as AuthenticatedRequest;
 
@@ -159,19 +149,12 @@ router.post("/jobs/submit", requireAuth, submitLimiter, async (req, res): Promis
 });
 
 router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-
-  const sessionId = String(body.sessionId ?? "").trim();
-  const jobId = typeof body.jobId === "number" ? body.jobId : parseInt(String(body.jobId));
-
-  if (!sessionId) {
-    res.status(400).json({ error: "sessionId is required" });
+  const parsed = FeatureJobSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
-  if (!jobId || isNaN(jobId)) {
-    res.status(400).json({ error: "jobId is required" });
-    return;
-  }
+  const { sessionId, jobId } = parsed.data;
 
   const { userId } = req as AuthenticatedRequest;
 
@@ -236,49 +219,12 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-
-  const sessionId = String(body.sessionId ?? "").trim();
-  const title = String(body.title ?? "").trim();
-  const companyName = String(body.companyName ?? "").trim();
-  const category = String(body.category ?? "").trim();
-  const jobType = String(body.jobType ?? "full-time").trim();
-  const description = String(body.description ?? "").trim();
-  const applyUrl = String(body.applyUrl ?? "").trim();
-  const salaryMin = body.salaryMin ? Number(body.salaryMin) : null;
-  const salaryMax = body.salaryMax ? Number(body.salaryMax) : null;
-  const locationRestrictions = body.locationRestrictions
-    ? String(body.locationRestrictions).trim()
-    : null;
-  const companyLogo =
-    "companyLogo" in body
-      ? (body.companyLogo ? String(body.companyLogo).trim() : null)
-      : undefined;
-
-  if (!sessionId) {
-    res.status(400).json({ error: "sessionId is required" });
+  const parsed = UpdateJobSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
-  if (!title || title.length < 3) {
-    res.status(400).json({ error: "Job title must be at least 3 characters" });
-    return;
-  }
-  if (!companyName) {
-    res.status(400).json({ error: "Company name is required" });
-    return;
-  }
-  if (!category) {
-    res.status(400).json({ error: "Category is required" });
-    return;
-  }
-  if (!description || description.length < 50) {
-    res.status(400).json({ error: "Description must be at least 50 characters" });
-    return;
-  }
-  if (!applyUrl || !/^https?:\/\/.+/.test(applyUrl)) {
-    res.status(400).json({ error: "A valid apply URL is required" });
-    return;
-  }
+  const { sessionId, title, companyName, companyLogo, category, jobType, description, applyUrl, salaryMin, salaryMax, locationRestrictions } = parsed.data;
 
   const { userId } = req as AuthenticatedRequest;
 
@@ -363,13 +309,12 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
 const EDIT_LINK_RESEND_COOLDOWN_MS = 60_000;
 
 router.post("/jobs/resend-edit-link", async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-  const email = String(body.email ?? "").trim().toLowerCase();
-
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    res.status(400).json({ error: "A valid email address is required" });
+  const parsed = ResendEditLinkSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
+  const email = parsed.data.email.toLowerCase();
 
   try {
     const cooldownCutoff = new Date(Date.now() - EDIT_LINK_RESEND_COOLDOWN_MS);

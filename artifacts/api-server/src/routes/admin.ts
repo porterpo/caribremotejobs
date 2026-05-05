@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { runJobSync } from "../lib/sync";
 import { db, jobsTable, companiesTable, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, desc, and, isNull, count, sql, gte, lte, SQL } from "drizzle-orm";
@@ -7,6 +8,14 @@ import { logger } from "../lib/logger";
 import { getEmployerEligibility } from "../lib/employerEligibility";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { getStripeAccountId } from "../lib/stripeClient";
+
+const TestEmailSchema = z.object({
+  to: z.string().email("Missing or invalid recipient email"),
+});
+
+const ApproveJobSchema = z.object({
+  featured: z.boolean().optional(),
+});
 
 const router: IRouter = Router();
 
@@ -187,12 +196,12 @@ router.post("/admin/orders/:id/resend-email", requireAdmin, async (req, res): Pr
 });
 
 router.post("/admin/test-email", requireAdmin, async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-  const to = typeof body.to === "string" ? body.to.trim() : "";
-  if (!to) {
-    res.status(400).json({ error: "Missing recipient email" });
+  const parsed = TestEmailSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
+  const { to } = parsed.data;
 
   try {
     const result = await sendTestEmail(to);
@@ -219,7 +228,7 @@ router.get("/admin/pending-jobs", requireAdmin, async (_req, res): Promise<void>
 
 router.post("/admin/jobs/:id/approve", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
-  const body = req.body as Record<string, unknown>;
+  const parsedBody = ApproveJobSchema.safeParse(req.body);
 
   const [existing] = await db
     .select({ featured: jobsTable.featured })
@@ -232,7 +241,9 @@ router.post("/admin/jobs/:id/approve", requireAdmin, async (req, res): Promise<v
   }
 
   const featuredValue =
-    typeof body.featured === "boolean" ? body.featured : existing.featured;
+    (parsedBody.success && parsedBody.data.featured !== undefined)
+      ? parsedBody.data.featured
+      : existing.featured;
 
   const [job] = await db
     .update(jobsTable)

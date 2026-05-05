@@ -81,7 +81,6 @@ const appBaseUrl = readBaseUrl();
 
 function readFrontendUrl(): string {
   const raw = process.env.FRONTEND_URL?.trim();
-  console.log("[env] FRONTEND_URL raw:", JSON.stringify(process.env.FRONTEND_URL));
   if (raw) return raw.replace(/\/+$/, "");
   return appBaseUrl;
 }

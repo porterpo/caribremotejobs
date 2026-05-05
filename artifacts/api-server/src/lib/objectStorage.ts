@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 import { r2Client, R2_BUCKET } from "./r2Client";
@@ -102,6 +102,20 @@ export class ObjectStorageService {
     } catch {
       return null;
     }
+  }
+
+  async getObjectMetadata(file: R2Object): Promise<{ contentType: string | null }> {
+    const result = await r2Client.send(new HeadObjectCommand({ Bucket: file.bucket, Key: file.key }));
+    return { contentType: result.ContentType ?? null };
+  }
+
+  async deleteObject(file: R2Object): Promise<void> {
+    await r2Client.send(new DeleteObjectCommand({ Bucket: file.bucket, Key: file.key }));
+  }
+
+  async getSignedDownloadUrl(file: R2Object, ttlSec: number): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: file.bucket, Key: file.key });
+    return getSignedUrl(r2Client, command, { expiresIn: ttlSec });
   }
 
   getPublicObjectSearchPaths(): string[] {

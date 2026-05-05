@@ -22,9 +22,8 @@ async function claimOrVerifyResumeObject(
   }
 
   try {
-    const [metadata] = await objectFile.getMetadata();
-    const contentType = String(metadata.contentType ?? "");
-    if (!contentType.startsWith("application/pdf")) {
+    const { contentType } = await objectStorageService.getObjectMetadata(objectFile);
+    if (!String(contentType ?? "").startsWith("application/pdf")) {
       return { ok: false, status: 422, error: "Only PDF files are allowed as uploaded resumes" };
     }
   } catch {
@@ -139,7 +138,7 @@ router.delete("/resume/upload", requireAuth, async (req: Request, res): Promise<
     try {
       const objectPath = `/objects/uploads/${existingPath.split("/").pop()}`;
       const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-      await objectFile.delete();
+      await objectStorageService.deleteObject(objectFile);
     } catch (err) {
       req.log.warn({ err }, "Could not delete PDF from storage; DB record cleared");
     }
@@ -175,33 +174,9 @@ router.get("/resume/pdf-link", requireAuth, async (req: Request, res): Promise<v
       return;
     }
 
-    const privateDir = objectStorageService.getPrivateObjectDir();
-    const objectId = rows[0].uploadedResumePath.split("/").pop();
-    let fullPath = `${privateDir}/uploads/${objectId}`;
-    if (!fullPath.startsWith("/")) fullPath = `/${fullPath}`;
-    const parts = fullPath.split("/");
-    const bucketName = parts[1];
-    const objectName = parts.slice(2).join("/");
-
-    const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
     const ttlSec = 7 * 24 * 3600;
-    const request = {
-      bucket_name: bucketName,
-      object_name: objectName,
-      method: "GET",
-      expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
-    };
-    const signRes = await fetch(`${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!signRes.ok) {
-      throw new Error(`Failed to sign: ${signRes.status}`);
-    }
-    const { signed_url } = await signRes.json() as { signed_url: string };
-    res.json({ url: signed_url, expiresAt: new Date(Date.now() + ttlSec * 1000).toISOString() });
+    const signedUrl = await objectStorageService.getSignedDownloadUrl(objectFile, ttlSec);
+    res.json({ url: signedUrl, expiresAt: new Date(Date.now() + ttlSec * 1000).toISOString() });
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "PDF not found in storage" });

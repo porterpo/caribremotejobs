@@ -136,18 +136,15 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
     const stripe = await getUncachableStripeClient();
     const baseUrl = env.appBaseUrl;
 
-    const session = await stripe.checkout.sessions.create(
-      {
-        customer_email: email,
-        payment_method_types: ["card"],
-        line_items: [{ price: priceId, quantity: 1 }],
-        mode: isRecurring ? "subscription" : "payment",
-        success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/pricing`,
-        metadata: { productType, email },
-      },
-      { idempotencyKey: `checkout-${email}-${priceId}` }
-    );
+    const session = await stripe.checkout.sessions.create({
+      customer_email: email,
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: isRecurring ? "subscription" : "payment",
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+      metadata: { productType, email },
+    });
 
     const jobsRemaining =
       productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;

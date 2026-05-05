@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { generateJobSummary } from "./summaryGenerator";
 
 const EXCLUDED_PATTERNS = [
   /us.?only/i,
@@ -103,12 +104,14 @@ async function syncRemotive(): Promise<SourceResult> {
       seenSourceJobIds.add(sourceJobId);
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
+      const summaryDescription = await generateJobSummary(job.title, job.company_name, job.description);
       await db.insert(jobsTable).values({
         title: job.title, companyName: job.company_name,
         companyLogo: job.company_logo || null,
         category: job.category?.toLowerCase().replace(/\s+/g, "-") ?? "other",
         jobType: job.job_type === "full_time" ? "full-time" : job.job_type ?? "full-time",
-        description: job.description, applyUrl: job.url,
+        description: job.description, summaryDescription,
+        applyUrl: job.url,
         source: "remotive", sourceJobId,
         locationRestrictions: job.candidate_required_location || null,
         caribbeanFriendly: isCaribBean(job.candidate_required_location ?? ""),
@@ -154,11 +157,12 @@ async function syncWWR(): Promise<SourceResult> {
       const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
       if (existing.length > 0) { skipped++; continue; }
 
+      const summaryDescription = await generateJobSummary(cleanTitle, companyName, description);
       await db.insert(jobsTable).values({
         title: cleanTitle, companyName, companyLogo: null,
         category: categoryRaw.toLowerCase().replace(/\s+/g, "-"),
         jobType: jobTypeRaw.toLowerCase().replace(/\s+/g, "-") || "full-time",
-        description, applyUrl: link,
+        description, summaryDescription, applyUrl: link,
         source: "weworkremotely", sourceJobId,
         locationRestrictions: region || null,
         caribbeanFriendly: isCaribBean(region),
@@ -209,12 +213,12 @@ async function syncRemoteOK(): Promise<SourceResult> {
 
       const category = (job.tags?.[0] ?? "other").toLowerCase().replace(/\s+/g, "-");
       const applyUrl = job.apply_url ?? job.url ?? `https://remoteok.com/remote-jobs/${job.slug}`;
-
+      const summaryDescription = await generateJobSummary(job.position, job.company ?? "Unknown", description);
       await db.insert(jobsTable).values({
         title: job.position, companyName: job.company ?? "Unknown",
         companyLogo: job.company_logo ?? job.logo ?? null,
         category, jobType: "full-time",
-        description, applyUrl,
+        description, summaryDescription, applyUrl,
         source: "remoteok", sourceJobId,
         locationRestrictions: location || null,
         caribbeanFriendly: isCaribBean(location),
@@ -273,12 +277,13 @@ async function syncHimalayas(): Promise<SourceResult> {
       const category = (job.categories?.[0] ?? "other").toLowerCase().replace(/\s+/g, "-");
       const jobTypeRaw = job.employmentType ?? "Full-Time";
       const jobType = jobTypeRaw.toLowerCase().replace(/\s+/g, "-");
-
+      const summaryDescription = await generateJobSummary(job.title, job.companyName ?? "Unknown", job.description ?? "");
       await db.insert(jobsTable).values({
         title: job.title, companyName: job.companyName ?? "Unknown",
         companyLogo: job.companyLogo ?? null,
         category, jobType: jobType || "full-time",
         description: job.description ?? "",
+        summaryDescription,
         applyUrl: job.applicationLink ?? `https://himalayas.app/jobs`,
         source: "himalayas", sourceJobId,
         locationRestrictions: locationText || null,
@@ -329,11 +334,11 @@ async function syncWorkingNomads(): Promise<SourceResult> {
       if (existing.length > 0) { skipped++; continue; }
 
       const category = (job.category_name ?? "other").toLowerCase().replace(/\s+/g, "-");
-
+      const summaryDescription = await generateJobSummary(job.title, job.company_name ?? "Unknown", description);
       await db.insert(jobsTable).values({
         title: job.title, companyName: job.company_name ?? "Unknown",
         companyLogo: null, category, jobType: "full-time",
-        description, applyUrl: job.url,
+        description, summaryDescription, applyUrl: job.url,
         source: "workingnomads", sourceJobId,
         locationRestrictions: location || null,
         caribbeanFriendly: isCaribBean(location),

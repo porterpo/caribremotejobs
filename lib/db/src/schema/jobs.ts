@@ -16,6 +16,7 @@ export const jobsTable = pgTable("jobs", {
   salaryMax: integer("salary_max"),
   salaryCurrency: text("salary_currency").notNull().default("USD"),
   description: text("description").notNull(),
+  summaryDescription: text("summary_description"),
   applyUrl: text("apply_url").notNull(),
   source: text("source").notNull().default("manual"),
   sourceJobId: text("source_job_id"),

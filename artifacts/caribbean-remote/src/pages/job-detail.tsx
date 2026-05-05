@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSeo, SITE_URL, SITE_NAME } from "@/lib/seo";
 import { useRoute, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -587,6 +587,54 @@ function ApplyWithResumeDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function FullDescriptionCollapsible({
+  description,
+  sourceName,
+  applyUrl,
+}: {
+  description: string;
+  sourceName?: string;
+  applyUrl: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-muted/40 hover:bg-muted/70 transition-colors text-left"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span>
+          {open ? "Hide" : "View"} full description
+          {sourceName ? ` from ${sourceName}` : ""}
+        </span>
+        <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && (
+        <div ref={ref} className="px-5 py-4">
+          <div
+            className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-sm"
+            dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br />') }}
+          />
+          <div className="mt-4 pt-4 border-t">
+            <a
+              href={applyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+            >
+              View original listing <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1181,24 +1229,33 @@ export default function JobDetail() {
             <div>
               <h2 className="text-2xl font-bold mb-3">Job Description</h2>
               {SOURCE_MAP[job.source] && (
-                <p className="text-xs text-muted-foreground mb-5 flex items-center gap-1">
+                <p className="text-xs text-muted-foreground mb-5 flex items-center gap-1 flex-wrap">
                   Originally posted on{" "}
                   <a
                     href={SOURCE_MAP[job.source].url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
                   >
                     {SOURCE_MAP[job.source].name}
+                    <ExternalLink className="h-3 w-3" />
                   </a>
-                  <ExternalLink className="h-3 w-3 inline" />
-                  . Description reproduced for discoverability; apply via the button above.
                 </p>
               )}
-              <div
-                className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80"
-                dangerouslySetInnerHTML={{ __html: job.description.replace(/\n/g, '<br />') }}
-              />
+
+              {job.summaryDescription ? (
+                <div className="space-y-6">
+                  <p className="text-base leading-relaxed text-foreground/90">
+                    {job.summaryDescription}
+                  </p>
+                  <FullDescriptionCollapsible description={job.description} sourceName={SOURCE_MAP[job.source]?.name} applyUrl={job.applyUrl} />
+                </div>
+              ) : (
+                <div
+                  className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80"
+                  dangerouslySetInnerHTML={{ __html: job.description.replace(/\n/g, '<br />') }}
+                />
+              )}
             </div>
             
             {job.tags && (

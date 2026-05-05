@@ -27,6 +27,8 @@ export interface Job {
   salaryMax?: number | null;
   salaryCurrency: string;
   description: string;
+  /** @nullable */
+  summaryDescription?: string | null;
   applyUrl: string;
   source: string;
   /** @nullable */

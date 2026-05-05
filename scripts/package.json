@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
     "@workspace/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "stripe": "*"
   },
   "devDependencies": {

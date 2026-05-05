@@ -541,6 +541,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.18.0)(pg@8.20.0)
       stripe:
         specifier: '*'
         version: 22.0.2(@types/node@25.3.5)

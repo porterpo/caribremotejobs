@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db, jobOrdersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { getUncachableStripeClient, getStripeAccountId } from "../lib/stripeClient";
+import { getUncachableStripeClient } from "../lib/stripeClient";
 import { logger } from "../lib/logger";
 import { sendOrderConfirmation } from "../lib/resend";
 import { env } from "../lib/env";
@@ -22,14 +22,6 @@ const router: IRouter = Router();
 
 router.get("/stripe/products", async (_req, res): Promise<void> => {
   try {
-    const accountId = await getStripeAccountId();
-    const sanity = await db.execute(sql`
-      SELECT
-        (SELECT COUNT(*) FROM stripe.products) AS total_products,
-        (SELECT COUNT(*) FROM stripe.products WHERE _account_id = ${accountId}) AS account_products,
-        (SELECT COUNT(*) FROM stripe.products WHERE _account_id = ${accountId} AND active = true AND metadata->>'type' IN ('single','pack','monthly','featured','seeker_pro')) AS matching_products
-    `);
-    logger.info({ accountId, sanity: sanity.rows[0] }, "stripe.products: diagnostic");
     const rows = await db.execute(sql`
       SELECT
         p.id AS product_id,
@@ -44,9 +36,8 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
         pr.active AS price_active
       FROM stripe.products p
       LEFT JOIN stripe.prices pr
-        ON pr.product = p.id AND pr.active = true AND pr._account_id = ${accountId}
+        ON pr.product = p.id AND pr.active = true
       WHERE p.active = true
-        AND p._account_id = ${accountId}
         AND p.metadata->>'type' IN ('single', 'pack', 'monthly', 'featured', 'seeker_pro')
       ORDER BY pr.unit_amount ASC
     `);
@@ -104,18 +95,16 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
   const { priceId, email } = parsed.data;
 
   try {
-    const accountId = await getStripeAccountId();
     const rows = await db.execute(sql`
       SELECT
         pr.id AS price_id,
         pr.recurring,
         p.metadata AS product_metadata
       FROM stripe.prices pr
-      JOIN stripe.products p ON pr.product = p.id AND p._account_id = pr._account_id
+      JOIN stripe.products p ON pr.product = p.id
       WHERE pr.id = ${priceId}
         AND pr.active = true
         AND p.active = true
-        AND pr._account_id = ${accountId}
       LIMIT 1
     `);
 

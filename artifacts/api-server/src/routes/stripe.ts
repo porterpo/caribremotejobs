@@ -159,7 +159,7 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
       status: "pending",
       jobsRemaining,
       clerkUserId,
-    });
+    }).onConflictDoNothing();
 
     res.json({ url: session.url });
   } catch (err) {

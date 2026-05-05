@@ -79,9 +79,17 @@ function readAllowedOrigins(appBaseUrl: string): readonly string[] {
 
 const appBaseUrl = readBaseUrl();
 
+function readFrontendUrl(): string {
+  const raw = process.env.FRONTEND_URL?.trim();
+  console.log("[env] FRONTEND_URL raw:", JSON.stringify(process.env.FRONTEND_URL));
+  if (raw) return raw.replace(/\/+$/, "");
+  return appBaseUrl;
+}
+
 export const env = Object.freeze({
   isProduction,
   appBaseUrl,
+  frontendUrl: readFrontendUrl(),
   allowedOrigins: readAllowedOrigins(appBaseUrl),
 });
 

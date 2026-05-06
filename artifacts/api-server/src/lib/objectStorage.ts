@@ -24,9 +24,13 @@ export class ObjectNotFoundError extends Error {
 }
 
 export class ObjectStorageService {
-  async getObjectEntityUploadURL(): Promise<string> {
+  async getObjectEntityUploadURL(contentType?: string): Promise<string> {
     const key = `uploads/${randomUUID()}`;
-    const command = new PutObjectCommand({ Bucket: R2_BUCKET, Key: key });
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      ...(contentType ? { ContentType: contentType } : {}),
+    });
     return getSignedUrl(r2Client, command, { expiresIn: 900 });
   }
 

@@ -462,7 +462,8 @@ export default function PostJob() {
         logoServingUrl = logoUrlInput;
       } else if (companyLogoPath) {
         const objectId = companyLogoPath.split("/").pop();
-        logoServingUrl = `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`;
+        const apiBase = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, "");
+        logoServingUrl = `${apiBase}/api/storage/logos/${objectId}`;
       }
       const payload = {
         sessionId,
@@ -508,7 +509,8 @@ export default function PostJob() {
         logoServingUrl = logoUrlInput;
       } else if (companyLogoPath) {
         const objectId = companyLogoPath.split("/").pop();
-        logoServingUrl = `${import.meta.env.BASE_URL}api/storage/logos/${objectId}`;
+        const apiBase = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, "");
+        logoServingUrl = `${apiBase}/api/storage/logos/${objectId}`;
       } else if (existingLogoUrl) {
         logoServingUrl = existingLogoUrl;
       } else {

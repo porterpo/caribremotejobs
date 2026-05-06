@@ -20,6 +20,11 @@ import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL;
 
+function safeDate(value: unknown): Date {
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 const SOURCE_MAP: Record<string, { name: string; url: string }> = {
   remotive: { name: "Remotive", url: "https://remotive.com" },
   weworkremotely: { name: "We Work Remotely", url: "https://weworkremotely.com" },
@@ -824,7 +829,7 @@ export default function JobDetail() {
       "@type": "JobPosting",
       title: job.title,
       description: job.description,
-      datePosted: new Date(job.postedAt).toISOString(),
+      datePosted: safeDate(job.postedAt).toISOString(),
       employmentType,
       hiringOrganization: {
         "@type": "Organization",
@@ -1411,7 +1416,7 @@ export default function JobDetail() {
                   <Calendar className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <div className="text-sm font-medium">Posted Date</div>
-                    <div className="text-sm text-muted-foreground">{format(new Date(job.postedAt), "MMMM d, yyyy")}</div>
+                    <div className="text-sm text-muted-foreground">{format(safeDate(job.postedAt), "MMMM d, yyyy")}</div>
                   </div>
                 </div>
                 

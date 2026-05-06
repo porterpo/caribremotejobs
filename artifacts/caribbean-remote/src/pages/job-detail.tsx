@@ -625,7 +625,7 @@ function FullDescriptionCollapsible({
         <div ref={ref} className="px-5 py-4">
           <div
             className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-sm"
-            dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br />') }}
+            dangerouslySetInnerHTML={{ __html: (description ?? '').replace(/\n/g, '<br />') }}
           />
           <div className="mt-4 pt-4 border-t">
             <a
@@ -1077,7 +1077,7 @@ export default function JobDetail() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4" />
-                    <span className="capitalize">{job.jobType.replace('-', ' ')}</span>
+                    <span className="capitalize">{(job.jobType ?? '').replace('-', ' ')}</span>
                   </div>
                 </div>
               </div>
@@ -1258,7 +1258,7 @@ export default function JobDetail() {
               ) : (
                 <div
                   className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80"
-                  dangerouslySetInnerHTML={{ __html: job.description.replace(/\n/g, '<br />') }}
+                  dangerouslySetInnerHTML={{ __html: (job.description ?? '').replace(/\n/g, '<br />') }}
                 />
               )}
             </div>
@@ -1446,7 +1446,7 @@ export default function JobDetail() {
                   <Clock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <div className="text-sm font-medium">Job Type</div>
-                    <div className="text-sm text-muted-foreground capitalize">{job.jobType.replace('-', ' ')}</div>
+                    <div className="text-sm text-muted-foreground capitalize">{(job.jobType ?? '').replace('-', ' ')}</div>
                   </div>
                 </div>
 
@@ -1493,7 +1493,7 @@ export default function JobDetail() {
                   <h3 className="font-semibold">Get job alerts</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Be the first to know when new {job.category.replace(/-/g, ' ')} jobs are posted.
+                  Be the first to know when new {(job.category ?? '').replace(/-/g, ' ')} jobs are posted.
                 </p>
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/alerts">Create alert</Link>

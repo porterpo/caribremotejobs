@@ -75,6 +75,7 @@ function makeJobMiddleware(
     next: Connect.NextFunction,
   ): Promise<void> => {
     const url = req.url ?? "";
+    if (url.startsWith("/api/")) return next();
     const match = url.match(/\/jobs\/(\d+)(?:[?#].*)?$/);
     const jobId = match?.[1] ?? null;
     if (!jobId) return next();

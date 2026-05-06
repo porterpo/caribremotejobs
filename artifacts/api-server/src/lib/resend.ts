@@ -1,36 +1,19 @@
-import nodemailer, { type Transporter } from "nodemailer";
+import { Resend } from "resend";
 import { logger } from "./logger";
 import { env } from "./env";
 
-const SMTP_HOST =
-  process.env.TITAN_SMTP_HOST ??
-  process.env.BLUEHOST_SMTP_HOST ??
-  "smtp.titan.email";
-const SMTP_PORT = Number(process.env.TITAN_SMTP_PORT ?? process.env.BLUEHOST_SMTP_PORT ?? 465);
-const SMTP_USER =
-  process.env.TITAN_SMTP_USER ??
-  process.env.BLUEHOST_SMTP_USER ??
-  "hello@caribremotejobs.com";
-const SMTP_PASS = process.env.TITAN_SMTP_PASSWORD ?? process.env.BLUEHOST_SMTP_PASSWORD;
-const FROM_EMAIL =
-  process.env.MAIL_FROM ?? `CaribRemotejobs <${SMTP_USER}>`;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.MAIL_FROM ?? "CaribRemotejobs <hello@caribremotejobs.com>";
 
-let transporter: Transporter | null = null;
+let resendClient: Resend | null = null;
 
-function getTransporter(): Transporter {
-  if (transporter) return transporter;
-  if (!SMTP_PASS) {
-    throw new Error("SMTP password is not configured");
+function getClient(): Resend {
+  if (resendClient) return resendClient;
+  if (!RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
   }
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    connectionTimeout: 5_000,
-    socketTimeout: 10_000,
-  });
-  return transporter;
+  resendClient = new Resend(RESEND_API_KEY);
+  return resendClient;
 }
 
 type SendArgs = {
@@ -47,14 +30,15 @@ const mailClient = {
   emails: {
     async send(args: SendArgs): Promise<SendResult> {
       try {
-        const info = await getTransporter().sendMail({
+        const { data, error } = await getClient().emails.send({
           from: args.from ?? FROM_EMAIL,
-          to: args.to,
+          to: typeof args.to === "string" ? [args.to] : args.to,
           subject: args.subject,
           html: args.html,
           text: args.text,
         });
-        return { data: { id: info.messageId }, error: null };
+        if (error) return { data: null, error: new Error(error.message) };
+        return { data: { id: data?.id ?? "" }, error: null };
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         return { data: null, error };

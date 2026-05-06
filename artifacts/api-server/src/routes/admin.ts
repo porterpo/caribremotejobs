@@ -334,6 +334,15 @@ router.get("/admin/companies", requireAdmin, async (_req, res): Promise<void> =>
   res.json(results);
 });
 
+router.delete("/admin/jobs/reset-synced", requireAdmin, async (_req, res): Promise<void> => {
+  const deleted = await db
+    .delete(jobsTable)
+    .where(sql`${jobsTable.source} NOT IN ('employer', 'manual')`)
+    .returning({ id: jobsTable.id });
+  logger.info({ count: deleted.length }, "Reset all synced jobs");
+  res.json({ deleted: deleted.length });
+});
+
 router.delete("/admin/jobs/purge-missing-urls", requireAdmin, async (req, res): Promise<void> => {
   const deleted = await db
     .delete(jobsTable)

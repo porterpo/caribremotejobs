@@ -3,13 +3,40 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { generateJobSummary } from "./summaryGenerator";
 
+// Text patterns that indicate a job requires being in a specific country — exclude these
 const EXCLUDED_PATTERNS = [
-  /us.?only/i,
-  /united states only/i,
-  /usa only/i,
-  /must be (in|based in) (the )?us/i,
-  /must reside in the (united states|us|usa)/i,
-  /authorized to work in the (united states|us)/i,
+  // United States
+  /\bus[- ]?only\b/i,
+  /united states[- ]?only/i,
+  /usa[- ]?only/i,
+  /must be (in|based in) (the )?us\b/i,
+  /must reside in the (united states|us\b|usa)\b/i,
+  /authorized to work in (the )?(united states|us\b|usa)\b/i,
+  /must be (authorized|eligible) to work in (the )?(us|usa|united states)\b/i,
+  // United Kingdom
+  /\buk[- ]?only\b/i,
+  /united kingdom[- ]?only/i,
+  /right to work in (the )?uk\b/i,
+  /must be (in|based in|authorized to work in) (the )?(uk|united kingdom)\b/i,
+  /must reside in (the )?(uk|united kingdom)\b/i,
+  // European Union / Europe
+  /\beu[- ]?only\b/i,
+  /europe[- ]?only/i,
+  /must be (in|based in) (europe|the eu)\b/i,
+  /must have (the )?right to work in (the )?eu\b/i,
+  // Canada
+  /canada[- ]?only/i,
+  /must be (in|based in|authorized to work in) canada\b/i,
+  /must reside in canada\b/i,
+  // Australia / New Zealand
+  /australia[- ]?only/i,
+  /new zealand[- ]?only/i,
+  /must be (in|based in|authorized to work in) (australia|new zealand)\b/i,
+  // India
+  /india[- ]?only/i,
+  /must be (in|based in) india\b/i,
+  // General residency/citizenship requirements
+  /must be (a )?(citizen|legal resident|permanent resident) of\b/i,
 ];
 
 const ENTRY_LEVEL_TITLE_AND_DESC: RegExp[] = [
@@ -36,10 +63,11 @@ function isInternationallyHiring(text: string): boolean {
   return true;
 }
 
-function isHimalayasUsOnly(locationRestrictions: string[]): boolean {
+// Returns true when every listed restriction is a single country/region that excludes Caribbean applicants
+function isSingleCountryOnly(locationRestrictions: string[]): boolean {
   if (!locationRestrictions || locationRestrictions.length === 0) return false;
-  const usTerms = /^(united states|usa|us)$/i;
-  return locationRestrictions.every((loc) => usTerms.test(loc.trim()));
+  const restrictedRegions = /^(united states|usa?|u\.s\.a?\.?|united kingdom|uk|u\.k\.|great britain|england|canada|australia|new zealand|germany|france|spain|italy|netherlands|switzerland|ireland|sweden|norway|denmark|finland|india|singapore|japan|china|hong kong|europe|eu|emea|apac|asia|north america|africa|middle east|mena)$/i;
+  return locationRestrictions.every((loc) => restrictedRegions.test(loc.trim()));
 }
 
 function detectEntryLevel(title: string, description: string, seniority?: string): boolean {
@@ -49,9 +77,10 @@ function detectEntryLevel(title: string, description: string, seniority?: string
   return false;
 }
 
+// Returns true when the location is open to international / worldwide applicants
 function isCaribBean(locationText: string): boolean {
   return (
-    /worldwide|global|anywhere|international|caribbean|bahamas/i.test(locationText) ||
+    /worldwide|global|anywhere|international|remote|caribbean|bahamas|latin america|latam|\bamericas\b/i.test(locationText) ||
     locationText.trim() === ""
   );
 }
@@ -264,7 +293,7 @@ async function syncHimalayas(): Promise<SourceResult> {
     for (const job of data.jobs ?? []) {
       if (!job.guid || !job.title) continue;
       const restrictions = job.locationRestrictions ?? [];
-      if (isHimalayasUsOnly(restrictions)) { skipped++; continue; }
+      if (isSingleCountryOnly(restrictions)) { skipped++; continue; }
 
       const locationText = restrictions.join(", ");
       if (!isInternationallyHiring(`${job.title} ${job.description ?? ""} ${locationText}`)) { skipped++; continue; }

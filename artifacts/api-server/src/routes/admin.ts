@@ -248,13 +248,14 @@ router.post("/admin/test-email", requireAdmin, async (req, res): Promise<void> =
     const result = await sendTestEmail(to);
     if (result.error) {
       logger.error({ err: result.error }, "Test email failed");
-      res.status(502).json({ error: "Failed to send test email" });
+      res.status(502).json({ error: "Failed to send test email", detail: result.error.message });
       return;
     }
     res.json({ messageId: result.data?.id ?? null });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Test email failed");
-    res.status(502).json({ error: "Failed to send test email" });
+    res.status(502).json({ error: "Failed to send test email", detail: message });
   }
 });
 

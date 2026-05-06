@@ -334,6 +334,27 @@ router.get("/admin/companies", requireAdmin, async (_req, res): Promise<void> =>
   res.json(results);
 });
 
+router.delete("/admin/jobs/purge-missing-urls", requireAdmin, async (req, res): Promise<void> => {
+  const deleted = await db
+    .delete(jobsTable)
+    .where(and(
+      sql`${jobsTable.applyUrl} = ''`,
+      sql`${jobsTable.source} NOT IN ('employer', 'manual')`,
+    ))
+    .returning({ id: jobsTable.id, title: jobsTable.title, source: jobsTable.source });
+  logger.info({ count: deleted.length }, "Purged external jobs with empty applyUrl");
+  res.json({ purged: deleted.length, jobs: deleted });
+});
+
+router.delete("/admin/jobs/:id", requireAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid job id" }); return; }
+  const [deleted] = await db.delete(jobsTable).where(eq(jobsTable.id, id)).returning({ id: jobsTable.id, title: jobsTable.title });
+  if (!deleted) { res.status(404).json({ error: "Job not found" }); return; }
+  logger.info({ jobId: id, jobTitle: deleted.title }, "Job deleted by admin");
+  res.json({ deleted: true, id: deleted.id, title: deleted.title });
+});
+
 router.post("/admin/jobs/:id/flag-violation", requireAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid job id" }); return; }

@@ -147,6 +147,7 @@ async function syncWWR(): Promise<SourceResult> {
       const jobTypeRaw: string = (item as unknown as Record<string, unknown>)["type"] as string ?? "Full-Time";
       const categoryRaw: string = (item as unknown as Record<string, unknown>)["category"] as string ?? "other";
 
+      if (!link) { skipped++; continue; }
       if (!isInternationallyHiring(`${title} ${description} ${region}`)) { skipped++; continue; }
       if (!isCaribBean(region)) { skipped++; continue; }
 

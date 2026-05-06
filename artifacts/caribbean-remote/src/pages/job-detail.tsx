@@ -627,16 +627,18 @@ function FullDescriptionCollapsible({
             className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-sm"
             dangerouslySetInnerHTML={{ __html: (description ?? '').replace(/\n/g, '<br />') }}
           />
-          <div className="mt-4 pt-4 border-t">
-            <a
-              href={applyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
-            >
-              View original listing <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
+          {applyUrl && (
+            <div className="mt-4 pt-4 border-t">
+              <a
+                href={applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+              >
+                View original listing <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -778,6 +780,8 @@ export default function JobDetail() {
     isSignedIn && isMailto && job && resume
       ? buildEnhancedMailto(job.applyUrl, job.title, userName, resume, pendingPdfUrl, resumeShareUrl)
       : job?.applyUrl ?? "";
+
+  const hasApplyUrl = !!effectiveApplyUrl;
 
   const showPreviewOnApply = isSignedIn && isMailto && !!resume && !!(
     resume.summary ||
@@ -959,6 +963,12 @@ export default function JobDetail() {
     void queryClient.invalidateQueries({ queryKey: ["seeker-subscription"] });
   }
 
+  function handleExternalJobClick() {
+    track("application_started", { job_id: jobId, resume_type: "none" });
+    saveApplicationRecord(jobId, "none");
+    setAppliedRecord({ resumeType: "none", appliedAt: new Date().toISOString() });
+  }
+
   const resumeTypeLabel: Record<ResumeType, string> = {
     built: "Built Resume",
     pdf: "PDF Resume",
@@ -1122,17 +1132,19 @@ export default function JobDetail() {
                   }
                 </Button>
               ) : (
-                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending || applyGateLoading} asChild={!isResumePending && !applyGateLoading}>
+                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending || applyGateLoading || !hasApplyUrl} asChild={!isResumePending && !applyGateLoading && hasApplyUrl}>
                   {isResumePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
                     </>
+                  ) : !hasApplyUrl ? (
+                    <>Apply link unavailable</>
                   ) : (
                     <a
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(isExternalJob ? "none" : hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={(e) => { if (isExternalJob) { handleExternalJobClick(); return; } if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
@@ -1377,17 +1389,19 @@ export default function JobDetail() {
                   }
                 </Button>
               ) : (
-                <Button size="lg" className="px-8" disabled={isResumePending || applyGateLoading} asChild={!isResumePending && !applyGateLoading}>
+                <Button size="lg" className="px-8" disabled={isResumePending || applyGateLoading || !hasApplyUrl} asChild={!isResumePending && !applyGateLoading && hasApplyUrl}>
                   {isResumePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply for this position
                     </>
+                  ) : !hasApplyUrl ? (
+                    <>Apply link unavailable</>
                   ) : (
                     <a
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(isExternalJob ? "none" : hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={(e) => { if (isExternalJob) { handleExternalJobClick(); return; } if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>

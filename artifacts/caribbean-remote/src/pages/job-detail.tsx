@@ -706,6 +706,7 @@ export default function JobDetail() {
   }
 
   const isMailto = !!job?.applyUrl?.startsWith("mailto:");
+  const isExternalJob = !!job && job.source !== "employer" && job.source !== "manual";
 
   const { data: resume, status: resumeStatus } = useQuery<ResumeData | null>({
     queryKey: ["resume", "me"],
@@ -1131,14 +1132,14 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(isExternalJob ? "none" : hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply Now <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}
                 </Button>
               )}
-              {isSignedIn && (
+              {isSignedIn && !isExternalJob && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1386,14 +1387,14 @@ export default function JobDetail() {
                       href={effectiveApplyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
+                      onClick={(e) => { if (!checkApplyGate()) { e.preventDefault(); return; } handleDirectApply(isExternalJob ? "none" : hasPdfOnly ? "pdf" : resume ? "built" : "none"); }}
                     >
                       Apply for this position <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   )}
                 </Button>
               )}
-              {isSignedIn && (
+              {isSignedIn && !isExternalJob && (
                 <Button
                   size="lg"
                   variant="outline"

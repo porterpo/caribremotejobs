@@ -167,7 +167,7 @@ router.post("/stripe/checkout", checkoutLimiter, requireAuth, async (req, res): 
 });
 
 router.get("/stripe/session/:id", requireAuth, async (req, res): Promise<void> => {
-  const sessionId = req.params.id;
+  const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { userId } = req as AuthenticatedRequest;
   try {
     const [order] = await db

@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 import { sendOrderConfirmation } from "../lib/resend";
 import { env } from "../lib/env";
 import { getAuth } from "@clerk/express";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { checkoutLimiter, resendLimiter } from "../lib/rate-limit";
 
 const CheckoutSchema = z.object({
@@ -86,13 +87,14 @@ router.get("/stripe/products", async (_req, res): Promise<void> => {
   }
 });
 
-router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void> => {
+router.post("/stripe/checkout", checkoutLimiter, requireAuth, async (req, res): Promise<void> => {
   const parsed = CheckoutSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
   const { priceId, email } = parsed.data;
+  const { userId: clerkUserId } = req as AuthenticatedRequest;
 
   try {
     const rows = await db.execute(sql`
@@ -129,12 +131,11 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
       return;
     }
 
-    const auth = getAuth(req);
-    const clerkUserId =
-      (auth?.sessionClaims?.userId as string | undefined) ?? auth?.userId ?? null;
-
     const stripe = await getUncachableStripeClient();
     const frontendUrl = env.frontendUrl;
+
+    const tenMinBucket = Math.floor(Date.now() / (10 * 60_000));
+    const idempotencyKey = `checkout:${clerkUserId}:${priceId}:${tenMinBucket}`;
 
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
@@ -144,7 +145,7 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
       success_url: `${frontendUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/pricing`,
       metadata: { productType, email },
-    });
+    }, { idempotencyKey });
 
     const jobsRemaining =
       productType === "pack" ? 3 : productType === "monthly" ? 999 : 1;
@@ -165,21 +166,27 @@ router.post("/stripe/checkout", checkoutLimiter, async (req, res): Promise<void>
   }
 });
 
-router.get("/stripe/session/:id", async (req, res): Promise<void> => {
+router.get("/stripe/session/:id", requireAuth, async (req, res): Promise<void> => {
   const sessionId = req.params.id;
+  const { userId } = req as AuthenticatedRequest;
   try {
     const [order] = await db
       .select()
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || !order.clerkUserId || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
 
-    const { email: _email, clerkUserId: _clerk, ...safeOrder } = order;
-    res.json(safeOrder);
+    res.json({
+      id: order.id,
+      productType: order.productType,
+      status: order.status,
+      jobsRemaining: order.jobsRemaining,
+      jobId: order.jobId,
+    });
   } catch (err) {
     logger.error({ err }, "Error fetching session");
     res.status(500).json({ error: "Failed to fetch session" });
@@ -188,13 +195,14 @@ router.get("/stripe/session/:id", async (req, res): Promise<void> => {
 
 const RESEND_COOLDOWN_MS = 60_000;
 
-router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Promise<void> => {
+router.post("/stripe/resend-confirmation", resendLimiter, requireAuth, async (req, res): Promise<void> => {
   const parsed = ResendConfirmationSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
     return;
   }
   const { sessionId } = parsed.data;
+  const { userId } = req as AuthenticatedRequest;
 
   try {
     const [order] = await db
@@ -202,7 +210,7 @@ router.post("/stripe/resend-confirmation", resendLimiter, async (req, res): Prom
       .from(jobOrdersTable)
       .where(eq(jobOrdersTable.stripeSessionId, sessionId));
 
-    if (!order) {
+    if (!order || !order.clerkUserId || order.clerkUserId !== userId) {
       res.status(404).json({ error: "Order not found" });
       return;
     }

@@ -55,8 +55,8 @@ router.post("/jobs/submit", requireAuth, submitLimiter, async (req, res): Promis
       return;
     }
 
-    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
-      res.status(403).json({ error: "Forbidden" });
+    if (!order.clerkUserId || order.clerkUserId !== userId) {
+      res.status(404).json({ error: "Order not found" });
       return;
     }
 
@@ -169,8 +169,8 @@ router.post("/jobs/feature", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
-      res.status(403).json({ error: "Forbidden" });
+    if (!order.clerkUserId || order.clerkUserId !== userId) {
+      res.status(404).json({ error: "Order not found" });
       return;
     }
 
@@ -239,8 +239,8 @@ router.put("/jobs/update", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    if (order.clerkUserId !== null && order.clerkUserId !== userId) {
-      res.status(403).json({ error: "Forbidden" });
+    if (!order.clerkUserId || order.clerkUserId !== userId) {
+      res.status(404).json({ error: "Order not found" });
       return;
     }
 

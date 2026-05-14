@@ -97,7 +97,11 @@ router.get("/jobs/tag-counts", async (req, res): Promise<void> => {
   const orWhere = and(...baseConditions, or(...tagSqlConditions) as ReturnType<typeof eq>);
 
   const searchWhere = params.search
-    ? ilike(jobsTable.title, `%${params.search}%`)
+    ? or(
+        ilike(jobsTable.title, `%${params.search}%`),
+        ilike(jobsTable.companyName, `%${params.search}%`),
+        ilike(jobsTable.description, `%${params.search}%`),
+      )
     : undefined;
 
   let andCountQuery = db
@@ -199,7 +203,11 @@ router.get("/jobs", async (req, res): Promise<void> => {
   };
 
   const searchWhere = params.search
-    ? ilike(jobsTable.title, `%${params.search}%`)
+    ? or(
+        ilike(jobsTable.title, `%${params.search}%`),
+        ilike(jobsTable.companyName, `%${params.search}%`),
+        ilike(jobsTable.description, `%${params.search}%`),
+      )
     : undefined;
   const combinedWhere = where && searchWhere
     ? and(where, searchWhere)

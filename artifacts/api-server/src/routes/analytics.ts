@@ -1,9 +1,22 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getAuth } from "@clerk/express";
 import { db, analyticsEventsTable, jobsTable, adminPreferencesTable } from "@workspace/db";
 import { and, eq, gte, lte, sql, desc, type SQL } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireAdmin } from "../middlewares/requireAdmin";
+
+const AnalyticsDateRangeSchema = z.object({
+  analyticsDateFrom: z.string().min(1).nullable().optional(),
+  analyticsDateTo: z.string().min(1).nullable().optional(),
+});
+
+const TrackEventSchema = z.object({
+  event: z.string().min(1).max(100),
+  job_id: z.number().int().positive().nullable().optional(),
+  has_resume: z.boolean().nullable().optional(),
+  resume_type: z.enum(["built", "pdf", "none"]).nullable().optional(),
+});
 
 const router = Router();
 
@@ -25,9 +38,13 @@ router.get("/admin/preferences/analytics-date-range", requireAdmin, async (req, 
 
 router.put("/admin/preferences/analytics-date-range", requireAdmin, async (req, res): Promise<void> => {
   const userId = (req as AuthenticatedRequest).userId;
-  const body = req.body as { analyticsDateFrom?: string | null; analyticsDateTo?: string | null };
-  const analyticsDateFrom = typeof body.analyticsDateFrom === "string" && body.analyticsDateFrom ? body.analyticsDateFrom : null;
-  const analyticsDateTo = typeof body.analyticsDateTo === "string" && body.analyticsDateTo ? body.analyticsDateTo : null;
+  const parsed = AnalyticsDateRangeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    return;
+  }
+  const analyticsDateFrom = parsed.data.analyticsDateFrom ?? null;
+  const analyticsDateTo = parsed.data.analyticsDateTo ?? null;
 
   const [saved] = await db
     .insert(adminPreferencesTable)
@@ -52,29 +69,23 @@ router.put("/admin/preferences/analytics-date-range", requireAdmin, async (req, 
 });
 
 router.post("/analytics/track", async (req, res): Promise<void> => {
-  const { event, job_id, has_resume, resume_type } = req.body ?? {};
-
-  if (typeof event !== "string" || event.length === 0 || event.length > 100) {
+  const parsed = TrackEventSchema.safeParse(req.body);
+  if (!parsed.success) {
     res.status(422).json({ error: "Invalid payload" });
     return;
   }
+  const { event, job_id, has_resume, resume_type } = parsed.data;
 
   const auth = getAuth(req);
   const userId =
     (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
 
-  const validResumeTypes = ["built", "pdf", "none"];
-  const resumeType =
-    typeof resume_type === "string" && validResumeTypes.includes(resume_type)
-      ? (resume_type === "none" ? null : resume_type)
-      : null;
-
   await db.insert(analyticsEventsTable).values({
     event,
-    jobId: Number.isInteger(job_id) ? (job_id as number) : null,
+    jobId: job_id ?? null,
     userId,
-    hasResume: typeof has_resume === "boolean" ? has_resume : null,
-    resumeType,
+    hasResume: has_resume ?? null,
+    resumeType: resume_type === "none" ? null : (resume_type ?? null),
   });
 
   res.status(204).end();

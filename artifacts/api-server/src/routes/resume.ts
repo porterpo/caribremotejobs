@@ -1,6 +1,11 @@
 import { Router, type Request } from "express";
+import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, resumesTable, ResumeUpsertSchema } from "@workspace/db";
+
+const ShareTokenSchema = z.object({
+  expiresInDays: z.number().int().min(1).max(365).nullable().optional(),
+});
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { getObjectAclPolicy, setObjectAclPolicy, ObjectPermission } from "../lib/objectAcl";
@@ -255,16 +260,12 @@ router.get("/resume/pdf/:objectId", requireAuth, async (req: Request, res): Prom
 router.post("/resume/share-token", requireAuth, async (req: Request, res): Promise<void> => {
   const { userId } = req as AuthenticatedRequest;
 
-  const rawExpiry = (req.body as { expiresInDays?: unknown })?.expiresInDays;
-  let expiresInDays: number | null = null;
-  if (rawExpiry !== undefined && rawExpiry !== null) {
-    const n = Number(rawExpiry);
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 365) {
-      res.status(422).json({ error: "expiresInDays must be an integer between 1 and 365, or null for no expiry" });
-      return;
-    }
-    expiresInDays = n;
+  const parsed = ShareTokenSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: "expiresInDays must be an integer between 1 and 365, or null for no expiry" });
+    return;
   }
+  const expiresInDays = parsed.data.expiresInDays ?? null;
 
   const rows = await db
     .select({

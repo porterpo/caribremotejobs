@@ -4,7 +4,7 @@ const isProduction = process.env.NODE_ENV === "production";
 
 export function safeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
-    const e = err as Record<string, unknown>;
+    const e = err as unknown as Record<string, unknown>;
     return {
       name: err.name,
       message: String(err.message).slice(0, 500),

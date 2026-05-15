@@ -180,11 +180,12 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### M4) Brittle base URL construction
 - **Severity:** MEDIUM
 - **Category:** Secrets & Configuration / Stability
-- **Status:** **Open**
+- **Status:** **Verified Fixed** (2026-05-15, code review)
 - **File/Endpoint:** `artifacts/api-server/src/routes/stripe.ts`, `artifacts/api-server/src/routes/seeker.ts`
-- **Issue:** relies on `REPLIT_DOMAINS` parsing rather than validated canonical app URL.
+- **Issue:** relied on `REPLIT_DOMAINS` parsing rather than validated canonical app URL.
 - **Real-world risk:** broken redirects / environment drift.
-- **Fix:** required `APP_BASE_URL` with startup validation.
+- **Fix:** Both `stripe.ts` and `seeker.ts` import `env.frontendUrl` from `lib/env.ts`. `env.ts` reads `APP_BASE_URL` first, then `RAILWAY_PUBLIC_DOMAIN`, then falls back to `REPLIT_DOMAINS` only as a dev convenience. Railway env has `APP_BASE_URL` set. No route directly parses `REPLIT_DOMAINS`.
+- **Minor observation (not a new finding):** `lib/resend.ts` uses `process.env.APP_URL` (3 occurrences in email templates) rather than `env.frontendUrl`. It falls back to the hardcoded production URL so it is not broken, but the naming inconsistency should be cleaned up in a routine maintenance pass.
 
 ### M5) Input validation inconsistency
 - **Severity:** MEDIUM

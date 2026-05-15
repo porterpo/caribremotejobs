@@ -2,7 +2,7 @@ import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { db, jobOrdersTable, seekerSubscriptionsTable } from "@workspace/db";
 import { eq, ne, and } from "drizzle-orm";
 import { sendOrderConfirmation, sendSeekerProWelcomeEmail } from "./resend";
-import { logger } from "./logger";
+import { logger, safeError } from "./logger";
 
 export class WebhookHandlers {
   static async processWebhook(
@@ -113,7 +113,7 @@ export class WebhookHandlers {
             });
             emailSent = true;
           } catch (emailErr) {
-            logger.error({ emailErr }, "Failed to send order confirmation email via webhook — order is still marked paid");
+            logger.error({ err: safeError(emailErr) }, "Failed to send order confirmation email via webhook — order is still marked paid");
           }
           if (emailSent) {
             try {
@@ -122,7 +122,7 @@ export class WebhookHandlers {
                 .set({ confirmationEmailSentAt: new Date() })
                 .where(eq(jobOrdersTable.id, updatedOrder.id));
             } catch (dbErr) {
-              logger.error({ dbErr }, "Failed to record confirmationEmailSentAt after successful email send");
+              logger.error({ err: safeError(dbErr) }, "Failed to record confirmationEmailSentAt after successful email send");
             }
           }
         }

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { logger } from "./logger";
+import { logger, safeError } from "./logger";
 import { env } from "./env";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -185,7 +185,7 @@ export async function sendJobSubmissionConfirmation(params: {
     });
 
     if (error) {
-      logger.error({ error }, "Failed to send job submission confirmation email");
+      logger.error({ err: safeError(error) }, "Failed to send job submission confirmation email");
       return false;
     }
 
@@ -260,7 +260,7 @@ export async function sendShareLinkExpiryReminder(params: {
       `,
     });
     if (error) {
-      logger.error({ error }, "Failed to send share link expiry reminder email");
+      logger.error({ err: safeError(error) }, "Failed to send share link expiry reminder email");
       return false;
     }
     return true;

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag, Zap } from "lucide-react";
+import { BellRing, Settings, Menu, DollarSign, LogOut, ChevronDown, User, FileText, Tag, Zap } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -154,13 +154,8 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-4 mr-6">
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
-            <Briefcase className="h-5 w-5" />
-          </div>
-          <span className="font-display font-bold text-xl tracking-tight text-foreground">
-            CaribRemotejobs<span className="text-primary">.com</span>
-          </span>
+        <Link href="/" className="flex items-center mr-6">
+          <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-10 w-auto" />
         </Link>
 
         {/* Desktop Nav */}
@@ -206,12 +201,8 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[240px] sm:w-[300px]">
               <div className="flex flex-col gap-6 mt-6">
-                <Link
-                  href="/"
-                  className="font-display font-bold text-xl tracking-tight"
-                  onClick={() => setOpen(false)}
-                >
-                  CaribRemotejobs<span className="text-primary">.com</span>
+                <Link href="/" onClick={() => setOpen(false)}>
+                  <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-10 w-auto" />
                 </Link>
                 <div className="flex flex-col gap-3">
                   {navigation.map((item) => (

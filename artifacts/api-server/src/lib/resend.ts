@@ -2,6 +2,8 @@ import { Resend } from "resend";
 import { logger, safeError } from "./logger";
 import { env } from "./env";
 
+const appUrl = env.frontendUrl;
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.MAIL_FROM ?? "CaribRemotejobs <hello@caribremotejobs.com>";
 
@@ -82,7 +84,7 @@ export async function sendAlertConfirmation(
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0d9488;">Welcome to CaribRemotejobs.com alerts!</h1>
           <p>You've successfully subscribed to job alerts. We'll notify you when new remote jobs matching your interests are posted.</p>
-          <p>If you'd like to unsubscribe at any time, <a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/unsubscribe/${unsubscribeToken}">click here</a>.</p>
+          <p>If you'd like to unsubscribe at any time, <a href="${appUrl}/unsubscribe/${unsubscribeToken}">click here</a>.</p>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
           <p style="font-size: 12px; color: #6b7280;">CaribRemotejobs.com — Remote jobs for Caribbean professionals</p>
         </div>
@@ -220,9 +222,9 @@ export async function sendJobAlerts(
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0d9488;">New Remote Jobs on CaribRemotejobs.com</h1>
           <ul>${jobList}</ul>
-          <a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/jobs" style="background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View all jobs</a>
+          <a href="${appUrl}/jobs" style="background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View all jobs</a>
           <hr style="border: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;"><a href="${process.env.APP_URL ?? "https://caribremotejobs.com"}/unsubscribe/${unsubscribeToken}">Unsubscribe</a></p>
+          <p style="font-size: 12px; color: #6b7280;"><a href="${appUrl}/unsubscribe/${unsubscribeToken}">Unsubscribe</a></p>
         </div>
       `,
     });

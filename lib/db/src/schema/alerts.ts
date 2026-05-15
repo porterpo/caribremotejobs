@@ -11,6 +11,7 @@ export const alertsTable = pgTable("alerts", {
   keywords: text("keywords"),
   token: text("token").notNull().$default(() => crypto.randomUUID()),
   active: boolean("active").notNull().default(true),
+  lastAlertSentAt: timestamp("last_alert_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

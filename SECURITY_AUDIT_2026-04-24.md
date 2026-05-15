@@ -171,11 +171,11 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### M3) Error model may leak operational details via logs
 - **Severity:** MEDIUM
 - **Category:** Data Protection / Operational Readiness
-- **Status:** **Open**
-- **File/Endpoint:** multiple (`logger.error({ err }, ...)`)
-- **Issue:** raw upstream error objects may include sensitive metadata.
+- **Status:** **Verified Fixed** (2026-05-15, commit `6796cd5`)
+- **File/Endpoint:** `artifacts/api-server/src/lib/logger.ts`, `lib/resend.ts`, `lib/webhookHandlers.ts`
+- **Issue:** raw upstream error objects included stack traces, Stripe raw response fields, and DB query metadata in log output.
 - **Real-world risk:** overexposed internals in central logging sinks.
-- **Fix:** standardize error sanitization/redaction before logging.
+- **Fix:** `safeError()` updated to strip stack traces in production, cap message length at 500 chars, and retain only safe structured fields (`code`, `statusCode`). Wired as a pino `serializers.err` handler so all 35 existing `logger.error({ err })` call sites are sanitized automatically. Four non-standard log keys (`error`, `emailErr`, `dbErr`) in `resend.ts` and `webhookHandlers.ts` migrated to `{ err: safeError(...) }`.
 
 ### M4) Brittle base URL construction
 - **Severity:** MEDIUM

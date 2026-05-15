@@ -190,11 +190,11 @@ Findings by severity (symmetrical counts are coincidental, not capped):
 ### M5) Input validation inconsistency
 - **Severity:** MEDIUM
 - **Category:** Input Validation & Injection
-- **Status:** **Open**
-- **File/Endpoint:** multiple, including `artifacts/api-server/src/routes/submit.ts`
-- **Issue:** mixed manual validation and schema validation creates uneven guardrails.
+- **Status:** **Verified Fixed** (2026-05-15, commit `b5cda17`)
+- **File/Endpoint:** `artifacts/api-server/src/routes/analytics.ts`, `artifacts/api-server/src/routes/resume.ts`
+- **Issue:** mixed manual validation and schema validation created uneven guardrails.
 - **Real-world risk:** inconsistent behavior and latent parser edge-case bugs.
-- **Fix:** standardize on zod schemas for all mutation payloads.
+- **Fix:** Added Zod schemas to the three remaining unvalidated `req.body` accesses: `AnalyticsDateRangeSchema` (PUT `/admin/preferences/analytics-date-range`), `TrackEventSchema` (POST `/analytics/track`), and `ShareTokenSchema` (POST `/resume/share-token`). All mutation routes now use `.safeParse()` at the boundary.
 
 ### L1) SQL injection posture in inspected routes
 - **Severity:** LOW

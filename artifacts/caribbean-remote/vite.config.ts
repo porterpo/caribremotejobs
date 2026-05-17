@@ -106,18 +106,20 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   // Keep in sync with the <meta http-equiv="Content-Security-Policy"> in index.html.
   // frame-ancestors is only enforced here (HTTP header); meta tags cannot enforce it.
+  // worker-src blob: required for Clerk v6 Web Workers.
+  // form-action intentionally omitted — restricting it to 'self' blocks OAuth POST redirects.
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' https://challenges.cloudflare.com",
+    "script-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.googleusercontent.com",
-    "connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev https://challenges.cloudflare.com",
-    "frame-src https://challenges.cloudflare.com",
+    "connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev https://challenges.cloudflare.com https://clerk.com",
+    "worker-src 'self' blob:",
+    "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
     "frame-ancestors 'self'",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
   ].join("; "),
 };
 

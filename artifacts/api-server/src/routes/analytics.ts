@@ -20,7 +20,7 @@ const TrackEventSchema = z.object({
 
 const router = Router();
 
-router.get("/admin/preferences/analytics-date-range", requireAdmin, async (req, res): Promise<void> => {
+router.get("/admin/preferences/analytics-date-range", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = (req as AuthenticatedRequest).userId;
   const [preference] = await db
     .select({
@@ -36,7 +36,7 @@ router.get("/admin/preferences/analytics-date-range", requireAdmin, async (req, 
   });
 });
 
-router.put("/admin/preferences/analytics-date-range", requireAdmin, async (req, res): Promise<void> => {
+router.put("/admin/preferences/analytics-date-range", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = (req as AuthenticatedRequest).userId;
   const parsed = AnalyticsDateRangeSchema.safeParse(req.body);
   if (!parsed.success) {

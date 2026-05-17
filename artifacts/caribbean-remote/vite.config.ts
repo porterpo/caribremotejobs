@@ -100,6 +100,42 @@ function makeJobMiddleware(
   };
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Frame-Options": "SAMEORIGIN",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  // Keep in sync with the <meta http-equiv="Content-Security-Policy"> in index.html.
+  // frame-ancestors is only enforced here (HTTP header); meta tags cannot enforce it.
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self' https://challenges.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.googleusercontent.com",
+    "connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev https://challenges.cloudflare.com",
+    "frame-src https://challenges.cloudflare.com",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; "),
+};
+
+function securityHeadersPlugin(): Plugin {
+  function apply(res: ServerResponse) {
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+  }
+  return {
+    name: "security-headers",
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use((_req, res, next) => { apply(res); next(); });
+    },
+    configurePreviewServer(server: PreviewServer) {
+      server.middlewares.use((_req, res, next) => { apply(res); next(); });
+    },
+  };
+}
+
 function jobSeoPlugin(): Plugin {
   return {
     name: "job-seo",
@@ -128,6 +164,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    securityHeadersPlugin(),
     jobSeoPlugin(),
   ],
   define: {

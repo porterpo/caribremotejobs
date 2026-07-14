@@ -104,10 +104,12 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "SAMEORIGIN",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
+  // Browsers ignore HSTS over plain HTTP, so this is inert in local dev.
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   // Keep in sync with the <meta http-equiv="Content-Security-Policy"> in index.html.
   // frame-ancestors is only enforced here (HTTP header); meta tags cannot enforce it.
   // worker-src blob: required for Clerk v6 Web Workers.
-  // form-action intentionally omitted — restricting it to 'self' blocks OAuth POST redirects.
+  // form-action allows Clerk + Google OAuth POST redirects; add origins here if a new login provider is enabled.
   "Content-Security-Policy": [
     "default-src 'self'",
     "script-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.com",
@@ -118,6 +120,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "worker-src 'self' blob:",
     "frame-src https://challenges.cloudflare.com https://*.clerk.accounts.dev",
     "frame-ancestors 'self'",
+    "form-action 'self' https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com",
     "object-src 'none'",
     "base-uri 'self'",
   ].join("; "),

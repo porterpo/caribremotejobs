@@ -72,7 +72,8 @@
     "zod": "^3.25.76"
   },
   "dependencies": {
-    "@clerk/react": "^6.4.2",
-    "@clerk/themes": "^2.4.57"
+    "@clerk/react": "^6.12.2",
+    "@clerk/themes": "^2.4.57",
+    "dompurify": "^3.2.4"
   }
 }

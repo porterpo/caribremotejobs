@@ -12,6 +12,12 @@ import { apiLimiter } from "./lib/rate-limit";
 const app: Express = express();
 
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  next();
+});
 
 const corsOptions: CorsOptions = {
   credentials: true,
@@ -85,10 +91,16 @@ app.use(clerkMiddleware());
 
 app.use("/api", apiLimiter, router);
 
-// Global error handler — returns JSON instead of Express's default HTML
+// Global error handler — returns JSON instead of Express's default HTML.
+// Raw error messages are logged but never echoed to clients in production.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const message = err instanceof Error ? err.message : String(err);
   logger.error({ err }, "Unhandled error");
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal server error"
+      : err instanceof Error
+        ? err.message
+        : String(err);
   res.status(500).json({ error: message });
 });
 

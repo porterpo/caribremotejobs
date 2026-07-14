@@ -17,8 +17,18 @@ import { formatDistanceToNow, format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
 import { useToast } from "@/hooks/use-toast";
+import DOMPurify from "dompurify";
 
 const BASE = import.meta.env.BASE_URL;
+
+// Descriptions arrive as HTML from external job feeds and employer submissions —
+// sanitize before rendering; forms/inputs are stripped to block phishing injection.
+function sanitizeJobHtml(html: string | null | undefined): string {
+  return DOMPurify.sanitize((html ?? "").replace(/\n/g, "<br />"), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ["form", "input", "select", "textarea", "button", "iframe", "style"],
+  });
+}
 
 function safeDate(value: unknown): Date {
   const d = new Date(value as string);
@@ -625,7 +635,7 @@ function FullDescriptionCollapsible({
         <div ref={ref} className="px-5 py-4">
           <div
             className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-sm"
-            dangerouslySetInnerHTML={{ __html: (description ?? '').replace(/\n/g, '<br />') }}
+            dangerouslySetInnerHTML={{ __html: sanitizeJobHtml(description) }}
           />
           {applyUrl && (
             <div className="mt-4 pt-4 border-t">
@@ -1271,7 +1281,7 @@ export default function JobDetail() {
               ) : (
                 <div
                   className="prose prose-gray dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80"
-                  dangerouslySetInnerHTML={{ __html: (job.description ?? '').replace(/\n/g, '<br />') }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeJobHtml(job.description) }}
                 />
               )}
             </div>

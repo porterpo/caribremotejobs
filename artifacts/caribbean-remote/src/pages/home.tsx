@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Palmtree, ArrowRight, Briefcase, Globe, Search, ArrowUpRight, BellRing, Tag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 
 export default function Home() {
   useSeo({
@@ -36,10 +37,18 @@ export default function Home() {
       <div className="flex-1 flex flex-col">
         {/* Hero Section */}
         <section className="relative py-20 lg:py-32 overflow-hidden bg-background border-b">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background opacity-70 pointer-events-none" />
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/15 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/8 via-transparent to-transparent" />
+          </div>
           
           <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-3xl">
+            <motion.div
+              className="max-w-3xl"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: "easeOut" }}
+            >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent font-medium text-sm mb-6 border border-accent/20">
                 <Palmtree className="h-4 w-4" />
                 <span>The gateway to global remote work</span>
@@ -47,7 +56,7 @@ export default function Home() {
               
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-foreground">
                 Work globally.<br />
-                <span className="text-primary">Live locally.</span>
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Live locally.</span>
               </h1>
               
               <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl leading-relaxed">
@@ -67,24 +76,24 @@ export default function Home() {
               {!statsLoading && stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-border/60">
                   <div>
-                    <div className="text-3xl font-bold text-foreground mb-1">{stats.totalJobs}</div>
+                    <div className="text-4xl font-extrabold font-display text-foreground mb-1">{stats.totalJobs}</div>
                     <div className="text-sm text-muted-foreground font-medium">Active Jobs</div>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-primary mb-1">{stats.caribbeanFriendlyJobs}</div>
+                    <div className="text-4xl font-extrabold font-display text-primary mb-1">{stats.caribbeanFriendlyJobs}</div>
                     <div className="text-sm text-muted-foreground font-medium">Caribbean Friendly</div>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-foreground mb-1">{stats.totalCompanies}</div>
+                    <div className="text-4xl font-extrabold font-display text-foreground mb-1">{stats.totalCompanies}</div>
                     <div className="text-sm text-muted-foreground font-medium">Companies</div>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-accent mb-1">+{stats.newJobsThisWeek}</div>
+                    <div className="text-4xl font-extrabold font-display text-accent mb-1">+{stats.newJobsThisWeek}</div>
                     <div className="text-sm text-muted-foreground font-medium">New This Week</div>
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
         </section>
 
@@ -105,7 +114,22 @@ export default function Home() {
 
             {featuredLoading ? (
               <div className="grid gap-4">
-                {[1, 2, 3].map(i => <div key={i} className="h-[120px] rounded-xl bg-muted animate-pulse" />)}
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="rounded-xl border bg-card p-6 animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="h-14 w-14 rounded-lg bg-muted flex-shrink-0" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-5 bg-muted rounded-md w-3/4" />
+                        <div className="h-4 bg-muted rounded-md w-1/2" />
+                        <div className="flex gap-2">
+                          <div className="h-5 w-16 bg-muted rounded-full" />
+                          <div className="h-5 w-20 bg-muted rounded-full" />
+                          <div className="h-5 w-14 bg-muted rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : featuredJobs && featuredJobs.length > 0 ? (
               <div className="grid gap-4">
@@ -220,7 +244,22 @@ export default function Home() {
 
             {recentLoading ? (
               <div className="grid gap-4">
-                {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-[120px] rounded-xl bg-muted animate-pulse" />)}
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="rounded-xl border bg-card p-6 animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="h-14 w-14 rounded-lg bg-muted flex-shrink-0" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-5 bg-muted rounded-md w-3/4" />
+                        <div className="h-4 bg-muted rounded-md w-1/2" />
+                        <div className="flex gap-2">
+                          <div className="h-5 w-16 bg-muted rounded-full" />
+                          <div className="h-5 w-20 bg-muted rounded-full" />
+                          <div className="h-5 w-14 bg-muted rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : recentJobs && recentJobs.length > 0 ? (
               <div className="grid gap-4">

@@ -169,7 +169,7 @@ export function JobCard({ job, isBestMatch = false, onTagClick, selectedTags }: 
   const hiddenMatchedCount = hiddenTags.filter((tag) => matchedSet.has(tag.toLowerCase())).length;
 
   return (
-    <Card className={`group relative transition-all duration-300 hover:shadow-md ${
+    <Card className={`group relative transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
       isFeatured ? "border-primary/50 shadow-sm ring-1 ring-primary/10" : ""
     }`}>
       {isFeatured && (

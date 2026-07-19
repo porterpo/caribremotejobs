@@ -160,14 +160,17 @@ export default function Pricing() {
               return (
                 <Card
                   key={product.id}
-                  className={`relative flex flex-col ${isPopular ? "border-primary shadow-lg ring-2 ring-primary" : ""}`}
+                  className={`relative flex flex-col overflow-hidden ${isPopular ? "border-primary shadow-lg ring-2 ring-primary" : ""}`}
                 >
                   {isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-primary text-primary-foreground px-3 py-1">Most Popular</Badge>
-                    </div>
+                    <>
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-accent" />
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="bg-primary text-primary-foreground px-3 py-1 shadow-sm">Most Popular</Badge>
+                      </div>
+                    </>
                   )}
-                  <CardHeader className="pb-4">
+                  <CardHeader className={`pb-4 ${isPopular ? "pt-6" : ""}`}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${isPopular ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                       {PRODUCT_ICONS[type]}
                     </div>
@@ -206,8 +209,25 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="mt-16 text-center text-sm text-muted-foreground">
-          <p>All listings are reviewed by our team within 24 hours. Questions? Contact us at <a href="mailto:hello@caribremotejobs.com" className="underline hover:text-foreground">hello@caribremotejobs.com</a></p>
+        <div className="mt-12 max-w-2xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+              <span>Team review within 24h</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+              <span>Reach Caribbean talent directly</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+              <span>Secure payment via Stripe</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          <p>Questions? Contact us at <a href="mailto:hello@caribremotejobs.com" className="underline hover:text-foreground">hello@caribremotejobs.com</a></p>
         </div>
       </div>
 

@@ -159,13 +159,15 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-1">
           {navigation.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location === item.href ? "text-primary" : "text-muted-foreground"
+              className={`text-sm font-medium transition-all px-4 py-2 rounded-full hover:text-primary ${
+                location === item.href
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:bg-muted/60"
               }`}
             >
               {item.name}

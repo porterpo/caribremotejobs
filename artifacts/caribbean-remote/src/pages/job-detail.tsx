@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "@/components/JobCard";
 import { useToast } from "@/hooks/use-toast";
 import DOMPurify from "dompurify";
+import { motion } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -1052,17 +1053,29 @@ export default function JobDetail() {
         </DialogContent>
       </Dialog>
 
-      <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/6 via-transparent to-transparent" />
+        </div>
+        {job.featured && (
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-accent" />
+        )}
+        <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
           <Button variant="ghost" size="sm" asChild className="mb-6 -ml-3 text-muted-foreground hover:text-foreground">
             <Link href="/jobs">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to jobs
             </Link>
           </Button>
 
-          <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
+          <motion.div
+            className="flex flex-col md:flex-row gap-6 md:items-center justify-between"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
             <div className="flex gap-6 items-start">
-              <div className="h-20 w-20 rounded-xl bg-white border flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-2">
+              <div className="h-20 w-20 rounded-xl bg-white border flex items-center justify-center shrink-0 shadow-md ring-1 ring-border/40 overflow-hidden p-2">
                 {job.companyLogo ? (
                   <img src={job.companyLogo} alt={job.companyName} className="max-h-full max-w-full object-contain" />
                 ) : (
@@ -1086,7 +1099,7 @@ export default function JobDetail() {
                     {job.category}
                   </Badge>
                 </div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-foreground">{job.title}</h1>
+                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 text-foreground">{job.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground">
                   <span className="flex items-center gap-1.5 font-medium text-foreground">
                     <Building2 className="h-4 w-4" />
@@ -1132,7 +1145,7 @@ export default function JobDetail() {
               {showPreviewOnApply ? (
                 <Button
                   size="lg"
-                  className="w-full text-base h-12"
+                  className="w-full text-base h-12 shadow-md"
                   onClick={() => void handlePrimaryApply()}
                   disabled={isPrimaryFetchingPdf || applyGateLoading}
                 >
@@ -1142,7 +1155,7 @@ export default function JobDetail() {
                   }
                 </Button>
               ) : (
-                <Button size="lg" className="w-full text-base h-12" disabled={isResumePending || applyGateLoading || !hasApplyUrl} asChild={!isResumePending && !applyGateLoading && hasApplyUrl}>
+                <Button size="lg" className="w-full text-base h-12 shadow-md" disabled={isResumePending || applyGateLoading || !hasApplyUrl} asChild={!isResumePending && !applyGateLoading && hasApplyUrl}>
                   {isResumePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Apply Now
@@ -1246,7 +1259,7 @@ export default function JobDetail() {
                 </TooltipProvider>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -1255,7 +1268,10 @@ export default function JobDetail() {
           {/* Main Content */}
           <div className="md:col-span-2 space-y-10">
             <div>
-              <h2 className="text-2xl font-bold mb-3">Job Description</h2>
+              <h2 className="text-2xl font-bold mb-3 flex items-center gap-3">
+                <span className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                Job Description
+              </h2>
               {SOURCE_MAP[job.source] && (
                 <p className="text-xs text-muted-foreground mb-5 flex items-center gap-1 flex-wrap">
                   Originally posted on{" "}
@@ -1289,7 +1305,10 @@ export default function JobDetail() {
             {job.tags && (
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-3">
-                  <h3 className="text-lg font-semibold">Skills & Requirements</h3>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                    Skills & Requirements
+                  </h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <TooltipProvider>
@@ -1435,10 +1454,15 @@ export default function JobDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             <div className="border rounded-xl p-6 bg-card shadow-sm">
-              <h3 className="font-semibold text-lg mb-4">Job Overview</h3>
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                Job Overview
+              </h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
                   <div>
                     <div className="text-sm font-medium">Posted Date</div>
                     <div className="text-sm text-muted-foreground">{format(safeDate(job.postedAt), "MMMM d, yyyy")}</div>
@@ -1447,7 +1471,9 @@ export default function JobDetail() {
                 
                 {(job.salaryMin || job.salaryMax) && (
                   <div className="flex items-start gap-3">
-                    <DollarSign className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                    </div>
                     <div>
                       <div className="text-sm font-medium">Salary Range</div>
                       <div className="text-sm text-muted-foreground">
@@ -1460,7 +1486,9 @@ export default function JobDetail() {
                 )}
 
                 <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <MapPin className="h-4 w-4 text-primary" />
+                  </div>
                   <div>
                     <div className="text-sm font-medium">Location</div>
                     <div className="text-sm text-muted-foreground">{job.locationRestrictions || "Anywhere in the world"}</div>
@@ -1468,7 +1496,9 @@ export default function JobDetail() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Clock className="h-4 w-4 text-primary" />
+                  </div>
                   <div>
                     <div className="text-sm font-medium">Job Type</div>
                     <div className="text-sm text-muted-foreground capitalize">{(job.jobType ?? '').replace('-', ' ')}</div>
@@ -1477,7 +1507,9 @@ export default function JobDetail() {
 
                 {SOURCE_MAP[job.source] && (
                   <div className="flex items-start gap-3">
-                    <ExternalLink className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <ExternalLink className="h-4 w-4 text-primary" />
+                    </div>
                     <div>
                       <div className="text-sm font-medium">Source</div>
                       <a
@@ -1495,7 +1527,7 @@ export default function JobDetail() {
             </div>
 
             {!isSignedIn && (
-              <div className="border rounded-xl p-6 bg-primary/5 border-primary/20 text-center">
+              <div className="border rounded-xl p-6 bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 text-center">
                 <Palmtree className="h-8 w-8 text-primary mx-auto mb-3" />
                 <h3 className="font-semibold mb-2">Join CaribRemotejobs.com</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -1514,7 +1546,9 @@ export default function JobDetail() {
             {isSignedIn && job?.category && (
               <div className="border rounded-xl p-6 bg-card shadow-sm">
                 <div className="flex items-center gap-3 mb-3">
-                  <BellRing className="h-5 w-5 text-primary" />
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <BellRing className="h-4 w-4 text-primary" />
+                  </div>
                   <h3 className="font-semibold">Get job alerts</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -1528,7 +1562,10 @@ export default function JobDetail() {
 
             {similarJobs.length > 0 && (
               <div>
-                <h3 className="font-semibold text-lg mb-4">Similar Remote Jobs</h3>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  Similar Remote Jobs
+                </h3>
                 <div className="space-y-3">
                   {similarJobs.map((j) => (
                     <JobCard key={j.id} job={j} />

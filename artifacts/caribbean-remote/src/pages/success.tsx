@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, AlertCircle, Mail } from "lucide-react";
 import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 interface JobOrder {
   id: number;
@@ -125,8 +126,16 @@ export default function Success() {
         {!isLoading && order?.status === "paid" && (
           <Card>
             <CardHeader className="text-center pb-4">
-              <CheckCircle2 className="h-14 w-14 text-green-500 mx-auto mb-3" />
-              <CardTitle className="text-2xl">Payment Confirmed!</CardTitle>
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+              >
+                <div className="h-16 w-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                </div>
+                <CardTitle className="text-2xl font-extrabold">Payment Confirmed!</CardTitle>
+              </motion.div>
               <CardDescription>
                 Your order is ready. Fill in your job details below and we'll review it within 24 hours.
               </CardDescription>

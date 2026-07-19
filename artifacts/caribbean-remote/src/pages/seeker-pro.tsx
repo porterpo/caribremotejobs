@@ -10,6 +10,7 @@ import { CheckCircle2, Zap, BellRing, Loader2, Sparkles, Globe, Shield, AlertCir
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -183,17 +184,22 @@ export default function SeekerPro() {
             </div>
           )}
 
-          <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="text-center mb-12"
+          >
             <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">
               Seeker Pro
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto">
               Everything you need to land your next remote role from the Caribbean.
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid md:grid-cols-2 gap-8 items-start">
             {/* Benefits list */}

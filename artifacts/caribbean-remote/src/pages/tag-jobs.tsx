@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useListJobs, getListJobsQueryKey } from "@workspace/api-client-react";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 import { JobCard } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -200,8 +201,12 @@ export default function TagJobs() {
           </div>
         </div>
       )}
-      <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
+        </div>
+        <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
           <div className="flex items-center gap-3 mb-4">
             <Link href="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-4 w-4" />
@@ -213,22 +218,28 @@ export default function TagJobs() {
               All Skill Tags
             </Link>
           </div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Tag className="h-5 w-5 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Tag className="h-5 w-5 text-primary" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{pageTitle}</h1>
+              {tagJobCount !== null && (
+                <Badge variant="secondary" className="text-sm px-2.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
+                  {tagJobCount} {tagJobCount === 1 ? "job" : "jobs"}
+                </Badge>
+              )}
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{pageTitle}</h1>
-            {tagJobCount !== null && (
-              <Badge variant="secondary" className="text-sm px-2.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
-                {tagJobCount} {tagJobCount === 1 ? "job" : "jobs"}
-              </Badge>
-            )}
-          </div>
-          <p className="text-muted-foreground text-lg max-w-2xl">
-            {isLoading
-              ? "Finding jobs…"
-              : `${activeTotal} remote ${activeTotal === 1 ? "job" : "jobs"} requiring ${selectedTags.join(" + ")} skills.`}
-          </p>
+            <p className="text-muted-foreground text-lg max-w-2xl">
+              {isLoading
+                ? "Finding jobs…"
+                : `${activeTotal} remote ${activeTotal === 1 ? "job" : "jobs"} requiring ${selectedTags.join(" + ")} skills.`}
+            </p>
+          </motion.div>
         </div>
       </div>
 

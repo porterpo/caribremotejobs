@@ -21,7 +21,7 @@ export default function ShareExpired() {
               <div className="mx-auto w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-6">
                 <Clock className="h-10 w-10" />
               </div>
-              <h1 className="text-2xl font-bold mb-3">This resume link has expired</h1>
+              <h1 className="text-2xl font-extrabold mb-3">This resume link has expired</h1>
               <p className="text-muted-foreground mb-8">
                 The share link you opened is no longer valid. Please reach out
                 to the candidate directly and ask them to send you a fresh link

@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { JobCard } from "@/components/JobCard";
 import type { Job } from "@workspace/api-client-react";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 const CATEGORIES = [
   "software-engineering",
@@ -653,8 +654,10 @@ export default function PostJob() {
       <PageLayout>
         <div className="container mx-auto px-4 py-16 max-w-md">
           <div className="text-center mb-8">
-            <Link2 className="h-10 w-10 mx-auto mb-4 text-primary" />
-            <h1 className="text-2xl font-bold mb-2">Recover Your Job Posting Link</h1>
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Link2 className="h-7 w-7 text-primary" />
+            </div>
+            <h1 className="text-2xl font-extrabold mb-2">Recover Your Job Posting Link</h1>
             <p className="text-muted-foreground text-sm">
               Enter the email you used to purchase your job listing and we'll
               resend your submission link or edit link.
@@ -735,8 +738,10 @@ export default function PostJob() {
     return (
       <PageLayout>
         <div className="container mx-auto px-4 py-24 max-w-lg text-center">
-          <CheckCircle2 className="h-14 w-14 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">
+          <div className="h-16 w-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-extrabold mb-2">
             {isFeaturedUpgrade
               ? "Featured Upgrade Applied!"
               : isUpdate
@@ -806,23 +811,38 @@ export default function PostJob() {
   if (order?.productType === "featured") {
     return (
       <PageLayout>
-        <div className="container mx-auto px-4 py-12 max-w-lg">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="h-6 w-6 text-yellow-500 fill-yellow-400" />
-              <h1 className="text-3xl font-bold tracking-tight">
-                Apply Featured Upgrade
-              </h1>
-            </div>
-            <p className="text-muted-foreground">
-              Enter the ID of an existing job listing to feature it at the top
-              of the board for 30 days.
-            </p>
+        <div className="relative bg-muted/30 border-b overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
           </div>
+          <div className="max-w-lg mx-auto px-4 py-10 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="h-6 w-6 text-yellow-500 fill-yellow-400" />
+                <h1 className="text-3xl font-extrabold tracking-tight">
+                  Apply Featured Upgrade
+                </h1>
+              </div>
+              <p className="text-muted-foreground">
+                Enter the ID of an existing job listing to feature it at the top
+                of the board for 30 days.
+              </p>
+            </motion.div>
+          </div>
+        </div>
 
+        <div className="max-w-lg mx-auto px-4 py-10">
           <Card>
             <CardHeader>
-              <CardTitle>Feature an Existing Job</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                <CardTitle>Feature an Existing Job</CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
@@ -879,25 +899,36 @@ export default function PostJob() {
 
   return (
     <PageLayout>
-      <div className="container mx-auto px-4 py-12 max-w-6xl">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
+        </div>
+        <div className="max-w-6xl mx-auto px-4 py-10 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
             {editMode && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200 mb-2">
                 <Pencil className="h-3 w-3" />
                 Editing pending listing
               </span>
             )}
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">
-            {editMode ? "Edit Your Job Listing" : "Post Your Job"}
-          </h1>
-          <p className="text-muted-foreground">
-            {editMode
-              ? "Your listing is still pending review. Make your changes below and re-submit — it won't go live until our team approves it."
-              : "Fill in the details below. Our team will review and publish your listing within 24 hours."}
-          </p>
+            <h1 className="text-3xl font-extrabold tracking-tight mb-2">
+              {editMode ? "Edit Your Job Listing" : "Post Your Job"}
+            </h1>
+            <p className="text-muted-foreground">
+              {editMode
+                ? "Your listing is still pending review. Make your changes below and re-submit — it won't go live until our team approves it."
+                : "Fill in the details below. Our team will review and publish your listing within 24 hours."}
+            </p>
+          </motion.div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-10">
 
         {/* Mobile tab switcher — only visible below lg breakpoint */}
         <div className="flex lg:hidden mb-4 border rounded-lg overflow-hidden">
@@ -935,7 +966,10 @@ export default function PostJob() {
           <div className={mobileTab === "preview" ? "hidden lg:block" : "block"}>
             <Card>
               <CardHeader>
-                <CardTitle>Job Details</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Job Details</CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">

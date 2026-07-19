@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 const PAGE_TITLE = "Browse Remote Jobs by Skill Tag";
 const META_DESCRIPTION =
@@ -82,8 +83,12 @@ export default function TagsIndex() {
 
   return (
     <PageLayout>
-      <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
+        </div>
+        <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
           <Link
             href="/jobs"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -91,17 +96,23 @@ export default function TagsIndex() {
             <ArrowLeft className="h-4 w-4" />
             All Jobs
           </Link>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Tag className="h-5 w-5 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Tag className="h-5 w-5 text-primary" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{PAGE_TITLE}</h1>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{PAGE_TITLE}</h1>
-          </div>
-          <p className="text-muted-foreground text-lg max-w-2xl">
-            {isLoading
-              ? "Loading tags…"
-              : `${tags?.length ?? 0} skill ${(tags?.length ?? 0) === 1 ? "tag" : "tags"} found across all remote job listings.`}
-          </p>
+            <p className="text-muted-foreground text-lg max-w-2xl">
+              {isLoading
+                ? "Loading tags…"
+                : `${tags?.length ?? 0} skill ${(tags?.length ?? 0) === 1 ? "tag" : "tags"} found across all remote job listings.`}
+            </p>
+          </motion.div>
         </div>
       </div>
 

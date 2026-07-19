@@ -41,7 +41,7 @@ export default function Unsubscribe() {
                 <div className="mx-auto w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 className="h-10 w-10" />
                 </div>
-                <h1 className="text-2xl font-bold mb-3">Unsubscribed</h1>
+                <h1 className="text-2xl font-extrabold mb-3">Unsubscribed</h1>
                 <p className="text-muted-foreground mb-8">
                   {message}
                 </p>
@@ -59,7 +59,7 @@ export default function Unsubscribe() {
                 <div className="mx-auto w-20 h-20 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-6">
                   <BellOff className="h-10 w-10" />
                 </div>
-                <h1 className="text-2xl font-bold mb-3">Unable to Unsubscribe</h1>
+                <h1 className="text-2xl font-extrabold mb-3">Unable to Unsubscribe</h1>
                 <p className="text-muted-foreground mb-8">
                   {message}
                 </p>

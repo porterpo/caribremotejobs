@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 declare global {
   interface Window {
@@ -179,16 +180,21 @@ export default function Alerts() {
     <PageLayout>
       <div className="flex-1 bg-muted/20 py-12 md:py-20">
         <div className="container mx-auto px-4 max-w-4xl">
-          <div className="text-center mb-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="text-center mb-10"
+          >
             <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">
               <BellRing className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Remote Job Alerts</h1>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-4">Remote Job Alerts</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Get notified when top companies post remote roles that match your skills. 
+              Get notified when top companies post remote roles that match your skills.
               Be the first to apply to Caribbean-friendly opportunities.
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
@@ -257,7 +263,10 @@ export default function Alerts() {
                         />
 
                         <div className="space-y-6 pt-4 border-t">
-                          <h3 className="text-lg font-semibold">Alert Preferences (Optional)</h3>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                            <h3 className="text-lg font-semibold">Alert Preferences (Optional)</h3>
+                          </div>
                           <p className="text-sm text-muted-foreground -mt-4">
                             Leave blank to receive all new remote jobs.
                           </p>

@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { computeSkillMatch } from "@/lib/skill-match";
+import { motion } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
 const SORT_PREF_KEY = "cr_sort_preference";
@@ -669,9 +670,18 @@ export default function Jobs() {
 
   return (
     <PageLayout>
-      <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-8 md:py-12">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Find Your Next Remote Role</h1>
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/6 via-transparent to-transparent" />
+        </div>
+        <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-4">Find Your Next Remote Role</h1>
           <p className="text-muted-foreground text-lg max-w-2xl mb-4">
             Browse remote opportunities from global companies hiring in the Caribbean and beyond.
           </p>
@@ -690,7 +700,7 @@ export default function Jobs() {
               <Input
                 type="search"
                 placeholder="Search job titles, keywords, or companies..."
-                className="pl-10 h-12 text-base bg-background"
+                className="pl-10 h-12 text-base bg-background shadow-sm"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -711,6 +721,7 @@ export default function Jobs() {
               </SheetContent>
             </Sheet>
           </div>
+          </motion.div>
         </div>
       </div>
 
@@ -718,7 +729,9 @@ export default function Jobs() {
         {/* Desktop Sidebar Filters */}
         <div className="hidden md:block w-[280px] shrink-0 sticky top-24 border rounded-xl p-6 bg-card">
           <h2 className="font-semibold text-lg mb-6 flex items-center gap-2">
-            <Filter className="h-5 w-5" /> Filters
+            <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+            <Filter className="h-4 w-4 text-primary" />
+            Filters
           </h2>
           <FilterContent />
         </div>
@@ -771,7 +784,7 @@ export default function Jobs() {
           )}
 
           {isSignedIn && resumeStatus === "success" && !hasSkills && !nudgeDismissed && (
-            <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/8 to-accent/5 px-4 py-3">
               <Sparkles className="h-4 w-4 shrink-0 text-primary" />
               <p className="flex-1 text-sm text-foreground">
                 <Link href="/resume" className="font-medium text-primary hover:underline">
@@ -858,7 +871,7 @@ export default function Jobs() {
 
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-xl font-bold font-display">
                 {isLoading
                   ? needsAllJobs
                     ? isBestMatch
@@ -910,8 +923,10 @@ export default function Jobs() {
 
           {needsAllJobs && isAllJobsError ? (
             <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
-              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Couldn't load results</h3>
+              <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <Briefcase className="h-8 w-8 text-muted-foreground opacity-60" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Couldn't load results</h3>
               <p className="text-muted-foreground mb-6">There was a problem fetching jobs. Please try again.</p>
               <Button variant="outline" onClick={() => { setSortBy("newest"); setMinMatch(0); setOnlyMatching(false); }}>
                 Reset and show newest first
@@ -943,21 +958,25 @@ export default function Jobs() {
               
               {/* Pagination */}
               {activeTotalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-8">
-                  <Button 
-                    variant="outline" 
+                <div className="flex items-center justify-center gap-3 pt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={page === 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="px-5"
                   >
                     Previous
                   </Button>
-                  <span className="text-sm font-medium px-4">
-                    Page {page} of {activeTotalPages}
+                  <span className="text-sm font-medium tabular-nums px-2 text-muted-foreground">
+                    {page} / {activeTotalPages}
                   </span>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={page === activeTotalPages}
                     onClick={() => setPage(p => Math.min(activeTotalPages, p + 1))}
+                    className="px-5"
                   >
                     Next
                   </Button>
@@ -966,8 +985,10 @@ export default function Jobs() {
             </div>
           ) : (
             <div className="text-center py-16 bg-muted/30 border border-dashed rounded-xl">
-              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No jobs matched your search</h3>
+              <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <Briefcase className="h-8 w-8 text-muted-foreground opacity-60" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">No jobs matched your search</h3>
               <p className="text-muted-foreground mb-6">Try adjusting your filters or search terms to find what you're looking for.</p>
               <Button 
                 variant="outline"

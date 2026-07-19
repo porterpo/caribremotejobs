@@ -153,9 +153,9 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
         <Link href="/" className="flex items-center mr-6">
-          <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-14 w-auto" />
+          <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-18 w-auto" />
         </Link>
 
         {/* Desktop Nav */}
@@ -204,7 +204,7 @@ export function Navbar() {
             <SheetContent side="right" className="w-[240px] sm:w-[300px]">
               <div className="flex flex-col gap-6 mt-6">
                 <Link href="/" onClick={() => setOpen(false)}>
-                  <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-14 w-auto" />
+                  <img src={`${BASE}logo.png`} alt="CaribRemotejobs.com" className="h-18 w-auto" />
                 </Link>
                 <div className="flex flex-col gap-3">
                   {navigation.map((item) => (

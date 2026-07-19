@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState, useMemo, useEffect } from "react";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
   BarChart,
@@ -694,22 +695,35 @@ export default function Admin() {
 
   return (
     <PageLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage platform content and settings.</p>
-          </div>
-          
-          <Button 
-            onClick={handleSyncJobs} 
-            disabled={syncJobs.isPending}
-            className="shrink-0"
-          >
-            {syncJobs.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sync Jobs API
-          </Button>
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
         </div>
+        <div className="container mx-auto px-4 py-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+          >
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Manage platform content and settings.</p>
+            </div>
+            <Button
+              onClick={handleSyncJobs}
+              disabled={syncJobs.isPending}
+              className="shrink-0"
+            >
+              {syncJobs.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sync Jobs API
+            </Button>
+          </motion.div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <Card>
@@ -717,7 +731,7 @@ export default function Admin() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Jobs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalJobs || 0}</div>
+              <div className="text-2xl font-extrabold">{stats?.totalJobs || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -725,7 +739,7 @@ export default function Admin() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Companies</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalCompanies || 0}</div>
+              <div className="text-2xl font-extrabold">{stats?.totalCompanies || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -733,7 +747,7 @@ export default function Admin() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Alert Subscribers</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.alertSubscribers || 0}</div>
+              <div className="text-2xl font-extrabold">{stats?.alertSubscribers || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -741,7 +755,7 @@ export default function Admin() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Caribbean Friendly</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.caribbeanFriendlyJobs || 0}</div>
+              <div className="text-2xl font-extrabold">{stats?.caribbeanFriendlyJobs || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -753,12 +767,12 @@ export default function Admin() {
           <CardContent>
             <div className="flex flex-wrap items-center gap-6">
               <div>
-                <div className="text-2xl font-bold">{orderStats?.totalPaid ?? 0}</div>
+                <div className="text-2xl font-extrabold">{orderStats?.totalPaid ?? 0}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Total orders</div>
               </div>
               <div className="h-8 w-px bg-border hidden sm:block" />
               <div>
-                <div className="text-2xl font-bold text-green-700">
+                <div className="text-2xl font-extrabold text-green-700">
                   ${((orderStats?.totalRevenue ?? 0) / 100).toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">Total revenue</div>
@@ -903,7 +917,10 @@ export default function Admin() {
           <TabsContent value="pending">
             <Card>
               <CardHeader>
-                <CardTitle>Pending Job Review</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Pending Job Review</CardTitle>
+                </div>
                 <CardDescription>Jobs submitted by employers awaiting approval before going live.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -991,7 +1008,10 @@ export default function Admin() {
           <TabsContent value="orders">
             <Card>
               <CardHeader>
-                <CardTitle>Job Posting Orders</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Job Posting Orders</CardTitle>
+                </div>
                 <CardDescription>
                   All paid job posting orders. Orders flagged in red are missing a confirmation or job submission email.
                 </CardDescription>
@@ -1261,7 +1281,10 @@ export default function Admin() {
           <TabsContent value="jobs">
             <Card>
               <CardHeader>
-                <CardTitle>Job Listings</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Job Listings</CardTitle>
+                </div>
                 <CardDescription>Approve, feature, and manage job postings.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -1339,7 +1362,10 @@ export default function Admin() {
           <TabsContent value="companies">
             <Card>
               <CardHeader>
-                <CardTitle>Companies</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Companies</CardTitle>
+                </div>
                 <CardDescription>Manage company profiles and Caribbean Friendly status.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -1402,7 +1428,10 @@ export default function Admin() {
           <TabsContent value="verified-employers">
             <Card>
               <CardHeader>
-                <CardTitle>Verified Employer Management</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Verified Employer Management</CardTitle>
+                </div>
                 <CardDescription>
                   Grant or revoke the Verified Employer badge. Eligibility requires ≥2 approved direct listings, a complete company profile (logo, description, website), and account age of 30+ days.
                 </CardDescription>
@@ -1625,7 +1654,10 @@ export default function Admin() {
           <TabsContent value="alerts">
             <Card>
               <CardHeader>
-                <CardTitle>Alert Subscribers</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Alert Subscribers</CardTitle>
+                </div>
                 <CardDescription>Users who have subscribed to email alerts.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -2042,7 +2074,10 @@ export default function Admin() {
           <TabsContent value="seeker-subscriptions">
             <Card>
               <CardHeader>
-                <CardTitle>Seeker Pro Subscriptions</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <CardTitle>Seeker Pro Subscriptions</CardTitle>
+                </div>
                 <CardDescription>All seeker Pro subscriptions. Filter by status to find at-risk or cancelled subscribers.</CardDescription>
               </CardHeader>
               <CardContent>

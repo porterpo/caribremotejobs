@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 interface ProfileData {
   id: number;
@@ -120,113 +121,130 @@ export default function ProfilePage() {
 
   return (
     <PageLayout>
-      <div className="max-w-2xl mx-auto px-4 py-10 w-full">
-        <div className="mb-8">
-          {showOnboarding ? (
-            <>
-              <h1 className="text-3xl font-bold text-foreground mb-2">
-                Let's get you set up
-              </h1>
-              <p className="text-muted-foreground">
-                Tell employers a bit about yourself. You can update this any time.
-              </p>
-            </>
-          ) : (
-            <>
-              <h1 className="text-3xl font-bold text-foreground mb-2">My Profile</h1>
-              <p className="text-muted-foreground">
-                Keep your profile up to date so employers can find you.
-              </p>
-            </>
-          )}
+      <div className="relative bg-muted/30 border-b overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
         </div>
+        <div className="max-w-2xl mx-auto px-4 py-10 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+            {showOnboarding ? (
+              <>
+                <h1 className="text-3xl font-extrabold text-foreground mb-2">
+                  Let's get you set up
+                </h1>
+                <p className="text-muted-foreground">
+                  Tell employers a bit about yourself. You can update this any time.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-3xl font-extrabold text-foreground mb-2">My Profile</h1>
+                <p className="text-muted-foreground">
+                  Keep your profile up to date so employers can find you.
+                </p>
+              </>
+            )}
+          </motion.div>
+        </div>
+      </div>
 
+      <div className="max-w-2xl mx-auto px-4 py-10 w-full">
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+              <div key={i} className="space-y-1.5">
+                <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                <div className="h-10 rounded-md bg-muted animate-pulse" />
+              </div>
             ))}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Display name</Label>
-              <Input
-                id="displayName"
-                placeholder="e.g. Marcus Thompson"
-                value={form.displayName}
-                onChange={handleChange("displayName")}
-              />
-            </div>
+          <div className="border rounded-xl p-8 bg-card shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Display name</Label>
+                <Input
+                  id="displayName"
+                  placeholder="e.g. Marcus Thompson"
+                  value={form.displayName}
+                  onChange={handleChange("displayName")}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="headline">Headline</Label>
-              <Input
-                id="headline"
-                placeholder="e.g. Full-Stack Engineer based in Barbados"
-                value={form.headline}
-                onChange={handleChange("headline")}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="headline">Headline</Label>
+                <Input
+                  id="headline"
+                  placeholder="e.g. Full-Stack Engineer based in Barbados"
+                  value={form.headline}
+                  onChange={handleChange("headline")}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="e.g. Bridgetown, Barbados"
-                value={form.location}
-                onChange={handleChange("location")}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  placeholder="e.g. Bridgetown, Barbados"
+                  value={form.location}
+                  onChange={handleChange("location")}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bio">Short bio</Label>
-              <Textarea
-                id="bio"
-                placeholder="A few sentences about your background and what you're looking for…"
-                rows={4}
-                value={form.bio}
-                onChange={handleChange("bio")}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="bio">Short bio</Label>
+                <Textarea
+                  id="bio"
+                  placeholder="A few sentences about your background and what you're looking for…"
+                  rows={4}
+                  value={form.bio}
+                  onChange={handleChange("bio")}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="linkedIn">LinkedIn URL</Label>
-              <Input
-                id="linkedIn"
-                type="url"
-                placeholder="https://linkedin.com/in/your-name"
-                value={form.linkedIn}
-                onChange={handleChange("linkedIn")}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="linkedIn">LinkedIn URL</Label>
+                <Input
+                  id="linkedIn"
+                  type="url"
+                  placeholder="https://linkedin.com/in/your-name"
+                  value={form.linkedIn}
+                  onChange={handleChange("linkedIn")}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="website">Personal website</Label>
-              <Input
-                id="website"
-                type="url"
-                placeholder="https://yoursite.com"
-                value={form.website}
-                onChange={handleChange("website")}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Personal website</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  placeholder="https://yoursite.com"
+                  value={form.website}
+                  onChange={handleChange("website")}
+                />
+              </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending
-                  ? "Saving…"
-                  : showOnboarding
-                  ? "Save & browse jobs"
-                  : "Save profile"}
-              </Button>
-              {!showOnboarding && (
-                <Button type="button" variant="ghost" onClick={() => navigate("/jobs")}>
-                  Cancel
+              <div className="flex items-center gap-3 pt-2">
+                <Button type="submit" disabled={saveMutation.isPending} className="shadow-md">
+                  {saveMutation.isPending
+                    ? "Saving…"
+                    : showOnboarding
+                    ? "Save & browse jobs"
+                    : "Save profile"}
                 </Button>
-              )}
-            </div>
-          </form>
+                {!showOnboarding && (
+                  <Button type="button" variant="ghost" onClick={() => navigate("/jobs")}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </PageLayout>

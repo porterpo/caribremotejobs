@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, X, Download, FileText, Upload, ExternalLink, CheckCircle2, Loader2, RefreshCw, Link2, Link2Off, Copy, Check, AlertTriangle, Briefcase } from "lucide-react";
 import { useSeo } from "@/lib/seo";
+import { motion } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -154,7 +155,9 @@ function ApplicationsHistorySection() {
   return (
     <section className="border rounded-xl p-6 bg-card space-y-4">
       <div className="flex items-center gap-3">
-        <Briefcase className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Briefcase className="h-5 w-5 text-primary" />
+        </div>
         <div>
           <h2 className="text-xl font-semibold">Application history</h2>
           <p className="text-sm text-muted-foreground">
@@ -170,7 +173,9 @@ function ApplicationsHistorySection() {
         </div>
       ) : isEmpty ? (
         <div className="text-center py-8 text-sm text-muted-foreground">
-          <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-40" />
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Briefcase className="h-7 w-7 text-muted-foreground opacity-60" />
+          </div>
           <p>You haven't applied to any jobs yet.</p>
           <p className="mt-1">
             <Link href="/jobs" className="text-primary hover:underline">
@@ -1068,56 +1073,70 @@ export default function ResumePage() {
       `}</style>
 
       <PageLayout>
-        <div className="max-w-3xl mx-auto px-4 py-10 w-full">
-          <div className="flex items-start justify-between mb-8 gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground mb-1">My Resume</h1>
-              <p className="text-muted-foreground">
-                Build a structured resume or upload a PDF — use either when applying for jobs.
-              </p>
-              {lastApplication && lastApplication.resumeType && (
-                <div className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-full px-3 py-1">
-                  {lastApplication.resumeType === "pdf" ? (
-                    <Upload className="h-3.5 w-3.5 shrink-0" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5 shrink-0" />
-                  )}
-                  <span>
-                    Last applied with{" "}
-                    <span className="font-medium text-foreground">
-                      {lastApplication.resumeType === "pdf" ? "uploaded PDF" : "built resume"}
-                    </span>
-                    {lastApplication.jobTitle && (
-                      <>
-                        {" "}for{" "}
-                        {lastApplication.jobId ? (
-                          <Link
-                            href={`/jobs/${lastApplication.jobId}`}
-                            className="font-medium text-foreground hover:underline"
-                          >
-                            {lastApplication.jobTitle}
-                          </Link>
-                        ) : (
-                          <span className="font-medium text-foreground">{lastApplication.jobTitle}</span>
-                        )}
-                      </>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-            {activeTab === "build" && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDownloadPdf}
-                className="shrink-0"
-                disabled={!form.summary && form.experience.length === 0 && form.education.length === 0 && form.skills.length === 0}
-              >
-                <Download className="h-4 w-4 mr-2" /> Download PDF
-              </Button>
-            )}
+        <div className="relative bg-muted/30 border-b overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/6 blur-3xl" />
           </div>
+          <div className="max-w-3xl mx-auto px-4 py-10 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+              className="flex items-start justify-between gap-4"
+            >
+              <div>
+                <h1 className="text-3xl font-extrabold text-foreground mb-1">My Resume</h1>
+                <p className="text-muted-foreground">
+                  Build a structured resume or upload a PDF — use either when applying for jobs.
+                </p>
+                {lastApplication && lastApplication.resumeType && (
+                  <div className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-full px-3 py-1">
+                    {lastApplication.resumeType === "pdf" ? (
+                      <Upload className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span>
+                      Last applied with{" "}
+                      <span className="font-medium text-foreground">
+                        {lastApplication.resumeType === "pdf" ? "uploaded PDF" : "built resume"}
+                      </span>
+                      {lastApplication.jobTitle && (
+                        <>
+                          {" "}for{" "}
+                          {lastApplication.jobId ? (
+                            <Link
+                              href={`/jobs/${lastApplication.jobId}`}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {lastApplication.jobTitle}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-foreground">{lastApplication.jobTitle}</span>
+                          )}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {activeTab === "build" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDownloadPdf}
+                  className="shrink-0"
+                  disabled={!form.summary && form.experience.length === 0 && form.education.length === 0 && form.skills.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Download PDF
+                </Button>
+              )}
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-4 py-10 w-full">
 
           {/* Tab toggle */}
           <div className="flex gap-1 p-1 bg-muted rounded-lg mb-8 w-fit">
@@ -1151,9 +1170,12 @@ export default function ResumePage() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                <div key={i} className="space-y-1.5">
+                  <div className="h-4 w-28 rounded bg-muted animate-pulse" />
+                  <div className="h-10 rounded-md bg-muted animate-pulse" />
+                </div>
               ))}
             </div>
           ) : activeTab === "upload" ? (
@@ -1173,7 +1195,7 @@ export default function ResumePage() {
               {/* Professional Summary */}
               <section className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
                   <h2 className="text-xl font-semibold">Professional Summary</h2>
                 </div>
                 <Textarea
@@ -1186,7 +1208,10 @@ export default function ResumePage() {
 
               {/* Work Experience */}
               <section className="space-y-3">
-                <h2 className="text-xl font-semibold">Work Experience</h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <h2 className="text-xl font-semibold">Work Experience</h2>
+                </div>
                 <ExperienceSection
                   entries={form.experience}
                   onChange={(experience) => setForm((prev) => ({ ...prev, experience }))}
@@ -1195,7 +1220,10 @@ export default function ResumePage() {
 
               {/* Education */}
               <section className="space-y-3">
-                <h2 className="text-xl font-semibold">Education</h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <h2 className="text-xl font-semibold">Education</h2>
+                </div>
                 <EducationSection
                   entries={form.education}
                   onChange={(education) => setForm((prev) => ({ ...prev, education }))}
@@ -1204,7 +1232,10 @@ export default function ResumePage() {
 
               {/* Skills */}
               <section className="space-y-3">
-                <h2 className="text-xl font-semibold">Skills</h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                  <h2 className="text-xl font-semibold">Skills</h2>
+                </div>
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     <Input
@@ -1251,7 +1282,10 @@ export default function ResumePage() {
           {/* Live Preview (build tab only) */}
           {!isLoading && activeTab === "build" && (form.summary || form.experience.length > 0 || form.education.length > 0 || form.skills.length > 0) && (
             <div className="mt-12 pt-8 border-t">
-              <h2 className="text-xl font-semibold mb-4">Preview</h2>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full shrink-0" />
+                <h2 className="text-xl font-semibold">Preview</h2>
+              </div>
               <ResumePreview form={form} displayName={displayName} />
             </div>
           )}

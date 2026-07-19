@@ -390,7 +390,7 @@ async function syncWorkingNomads(): Promise<SourceResult> {
 
 async function syncJobicy(): Promise<SourceResult> {
   try {
-    const response = await fetch("https://jobicy.com/api/v2/remote-jobs?count=50&geo=worldwide", {
+    const response = await fetch("https://jobicy.com/api/v2/remote-jobs?count=50&geo=latam", {
       headers: { "User-Agent": "CaribbeanRemote/1.0 (caribremotejobs.com)" },
     });
     if (!response.ok) return { synced: 0, skipped: 0, error: true };
@@ -460,78 +460,14 @@ async function syncJobicy(): Promise<SourceResult> {
   }
 }
 
-async function syncRemoteCo(): Promise<SourceResult> {
-  try {
-    const parser = new Parser();
-    const feed = await parser.parseURL("https://remote.co/remote-jobs/feed/");
-    const { db, jobsTable } = await import("@workspace/db");
-    let synced = 0, skipped = 0;
-    const seenSourceJobIds = new Set<string>();
-
-    for (const item of feed.items) {
-      const rawTitle = item.title ?? "";
-      const link = item.link ?? item.guid ?? "";
-      const description = item.content ?? item.contentSnippet ?? "";
-
-      if (!link) { skipped++; continue; }
-      if (!isInternationallyHiring(`${rawTitle} ${description}`)) { skipped++; continue; }
-
-      // Remote.co titles are "Job Title at Company Name" or plain "Job Title"
-      let jobTitle = rawTitle;
-      let companyName = "Unknown";
-      const atMatch = rawTitle.match(/^(.+?)\s+at\s+(.+)$/i);
-      if (atMatch) {
-        jobTitle = atMatch[1].trim();
-        companyName = atMatch[2].trim();
-      }
-
-      const sourceJobId = `remoteco-${link.replace(/[^a-z0-9]/gi, "-")}`;
-      seenSourceJobIds.add(sourceJobId);
-      const existing = await db.select({ id: jobsTable.id }).from(jobsTable).where(eq(jobsTable.sourceJobId, sourceJobId));
-      if (existing.length > 0) { skipped++; continue; }
-
-      const categories = (item.categories ?? []) as string[];
-      const category = (categories[0] ?? "other").toLowerCase().replace(/\s+/g, "-");
-      const summaryDescription = await generateJobSummary(jobTitle, companyName, description);
-      await db.insert(jobsTable).values({
-        title: jobTitle,
-        companyName,
-        companyLogo: null,
-        category,
-        jobType: "full-time",
-        description,
-        summaryDescription,
-        applyUrl: link,
-        source: "remoteco",
-        sourceJobId,
-        locationRestrictions: null,
-        caribbeanFriendly: true,
-        entryLevel: detectEntryLevel(jobTitle, description),
-        tags: categories.join(", ") || null,
-        featured: false,
-        approved: true,
-        postedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-      });
-      synced++;
-    }
-
-    await deleteMissingSourceJobs("remoteco", Array.from(seenSourceJobIds));
-    return { synced, skipped, error: false };
-  } catch (err) {
-    logger.error({ err }, "Error syncing from Remote.co");
-    return { synced: 0, skipped: 0, error: true };
-  }
-}
-
 export async function runJobSync(): Promise<SyncResult> {
-  const [remotive, wwr, remoteok, himalayas, workingnomads, jobicy, remoteco] = await Promise.all([
+  const [remotive, wwr, remoteok, himalayas, workingnomads, jobicy] = await Promise.all([
     syncRemotive(),
     syncWWR(),
     syncRemoteOK(),
     syncHimalayas(),
     syncWorkingNomads(),
     syncJobicy(),
-    syncRemoteCo(),
   ]);
 
   const all = [
@@ -541,7 +477,6 @@ export async function runJobSync(): Promise<SyncResult> {
     { name: "Himalayas", r: himalayas },
     { name: "Working Nomads", r: workingnomads },
     { name: "Jobicy", r: jobicy },
-    { name: "Remote.co", r: remoteco },
   ];
 
   const result: SyncResult = {
